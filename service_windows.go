@@ -7,8 +7,8 @@ import (
 )
 
 func NewService(name, displayName string) Service {
-	return &windowsService {
-		name: name,
+	return &windowsService{
+		name:        name,
 		displayName: displayName,
 	}
 }
@@ -18,39 +18,39 @@ type windowsService struct {
 }
 
 func (ws *windowsService) Install() error {
-	pathToBinary, err := GetModuleFileName()
+	pathToBinary, err := getModuleFileName()
 	if err != nil {
 		return err
 	}
 
-	scmManagerHandle, err := OpenSCManager()
+	scmManagerHandle, err := openSCManager()
 	if err != nil {
 		return err
 	}
-	defer CloseServiceHandle(scmManagerHandle)
+	defer closeServiceHandle(scmManagerHandle)
 
-	serviceHandle, err := CreateService(scmManagerHandle, ws.name, ws.displayName, pathToBinary)
+	serviceHandle, err := createService(scmManagerHandle, ws.name, ws.displayName, pathToBinary)
 	if err != nil {
 		return err
 	}
-	defer CloseServiceHandle(serviceHandle)
+	defer closeServiceHandle(serviceHandle)
 	return nil
 }
 
 func (ws *windowsService) Remove() error {
-	scmManagerHandle, err := OpenSCManager()
+	scmManagerHandle, err := openSCManager()
 	if err != nil {
 		return err
 	}
-	defer CloseServiceHandle(scmManagerHandle)
+	defer closeServiceHandle(scmManagerHandle)
 
-	serviceHandle, err := OpenService(scmManagerHandle, ws.name)
+	serviceHandle, err := openService(scmManagerHandle, ws.name)
 	if err != nil {
 		return err
 	}
-	defer CloseServiceHandle(serviceHandle)
+	defer closeServiceHandle(serviceHandle)
 
-	err = DeleteService(serviceHandle)
+	err = deleteService(serviceHandle)
 	if err != nil {
 		return err
 	}
@@ -75,17 +75,17 @@ func (ws *windowsService) LogInfo(text string) error {
 var (
 	advapi = syscall.MustLoadDLL("advapi32.dll")
 
-	createServiceProc              = advapi.MustFindProc("CreateServiceW")
-	openServiceProc                = advapi.MustFindProc("OpenServiceW")
-	deleteServiceProc              = advapi.MustFindProc("DeleteService")
-	closeServiceHandleProc         = advapi.MustFindProc("CloseServiceHandle")
+	createServiceProc      = advapi.MustFindProc("CreateServiceW")
+	openServiceProc        = advapi.MustFindProc("OpenServiceW")
+	deleteServiceProc      = advapi.MustFindProc("DeleteService")
+	closeServiceHandleProc = advapi.MustFindProc("CloseServiceHandle")
 
 	openEventLogProc          = advapi.MustFindProc("OpenEventLogW")
 	registerEventSourceProc   = advapi.MustFindProc("RegisterEventSourceW")
 	deregisterEventSourceProc = advapi.MustFindProc("DeregisterEventSource")
 	reportEventProc           = advapi.MustFindProc("ReportEventW")
 
-	openSCManagerProc                = advapi.MustFindProc("OpenSCManagerW")
+	openSCManagerProc = advapi.MustFindProc("OpenSCManagerW")
 
 	kernel = syscall.MustLoadDLL("kernel32.dll")
 
@@ -107,8 +107,7 @@ const (
 	_SC_MANAGER_QUERY_LOCK_STATUS  = 0x0010
 	_SC_MANAGER_MODIFY_BOOT_CONFIG = 0x0020
 
-	_SC_MANAGER_ALL_ACCESS = (
-		_STANDARD_RIGHTS_REQUIRED |
+	_SC_MANAGER_ALL_ACCESS = (_STANDARD_RIGHTS_REQUIRED |
 		_SC_MANAGER_CONNECT |
 		_SC_MANAGER_CREATE_SERVICE |
 		_SC_MANAGER_ENUMERATE_SERVICE |
@@ -128,8 +127,7 @@ const (
 	_SERVICE_INTERROGATE          = 0x0080
 	_SERVICE_USER_DEFINED_CONTROL = 0x0100
 
-	_SERVICE_ALL_ACCESS = (
-		_STANDARD_RIGHTS_REQUIRED |
+	_SERVICE_ALL_ACCESS = (_STANDARD_RIGHTS_REQUIRED |
 		_SERVICE_QUERY_CONFIG |
 		_SERVICE_CHANGE_CONFIG |
 		_SERVICE_QUERY_STATUS |
@@ -142,10 +140,11 @@ const (
 )
 
 type eventLevel uint32
+
 const (
-	levelError eventLevel = 0x0001
+	levelError   eventLevel = 0x0001
 	levelWarning eventLevel = 0x0002
-	levelInfo eventLevel = 0x0004
+	levelInfo    eventLevel = 0x0004
 )
 
 func writeToEventLog(title, text string, level eventLevel) error {
@@ -180,6 +179,7 @@ func deregisterEventSource(eventSrouce syscall.Handle) error {
 	}
 	return nil
 }
+
 /*
 const (
 	_EVENTLOG_ERROR_TYPE       = 0x0001
@@ -195,7 +195,7 @@ func reportEvent(eventSource syscall.Handle, title, text string, level eventLeve
 	r0, _, e1 := reportEventProc.Call(
 		uintptr(eventSource),
 		uintptr(level), //type
-		uintptr(0),                         //category
+		uintptr(0),     //category
 		//uintptr(0xC0020001), //eventID
 		uintptr(3), //eventID
 		uintptr(0),
@@ -209,14 +209,14 @@ func reportEvent(eventSource syscall.Handle, title, text string, level eventLeve
 	return nil
 }
 
-func CloseServiceHandle(service syscall.Handle) error {
+func closeServiceHandle(service syscall.Handle) error {
 	r0, _, e1 := closeServiceHandleProc.Call(uintptr(service))
 	if r0 == 0 {
 		return e1
 	}
 	return nil
 }
-func CreateService(scManager syscall.Handle, serviceName, serviceDisplayName, pathToBinary string) (syscall.Handle, error) {
+func createService(scManager syscall.Handle, serviceName, serviceDisplayName, pathToBinary string) (syscall.Handle, error) {
 	r0, _, e1 := createServiceProc.Call(
 		uintptr(scManager),
 		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(serviceName))),
@@ -232,21 +232,21 @@ func CreateService(scManager syscall.Handle, serviceName, serviceDisplayName, pa
 	}
 	return syscall.Handle(r0), nil
 }
-func DeleteService(serviceHandle syscall.Handle) error {
+func deleteService(serviceHandle syscall.Handle) error {
 	r0, _, e1 := deleteServiceProc.Call(uintptr(serviceHandle))
 	if r0 == 0 {
 		return e1
 	}
 	return nil
 }
-func OpenService(scManager syscall.Handle, serviceName string) (syscall.Handle, error) {
+func openService(scManager syscall.Handle, serviceName string) (syscall.Handle, error) {
 	r0, _, e1 := openServiceProc.Call(uintptr(scManager), uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(serviceName))), uintptr(uint32(_SC_MANAGER_ALL_ACCESS)))
 	if r0 == 0 {
 		return syscall.Handle(0), e1
 	}
 	return syscall.Handle(r0), nil
 }
-func GetModuleFileName() (string, error) {
+func getModuleFileName() (string, error) {
 	var n uint32
 	b := make([]uint16, syscall.MAX_PATH)
 	size := uint32(len(b))
@@ -259,7 +259,7 @@ func GetModuleFileName() (string, error) {
 	return string(utf16.Decode(b[0:n])), nil
 }
 
-func OpenSCManager() (syscall.Handle, error) {
+func openSCManager() (syscall.Handle, error) {
 	r0, _, e1 := openSCManagerProc.Call(uintptr(0), uintptr(0), uintptr(uint32(_SC_MANAGER_ALL_ACCESS)))
 	if r0 == 0 {
 		return syscall.Handle(0), e1

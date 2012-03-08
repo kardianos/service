@@ -1,10 +1,24 @@
+// Package service provides a simple way to create a system service.
+// Currently only supprts Windows.
 package service
 
+// Represents a generic way to interact with the system's service.
 type Service interface {
+	// Installs this service on the system.  May return an
+	// error if this service is already installed.
 	Install() error
+
+	// Removes this service from the system.  May return an
+	// error if this service is not already installed.
 	Remove() error
+
+	// Call quickly after initial entry point.  Does not return until
+	// service is ready to stop.  onStart is called when the service is
+	// starting, returning an error will fail to start the service.
+	// Both callbacks should return quickly and not block.
 	Run(onStart, onStop func() error) error
-	
+
+	// Basic log functions in the context of the service.
 	LogError(text string) error
 	LogWarning(text string) error
 	LogInfo(text string) error

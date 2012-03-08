@@ -1,15 +1,15 @@
 package main
 
 import (
+	"../../service"
 	"fmt"
 	"os"
-	"../../service"
 )
 
 func main() {
 	var displayName = "Go Service Test2"
 	var ws = service.NewService("GoServiceTest2", displayName)
-	
+
 	if len(os.Args) > 1 {
 		var err error
 		verb := os.Args[1]
