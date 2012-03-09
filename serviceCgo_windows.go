@@ -198,7 +198,7 @@ import (
 // Starts a windows service routine.  Service must be registered first.
 // Call blocks until an error occurs or the service stops.  If onStart returns
 // an error, service will not start.  If onStop returns an error, the service will
-// not stop.
+// stop and return that error.
 func runService(serviceName string, onStart, onStop func() error) error {
 	// We alloc a c string here, but do not free it here
 	cname := C.CString(serviceName)
