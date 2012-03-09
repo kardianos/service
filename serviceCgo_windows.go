@@ -97,6 +97,7 @@ VOID WINAPI SvcMain( DWORD dwArgc, LPTSTR *lpszArgv )
 	goSigStart = 1;
 	WaitForSingleObject(goWaitStart, INFINITE);
 	if(goAckStart != 1) {
+		ReportSvcStatus( SERVICE_STOPPED, NO_ERROR, 0 );
 		return;
 	}
 
@@ -171,6 +172,7 @@ VOID WINAPI SvcCtrlHandler( DWORD dwCtrl ) {
 			goSigStop = 1;
 			WaitForSingleObject(goWaitStop, INFINITE);
 			if(goAckStop != 1) {
+				ReportSvcStatus( SERVICE_STOPPED, NO_ERROR, 0 );
 				return;
 			}
 
@@ -222,7 +224,7 @@ func runService(serviceName string, onStart, onStop func() error) error {
 				err := onStop()
 				if err != nil {
 					// An error was returned.
-					// Signal to NOT stop the service.
+					// Will signal to stop service.
 					C.continueStop(-1)
 					retErr <- err
 					return

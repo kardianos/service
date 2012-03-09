@@ -15,6 +15,9 @@ type Service interface {
 	// Call quickly after initial entry point.  Does not return until
 	// service is ready to stop.  onStart is called when the service is
 	// starting, returning an error will fail to start the service.
+	// If an error is returned from onStop, the service will still stop.
+	// An error passed from onStart or onStop will be returned as
+	// an error from Run.
 	// Both callbacks should return quickly and not block.
 	Run(onStart, onStop func() error) error
 
