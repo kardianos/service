@@ -190,13 +190,11 @@ const (
 
 func reportEvent(eventSource syscall.Handle, title, text string, level eventLevel) error {
 	msg := [...]uintptr{
-		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(title))),
 		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(text)))}
 	r0, _, e1 := reportEventProc.Call(
 		uintptr(eventSource),
 		uintptr(level), //type
 		uintptr(0),     //category
-		//uintptr(0xC0020001), //eventID
 		uintptr(3), //eventID
 		uintptr(0),
 		uintptr(2),
