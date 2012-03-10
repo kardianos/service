@@ -41,6 +41,25 @@ func (ws *windowsService) Install() error {
 		return err
 	}
 
+	regKey, err := regCreateKey(`SYSTEM\CurrentControlSet\Services\Eventlog\Application\` + ws.name)
+	if err != nil {
+		return err
+	}
+	defer regCloseKey(regKey)
+
+	regSetKeyValue(regKey, "EventMessageFile", `%SystemRoot%\System32\EventCreate.exe`)
+	if err != nil {
+		return err
+	}
+	regSetKeyValue(regKey, "CustomSource", uint32(1))
+	if err != nil {
+		return err
+	}
+	regSetKeyValue(regKey, "TypesSupported", uint32(7))
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -58,6 +77,11 @@ func (ws *windowsService) Remove() error {
 	defer closeServiceHandle(serviceHandle)
 
 	err = deleteService(serviceHandle)
+	if err != nil {
+		return err
+	}
+
+	err = regDeleteKey(`SYSTEM\CurrentControlSet\Services\Eventlog\Application\` + ws.name)
 	if err != nil {
 		return err
 	}
@@ -96,6 +120,12 @@ var (
 
 	openSCManagerProc        = advapi.MustFindProc("OpenSCManagerW")
 	changeServiceConfig2Proc = advapi.MustFindProc("ChangeServiceConfig2W")
+
+	// Registry
+	regCloseKeyProc      = advapi.MustFindProc("RegCloseKey")
+	regSetKeyValueExProc = advapi.MustFindProc("RegSetValueExW")
+	regCreateKeyExProc   = advapi.MustFindProc("RegCreateKeyExW")
+	regDeleteKeyProc     = advapi.MustFindProc("RegDeleteKeyW")
 
 	// kernel32.dll
 	getModuleFileNameProc = kernel.MustFindProc("GetModuleFileNameW")
@@ -290,6 +320,121 @@ func changeServiceDescription(h syscall.Handle, desc string) error {
 		uintptr(unsafe.Pointer(msg)),
 	)
 	if r0 == 0 {
+		return e1
+	}
+	return nil
+}
+
+// registry functions
+
+/*
+LONG WINAPI RegCloseKey(
+  __in  HKEY hKey
+);
+LONG WINAPI RegSetValueExW(
+  __in        HKEY hKey,
+  __in_opt    LPCTSTR lpValueName,
+  __reserved  DWORD Reserved,
+  __in        DWORD dwType,
+  __in        const BYTE *lpData,
+  __in        DWORD cbData
+);
+LONG WINAPI RegCreateKeyExW(
+  __in        HKEY hKey,
+  __in        LPCTSTR lpSubKey,
+  __reserved  DWORD Reserved,
+  __in_opt    LPTSTR lpClass,
+  __in        DWORD dwOptions,
+  __in        REGSAM samDesired,
+  __in_opt    LPSECURITY_ATTRIBUTES lpSecurityAttributes,
+  __out       PHKEY phkResult,
+  __out_opt   LPDWORD lpdwDisposition
+);
+LONG WINAPI RegDeleteKeyExW(
+  __in        HKEY hKey,
+  __in        LPCTSTR lpSubKey,
+  __in        REGSAM samDesired,
+  __reserved  DWORD Reserved
+);
+*/
+
+func StringToUTF16PtrLen(s string) (ptr uintptr, l uintptr) {
+	u := syscall.StringToUTF16(s)
+	l = uintptr(len(u) * 2) //size in uint8, length of uint16
+	ptr = uintptr(unsafe.Pointer(&u[0]))
+	return
+}
+
+const (
+	_HKEY_LOCAL_MACHINE = 0x80000002
+
+	_REG_SZ    = 1
+	_REG_DWORD = 4
+
+	_KEY_ALL_ACCESS = 0xF003F
+)
+
+func regCloseKey(h syscall.Handle) error {
+	r0, _, e1 := regCloseKeyProc.Call(
+		uintptr(h),
+	)
+	if r0 != 0 {
+		return e1
+	}
+	return nil
+}
+
+func regSetKeyValue(h syscall.Handle, keyName string, data interface{}) error {
+	var dataPtr, dataLen, dataType uintptr
+	switch v := data.(type) {
+	case uint32:
+		dataPtr, dataLen = uintptr(unsafe.Pointer(&v)), 4
+		dataType = _REG_DWORD
+	case string:
+		// The comment on MSDN regarding escaping back-slashes, are c-lang specific.
+		// The API just takes a normal NUL terminated string, no special escaping required.
+		dataPtr, dataLen = StringToUTF16PtrLen(v)
+		dataType = _REG_SZ
+	}
+	r0, _, e1 := regSetKeyValueExProc.Call(
+		uintptr(h),
+		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(keyName))),
+		0,
+		dataType,
+		dataPtr,
+		dataLen,
+	)
+	if r0 != 0 {
+		return e1
+	}
+	return nil
+}
+
+func regCreateKey(keyName string) (h syscall.Handle, err error) {
+	r0, _, e1 := regCreateKeyExProc.Call(
+		uintptr(_HKEY_LOCAL_MACHINE),
+		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(keyName))),
+		0,
+		0, //class
+		0, //no options
+		uintptr(_KEY_ALL_ACCESS),
+		0, //no security
+		uintptr(unsafe.Pointer(&h)),
+		0, //can return if created or opened
+	)
+	if r0 != 0 {
+		err = e1
+		return
+	}
+	return
+}
+
+func regDeleteKey(keyName string) error {
+	r0, _, e1 := regDeleteKeyProc.Call(
+		uintptr(_HKEY_LOCAL_MACHINE),
+		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(keyName))),
+	)
+	if r0 != 0 {
 		return e1
 	}
 	return nil
