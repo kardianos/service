@@ -3,6 +3,7 @@ package service
 import (
 	"syscall"
 	"unicode/utf16"
+	"fmt"
 	"unsafe"
 )
 
@@ -93,14 +94,14 @@ func (ws *windowsService) Run(onStart, onStop func() error) error {
 	return runService(ws.name, onStart, onStop)
 }
 
-func (ws *windowsService) LogError(text string) error {
-	return writeToEventLog(ws.name, text, levelError)
+func (ws *windowsService) LogError(format string, a ...interface{}) error {
+	return writeToEventLog(ws.name, fmt.Sprintf(format, a ...), levelError)
 }
-func (ws *windowsService) LogWarning(text string) error {
-	return writeToEventLog(ws.name, text, levelWarning)
+func (ws *windowsService) LogWarning(format string, a ...interface{}) error {
+	return writeToEventLog(ws.name, fmt.Sprintf(format, a ...), levelWarning)
 }
-func (ws *windowsService) LogInfo(text string) error {
-	return writeToEventLog(ws.name, text, levelInfo)
+func (ws *windowsService) LogInfo(format string, a ...interface{}) error {
+	return writeToEventLog(ws.name, fmt.Sprintf(format, a ...), levelInfo)
 }
 
 var (

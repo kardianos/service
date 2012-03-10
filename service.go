@@ -22,7 +22,7 @@ type Service interface {
 	Run(onStart, onStop func() error) error
 
 	// Basic log functions in the context of the service.
-	LogError(text string) error
-	LogWarning(text string) error
-	LogInfo(text string) error
+	LogError(format string, a ...interface{}) error
+	LogWarning(format string, a ...interface{}) error
+	LogInfo(format string, a ...interface{}) error
 }
