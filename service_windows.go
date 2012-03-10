@@ -6,15 +6,16 @@ import (
 	"unsafe"
 )
 
-func NewService(name, displayName string) Service {
+func NewService(name, displayName, description string) Service {
 	return &windowsService{
 		name:        name,
 		displayName: displayName,
+		description: description,
 	}
 }
 
 type windowsService struct {
-	name, displayName string
+	name, displayName, description string
 }
 
 func (ws *windowsService) Install() error {
@@ -34,6 +35,12 @@ func (ws *windowsService) Install() error {
 		return err
 	}
 	defer closeServiceHandle(serviceHandle)
+
+	err = changeServiceDescription(serviceHandle, ws.description)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -74,7 +81,9 @@ func (ws *windowsService) LogInfo(text string) error {
 
 var (
 	advapi = syscall.MustLoadDLL("advapi32.dll")
+	kernel = syscall.MustLoadDLL("kernel32.dll")
 
+	//advapi32.dll
 	createServiceProc      = advapi.MustFindProc("CreateServiceW")
 	openServiceProc        = advapi.MustFindProc("OpenServiceW")
 	deleteServiceProc      = advapi.MustFindProc("DeleteService")
@@ -85,10 +94,10 @@ var (
 	deregisterEventSourceProc = advapi.MustFindProc("DeregisterEventSource")
 	reportEventProc           = advapi.MustFindProc("ReportEventW")
 
-	openSCManagerProc = advapi.MustFindProc("OpenSCManagerW")
+	openSCManagerProc        = advapi.MustFindProc("OpenSCManagerW")
+	changeServiceConfig2Proc = advapi.MustFindProc("ChangeServiceConfig2W")
 
-	kernel = syscall.MustLoadDLL("kernel32.dll")
-
+	// kernel32.dll
 	getModuleFileNameProc = kernel.MustFindProc("GetModuleFileNameW")
 )
 
@@ -195,7 +204,7 @@ func reportEvent(eventSource syscall.Handle, title, text string, level eventLeve
 		uintptr(eventSource),
 		uintptr(level), //type
 		uintptr(0),     //category
-		uintptr(3), //eventID
+		uintptr(1),     //eventID
 		uintptr(0),
 		uintptr(2),
 		uintptr(0),
@@ -263,4 +272,25 @@ func openSCManager() (syscall.Handle, error) {
 		return syscall.Handle(0), e1
 	}
 	return syscall.Handle(r0), nil
+}
+
+const (
+	_SERVICE_CONFIG_DESCRIPTION = 1
+)
+
+func changeServiceDescription(h syscall.Handle, desc string) error {
+	msg := &struct {
+		desc uintptr
+	}{
+		desc: uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(desc))),
+	}
+	r0, _, e1 := changeServiceConfig2Proc.Call(
+		uintptr(h),
+		uintptr(_SERVICE_CONFIG_DESCRIPTION),
+		uintptr(unsafe.Pointer(msg)),
+	)
+	if r0 == 0 {
+		return e1
+	}
+	return nil
 }

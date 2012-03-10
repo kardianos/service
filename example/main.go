@@ -8,7 +8,8 @@ import (
 
 func main() {
 	var displayName = "Go Service Test2"
-	var ws = service.NewService("GoServiceTest2", displayName)
+	var desc = "This is a test Go service.  It is designed to run well."
+	var ws = service.NewService("GoServiceTest2", displayName, desc)
 
 	if len(os.Args) > 1 {
 		var err error
