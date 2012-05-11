@@ -104,6 +104,10 @@ func (ws *windowsService) LogInfo(format string, a ...interface{}) error {
 	return writeToEventLog(ws.name, fmt.Sprintf(format, a ...), levelInfo)
 }
 
+func getExePath() (exePath string, err error) {
+	return getModuleFileName()
+}
+
 var (
 	advapi = syscall.MustLoadDLL("advapi32.dll")
 	kernel = syscall.MustLoadDLL("kernel32.dll")
