@@ -1,11 +1,11 @@
 package service
 
 import (
-	"os"
 	"fmt"
 	"log/syslog"
-	"text/template"
+	"os"
 	"os/signal"
+	"text/template"
 )
 
 func newService(name, displayName, description string) (s *linuxUpstartService, err error) {
@@ -47,17 +47,17 @@ func (s *linuxUpstartService) Install() error {
 	}
 
 	var to = &struct {
-		Display string
+		Display     string
 		Description string
-		Path string
-	} {
+		Path        string
+	}{
 		s.displayName,
 		s.description,
 		path,
 	}
 
 	t := template.Must(template.New("upstartScript").Parse(upstartScript))
-	err = t.Execute(f,to)
+	err = t.Execute(f, to)
 
 	if err != nil {
 		return err
@@ -82,7 +82,7 @@ func (s *linuxUpstartService) Run(onStart, onStop func() error) error {
 
 	signal.Notify(sigChan, os.Kill)
 
-	<- sigChan
+	<-sigChan
 
 	return onStop()
 }
