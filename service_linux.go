@@ -80,7 +80,7 @@ func (s *linuxUpstartService) Run(onStart, onStop func() error) error {
 
 	var sigChan = make(chan os.Signal, 3)
 
-	signal.Notify(sigChan, os.Kill)
+	signal.Notify(sigChan, os.Interrupt, os.Kill)
 
 	<-sigChan
 
@@ -107,6 +107,8 @@ description     "{{.Display}}"
 
 start on filesystem or runlevel [2345]
 stop on runlevel [!2345]
+
+kill signal INT
 
 respawn
 respawn limit 10 5
