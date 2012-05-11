@@ -7,7 +7,7 @@ import (
 	"unsafe"
 )
 
-func NewService(name, displayName, description string) Service {
+func newService(name, displayName, description string) Service {
 	return &windowsService{
 		name:        name,
 		displayName: displayName,

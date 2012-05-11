@@ -1,6 +1,14 @@
 // Package service provides a simple way to create a system service.
-// Currently only supprts Windows.
+// Currently only supports Windows.
 package service
+
+// Creates a new service. name is the internal name
+// and should not contain spaces. Display name is the pretty print
+// name. The description is an arbitrary string used to describe the
+// service.
+func NewService(name, displayName, description string) Service {
+	return newService(name, displayName, description)
+}
 
 // Represents a generic way to interact with the system's service.
 type Service interface {
