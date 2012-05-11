@@ -6,7 +6,7 @@ package service
 // and should not contain spaces. Display name is the pretty print
 // name. The description is an arbitrary string used to describe the
 // service.
-func NewService(name, displayName, description string) Service {
+func NewService(name, displayName, description string) (Service, error) {
 	return newService(name, displayName, description)
 }
 

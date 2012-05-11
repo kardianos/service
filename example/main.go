@@ -9,7 +9,12 @@ import (
 func main() {
 	var displayName = "Go Service Test2"
 	var desc = "This is a test Go service.  It is designed to run well."
-	var ws = service.NewService("GoServiceTest2", displayName, desc)
+	var ws, err = service.NewService("GoServiceTest2", displayName, desc)
+
+	if(err != nil) {
+		fmt.Printf("%s unable to start: %s", displayName, err)
+		return
+	}
 
 	if len(os.Args) > 1 {
 		var err error
@@ -28,11 +33,11 @@ func main() {
 				fmt.Printf("Failed to remove: %s\n", err)
 				return
 			}
-			fmt.Printf("Service \"%s\" removed.", displayName)
+			fmt.Printf("Service \"%s\" removed.\n", displayName)
 		}
 		return
 	}
-	err := ws.Run(func() error {
+	err = ws.Run(func() error {
 		// start
 		go doWork()
 		ws.LogInfo("I'm Running!")

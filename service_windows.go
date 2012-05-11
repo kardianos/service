@@ -7,12 +7,12 @@ import (
 	"unsafe"
 )
 
-func newService(name, displayName, description string) Service {
+func newService(name, displayName, description string) (*windowsService, error) {
 	return &windowsService{
 		name:        name,
 		displayName: displayName,
 		description: description,
-	}
+	}, nil
 }
 
 type windowsService struct {
