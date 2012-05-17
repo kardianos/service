@@ -108,6 +108,8 @@ description     "{{.Display}}"
 start on filesystem or runlevel [2345]
 stop on runlevel [!2345]
 
+#setuid username
+
 kill signal INT
 
 respawn
