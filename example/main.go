@@ -1,17 +1,18 @@
 package main
 
 import (
-	"../../service"
+	"bitbucket.org/kardianos/service"
 	"fmt"
 	"os"
 )
 
 func main() {
-	var displayName = "Go Service Test2"
+	var name = "GoServiceTest"
+	var displayName = "Go Service Test"
 	var desc = "This is a test Go service.  It is designed to run well."
-	var ws, err = service.NewService("GoServiceTest2", displayName, desc)
+	var ws, err = service.NewService(name, displayName, desc)
 
-	if(err != nil) {
+	if err != nil {
 		fmt.Printf("%s unable to start: %s", displayName, err)
 		return
 	}
