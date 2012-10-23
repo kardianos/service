@@ -1,4 +1,4 @@
-service will install / un-install and run a program as a service (daemon).
-Currently supports Windows XP+ and Linux/Upstart.
+service will install / un-install, start / stop, and run a program as a service (daemon).
+Currently supports Windows XP+, Linux/Upstart, and OSX/Launchd.
 
 To start out follow "example/main.go".

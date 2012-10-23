@@ -1,5 +1,5 @@
 // Package service provides a simple way to create a system service.
-// Currently supports Windows, Linux/Upstart, OSX/Launchd.
+// Currently supports Windows, Linux/Upstart, and OSX/Launchd.
 package service
 
 // Creates a new service. name is the internal name
