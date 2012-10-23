@@ -1,5 +1,5 @@
 // Package service provides a simple way to create a system service.
-// Currently supports Windows and Linux/Upstart.
+// Currently supports Windows, Linux/Upstart, OSX/Launchd.
 package service
 
 // Creates a new service. name is the internal name
@@ -12,14 +12,14 @@ func NewService(name, displayName, description string) (Service, error) {
 
 // Represents a generic way to interact with the system's service.
 type Service interface {
-	// Installs this service on the system.  May return an
-	// error if this service is already installed.
-	Install() error
+	Installer
+	Controller
+	Runner
+	Logger
+}
 
-	// Removes this service from the system.  May return an
-	// error if this service is not already installed.
-	Remove() error
-
+// A Generic way to stop and start a service.
+type Runner interface {
 	// Call quickly after initial entry point.  Does not return until
 	// service is ready to stop.  onStart is called when the service is
 	// starting, returning an error will fail to start the service.
@@ -28,7 +28,31 @@ type Service interface {
 	// an error from Run.
 	// Both callbacks should return quickly and not block.
 	Run(onStart, onStop func() error) error
+}
 
+// Simple install and remove commands.
+type Installer interface {
+	// Installs this service on the system.  May return an
+	// error if this service is already installed.
+	Install() error
+
+	// Removes this service from the system.  May return an
+	// error if this service is not already installed.
+	Remove() error
+}
+
+// A service that implements ServiceController is able to
+// start and stop itself.
+type Controller interface {
+	// Starts this service on the system.
+	Start() error
+
+	// Stops this service on the system.
+	Stop() error
+}
+
+// A service that implements ServiceLogger can perform simple system logging.
+type Logger interface {
 	// Basic log functions in the context of the service.
 	LogError(format string, a ...interface{}) error
 	LogWarning(format string, a ...interface{}) error

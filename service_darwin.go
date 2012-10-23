@@ -5,8 +5,8 @@ package service
 #include <string.h>
 
 int
-GetExecPath(char* path) {
-	uint32_t size = 32*1024;
+GetExecPath(char* path, int bufferSize) {
+	uint32_t size = bufferSize;
 	if (_NSGetExecutablePath(path, &size) == 0) {
 		// Despite Apple docs, size does NOT get set in call.
 		return strlen(path);
@@ -28,7 +28,8 @@ import (
 	"text/template"
 )
 
-// BUG(kardia): I have not confirmed this service works as intended on launchd.
+const maxPathSize = 32 * 1024
+
 func newService(name, displayName, description string) (s *darwinLaunchdService, err error) {
 	s = &darwinLaunchdService{
 		name:        name,
@@ -83,30 +84,26 @@ func (s *darwinLaunchdService) Install() error {
 		path,
 	}
 
-	t := template.Must(template.New("upstartScript").Parse(upstartScript))
-	err = t.Execute(f, to)
-
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command("launchctl", "load", confPath)
-	err = cmd.Run()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	t := template.Must(template.New("launchdConfig").Parse(launchdConfig))
+	return t.Execute(f, to)
 }
 
 func (s *darwinLaunchdService) Remove() error {
+	s.Stop()
+
+	confPath := s.getServiceFilePath()
+	return os.Remove(confPath)
+}
+
+func (s *darwinLaunchdService) Start() error {
+	confPath := s.getServiceFilePath()
+	cmd := exec.Command("launchctl", "load", confPath)
+	return cmd.Run()
+}
+func (s *darwinLaunchdService) Stop() error {
 	confPath := s.getServiceFilePath()
 	cmd := exec.Command("launchctl", "unload", confPath)
-	err := cmd.Run()
-
-	// Don't worry about his error if not found.
-	os.Remove(confPath)
-	return err
+	return cmd.Run()
 }
 
 func (s *darwinLaunchdService) Run(onStart, onStop func() error) error {
@@ -137,8 +134,8 @@ func (s *darwinLaunchdService) LogInfo(format string, a ...interface{}) error {
 }
 
 func getExePath() (exePath string, err error) {
-	buffer := make([]byte, 32*1024)
-	size := C.GetExecPath((*C.char)(unsafe.Pointer(&buffer[0])))
+	buffer := make([]byte, maxPathSize)
+	size := C.GetExecPath((*C.char)(unsafe.Pointer(&buffer[0])), maxPathSize)
 	if size == 0 {
 		return "", errors.New("Unable to get exec path.")
 	}
@@ -147,7 +144,7 @@ func getExePath() (exePath string, err error) {
 	return ret, nil
 }
 
-var upstartScript = `<?xml version='1.0' encoding='UTF-8'?>
+var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN"
 "http://www.apple.com/DTDs/PropertyList-1.0.dtd" >
 <plist version='1.0'>

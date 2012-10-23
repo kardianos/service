@@ -124,6 +124,37 @@ func (ws *windowsService) Run(onStart, onStop func() error) error {
 	return svc.Run(ws.name, ws)
 }
 
+func (ws *windowsService) Start() error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer m.Disconnect()
+
+	s, err := m.OpenService(ws.name)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	return s.Start([]string{})
+}
+
+func (ws *windowsService) Stop() error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer m.Disconnect()
+
+	s, err := m.OpenService(ws.name)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	_, err = s.Control(svc.Stop)
+	return err
+}
+
 func (ws *windowsService) LogError(format string, a ...interface{}) error {
 	if ws.logger == nil {
 		return nil

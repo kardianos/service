@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log/syslog"
 	"os"
+	"os/exec"
 	"os/signal"
 	"text/template"
+	"path/filepath"
 )
 
 func newService(name, displayName, description string) (s *linuxUpstartService, err error) {
@@ -87,6 +89,16 @@ func (s *linuxUpstartService) Run(onStart, onStop func() error) error {
 	return onStop()
 }
 
+func (s *linuxUpstartService) Start() error {
+	cmd := exec.Command("start", s.name)
+	return cmd.Run()
+}
+
+func (s *linuxUpstartService) Stop() error {
+	cmd := exec.Command("stop", s.name)
+	return cmd.Run()
+}
+
 func (s *linuxUpstartService) LogError(format string, a ...interface{}) error {
 	return s.logger.Err(fmt.Sprintf(format, a...))
 }
@@ -98,7 +110,9 @@ func (s *linuxUpstartService) LogInfo(format string, a ...interface{}) error {
 }
 
 func getExePath() (exePath string, err error) {
-	return os.Readlink(`/proc/self/exe`)
+	exePath, err = os.Readlink(`/proc/self/exe`)
+	exePath = filepath.Clean(exePath)
+	return
 }
 
 var upstartScript = `# {{.Description}}
