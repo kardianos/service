@@ -1,25 +1,7 @@
 package service
 
-/*
-#include <mach-o/dyld.h>
-#include <string.h>
-
-int
-GetExecPath(char* path, int bufferSize) {
-	uint32_t size = bufferSize;
-	if (_NSGetExecutablePath(path, &size) == 0) {
-		// Despite Apple docs, size does NOT get set in call.
-		return strlen(path);
-	} else {
-		return 0;
-	}
-}
-*/
-import "C"
-
 import (
-	"unsafe"
-	"errors"
+	"bitbucket.org/kardianos/osext"
 	"fmt"
 	"log/syslog"
 	"os"
@@ -67,7 +49,7 @@ func (s *darwinLaunchdService) Install() error {
 	}
 	defer f.Close()
 
-	path, err := getExePath()
+	path, err := osext.Executable()
 	if err != nil {
 		return err
 	}
@@ -131,17 +113,6 @@ func (s *darwinLaunchdService) LogWarning(format string, a ...interface{}) error
 }
 func (s *darwinLaunchdService) LogInfo(format string, a ...interface{}) error {
 	return s.logger.Info(fmt.Sprintf(format, a...))
-}
-
-func getExePath() (exePath string, err error) {
-	buffer := make([]byte, maxPathSize)
-	size := C.GetExecPath((*C.char)(unsafe.Pointer(&buffer[0])), maxPathSize)
-	if size == 0 {
-		return "", errors.New("Unable to get exec path.")
-	}
-	buffer = buffer[:size]
-	ret := string(buffer)
-	return ret, nil
 }
 
 var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>

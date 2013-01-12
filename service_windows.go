@@ -1,13 +1,11 @@
 package service
 
 import (
-	"syscall"
-	"unicode/utf16"
-	"fmt"
-	"unsafe"
-	"code.google.com/p/winsvc/svc"
-	"code.google.com/p/winsvc/mgr"
+	"bitbucket.org/kardianos/osext"
 	"code.google.com/p/winsvc/eventlog"
+	"code.google.com/p/winsvc/mgr"
+	"code.google.com/p/winsvc/svc"
+	"fmt"
 )
 
 func newService(name, displayName, description string) (*windowsService, error) {
@@ -57,7 +55,7 @@ loop:
 }
 
 func (ws *windowsService) Install() error {
-	exepath, err := getExePath()
+	exepath, err := osext.Executable()
 	if err != nil {
 		return err
 	}
@@ -172,28 +170,4 @@ func (ws *windowsService) LogInfo(format string, a ...interface{}) error {
 		return nil
 	}
 	return ws.logger.Info(1, fmt.Sprintf(format, a...))
-}
-
-func getExePath() (exePath string, err error) {
-	return getModuleFileName()
-}
-
-var (
-	kernel = syscall.MustLoadDLL("kernel32.dll")
-
-	// kernel32.dll
-	getModuleFileNameProc = kernel.MustFindProc("GetModuleFileNameW")
-)
-
-func getModuleFileName() (string, error) {
-	var n uint32
-	b := make([]uint16, syscall.MAX_PATH)
-	size := uint32(len(b))
-
-	r0, _, e1 := getModuleFileNameProc.Call(0, uintptr(unsafe.Pointer(&b[0])), uintptr(size))
-	n = uint32(r0)
-	if n == 0 {
-		return "", e1
-	}
-	return string(utf16.Decode(b[0:n])), nil
 }

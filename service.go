@@ -2,6 +2,8 @@
 // Currently supports Windows, Linux/Upstart, and OSX/Launchd.
 package service
 
+import "bitbucket.org/kardianos/osext"
+
 // Creates a new service. name is the internal name
 // and should not contain spaces. Display name is the pretty print
 // name. The description is an arbitrary string used to describe the
@@ -59,9 +61,10 @@ type Logger interface {
 	LogInfo(format string, a ...interface{}) error
 }
 
+// Depreciated. Use osext.Executable instead.
 // Returns the full path of the running executable
 // as reported by the system. Includes the executable
 // image name.
 func GetExePath() (exePath string, err error) {
-	return getExePath()
+	return osext.Executable()
 }

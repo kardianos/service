@@ -1,13 +1,13 @@
 package service
 
 import (
+	"bitbucket.org/kardianos/osext"
 	"fmt"
 	"log/syslog"
 	"os"
 	"os/exec"
 	"os/signal"
 	"text/template"
-	"path/filepath"
 )
 
 func newService(name, displayName, description string) (s *linuxUpstartService, err error) {
@@ -43,7 +43,7 @@ func (s *linuxUpstartService) Install() error {
 	}
 	defer f.Close()
 
-	path, err := getExePath()
+	path, err := osext.Executable()
 	if err != nil {
 		return err
 	}
@@ -107,12 +107,6 @@ func (s *linuxUpstartService) LogWarning(format string, a ...interface{}) error 
 }
 func (s *linuxUpstartService) LogInfo(format string, a ...interface{}) error {
 	return s.logger.Info(fmt.Sprintf(format, a...))
-}
-
-func getExePath() (exePath string, err error) {
-	exePath, err = os.Readlink(`/proc/self/exe`)
-	exePath = filepath.Clean(exePath)
-	return
 }
 
 var upstartScript = `# {{.Description}}
