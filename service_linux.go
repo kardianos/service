@@ -99,13 +99,13 @@ func (s *linuxUpstartService) Stop() error {
 	return cmd.Run()
 }
 
-func (s *linuxUpstartService) LogError(format string, a ...interface{}) error {
+func (s *linuxUpstartService) Error(format string, a ...interface{}) error {
 	return s.logger.Err(fmt.Sprintf(format, a...))
 }
-func (s *linuxUpstartService) LogWarning(format string, a ...interface{}) error {
+func (s *linuxUpstartService) Warning(format string, a ...interface{}) error {
 	return s.logger.Warning(fmt.Sprintf(format, a...))
 }
-func (s *linuxUpstartService) LogInfo(format string, a ...interface{}) error {
+func (s *linuxUpstartService) Info(format string, a ...interface{}) error {
 	return s.logger.Info(fmt.Sprintf(format, a...))
 }
 

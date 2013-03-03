@@ -105,13 +105,13 @@ func (s *darwinLaunchdService) Run(onStart, onStop func() error) error {
 	return onStop()
 }
 
-func (s *darwinLaunchdService) LogError(format string, a ...interface{}) error {
+func (s *darwinLaunchdService) Error(format string, a ...interface{}) error {
 	return s.logger.Err(fmt.Sprintf(format, a...))
 }
-func (s *darwinLaunchdService) LogWarning(format string, a ...interface{}) error {
+func (s *darwinLaunchdService) Warning(format string, a ...interface{}) error {
 	return s.logger.Warning(fmt.Sprintf(format, a...))
 }
-func (s *darwinLaunchdService) LogInfo(format string, a ...interface{}) error {
+func (s *darwinLaunchdService) Info(format string, a ...interface{}) error {
 	return s.logger.Info(fmt.Sprintf(format, a...))
 }
 

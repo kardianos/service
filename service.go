@@ -56,9 +56,9 @@ type Controller interface {
 // A service that implements ServiceLogger can perform simple system logging.
 type Logger interface {
 	// Basic log functions in the context of the service.
-	LogError(format string, a ...interface{}) error
-	LogWarning(format string, a ...interface{}) error
-	LogInfo(format string, a ...interface{}) error
+	Error(format string, a ...interface{}) error
+	Warning(format string, a ...interface{}) error
+	Info(format string, a ...interface{}) error
 }
 
 // Depreciated. Use osext.Executable instead.

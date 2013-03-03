@@ -14,11 +14,11 @@ type Config struct {
 
 	// Called when the service starts or stops.
 	// Stop() may be nil.
-	Start, Stop func()
+	Start, Stop func(c *Config)
 
 	// Called after logging may be setup but before the service is started.
 	// Init() is optional and may be nil.
-	Init func()
+	Init func(c *Config)
 
 	s service.Service
 	l service.Logger
@@ -69,10 +69,10 @@ func Run(c *Config) {
 			c.l = ConsoleLogger{}
 			defer func() {
 				if c.Stop != nil {
-					c.Stop()
+					c.Stop(c)
 				}
 			}()
-			c.Start()
+			c.Start(c)
 		case "start":
 			err = s.Start()
 			if err != nil {
@@ -92,21 +92,21 @@ func Run(c *Config) {
 	}
 
 	if c.Init != nil {
-		c.Init()
+		c.Init(c)
 	}
 
 	err = s.Run(func() error {
 		// start
-		go c.Start()
+		go c.Start(c)
 		return nil
 	}, func() error {
 		// stop
 		if c.Stop != nil {
-			c.Stop()
+			c.Stop(c)
 		}
 		return nil
 	})
 	if err != nil {
-		c.l.LogError(err.Error())
+		c.l.Error(err.Error())
 	}
 }
