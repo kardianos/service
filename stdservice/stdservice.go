@@ -13,6 +13,7 @@ type Config struct {
 	Name, DisplayName, LongDescription string
 
 	// Called when the service starts or stops.
+	// Stop() may be nil.
 	Start, Stop func()
 
 	s service.Service
@@ -62,7 +63,11 @@ func Run(c *Config) {
 			fmt.Printf("Service \"%s\" removed.\n", c.DisplayName)
 		case "run":
 			c.l = ConsoleLogger{}
-			defer c.Stop()
+			defer func() {
+				if c.Stop != nil {
+					c.Stop()
+				}
+			}()
 			c.Start()
 		case "start":
 			err = s.Start()
@@ -87,7 +92,9 @@ func Run(c *Config) {
 		return nil
 	}, func() error {
 		// stop
-		c.Stop()
+		if c.Stop != nil {
+			c.Stop()
+		}
 		return nil
 	})
 	if err != nil {
