@@ -1,3 +1,18 @@
+/*
+Many services that run on different platforms cannot rely
+on flags to be passed for configuration. Some platforms
+require explicit install commands. This package handles the common
+boilerplate code. The following command may be passed to the
+executable as the first argument:
+	install | remove | run | start | stop
+
+These commands will do the following actions:
+	install - Install the running executable as a service on the system.
+	remove - Remove the running executable as a service on the system.
+	run - Run the service as a command line application, output log to prompt.
+	start - Starts the service via system controls.
+	stop - Stops the service via system controls.
+*/
 package stdservice
 
 import (
@@ -90,6 +105,8 @@ func Run(c *Config) {
 				return
 			}
 			fmt.Printf("Service \"%s\" stopped.\n", c.DisplayName)
+		default:
+			fmt.Printf("Options for \"%s\": (install | remove | run | start | stop)\n")
 		}
 		return
 	}
