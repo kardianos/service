@@ -16,6 +16,10 @@ type Config struct {
 	// Stop() may be nil.
 	Start, Stop func()
 
+	// Called after logging may be setup but before the service is started.
+	// Init() is optional and may be nil.
+	Init func()
+
 	s service.Service
 	l service.Logger
 }
@@ -86,6 +90,11 @@ func Run(c *Config) {
 		}
 		return
 	}
+
+	if c.Init != nil {
+		c.Init()
+	}
+
 	err = s.Run(func() error {
 		// start
 		go c.Start()
