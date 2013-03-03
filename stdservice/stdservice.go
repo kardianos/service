@@ -13,12 +13,14 @@ type Config struct {
 	Name, DisplayName, LongDescription string
 
 	// Called when the service starts or stops.
-	// Stop() may be nil.
+	// Stop may be nil.
 	Start, Stop func(c *Config)
 
 	// Called after logging may be setup but before the service is started.
-	// Init() is optional and may be nil.
-	Init func(c *Config)
+	// Init is optional and may be nil.
+	// If Init returns an error, that error is logged to the logger
+	// and the service start is aborted.
+	Init func(c *Config) error
 
 	s service.Service
 	l service.Logger
@@ -92,7 +94,11 @@ func Run(c *Config) {
 	}
 
 	if c.Init != nil {
-		c.Init(c)
+		err := c.Init(c)
+		if err != nil {
+			c.l.Error(err.Error())
+			return
+		}
 	}
 
 	err = s.Run(func() error {
