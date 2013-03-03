@@ -6,8 +6,8 @@ import (
 	"os"
 )
 
-// Standard service configuration. Start() can block as long as desired,
-// Stop() should not block for more then a second or two.
+// Standard service configuration. Start MUST block.
+// Stop MUST NOT block for more then a second or two.
 type Config struct {
 	// Used to register the service with the operating system.
 	Name, DisplayName, LongDescription string
