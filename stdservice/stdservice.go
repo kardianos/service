@@ -20,6 +20,7 @@ type Config struct {
 	// Init is optional and may be nil.
 	// If Init returns an error, that error is logged to the logger
 	// and the service start is aborted.
+	// Init should not block.
 	Init func(c *Config) error
 
 	s service.Service
