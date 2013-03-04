@@ -90,6 +90,13 @@ func Run(c *Config) {
 					c.Stop(c)
 				}
 			}()
+			if c.Init != nil {
+				err := c.Init(c)
+				if err != nil {
+					c.l.Error(err.Error())
+					return
+				}
+			}
 			c.Start(c)
 		case "start":
 			err = s.Start()
