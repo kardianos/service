@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-var localLog service.Logger
+var log service.Logger
 
 func main() {
 	var name = "GoServiceTest"
@@ -14,7 +14,7 @@ func main() {
 	var desc = "This is a test Go service.  It is designed to run well."
 
 	var s, err = service.NewService(name, displayName, desc)
-	localLog = s
+	log = s
 
 	if err != nil {
 		fmt.Printf("%s unable to start: %s", displayName, err)
@@ -68,14 +68,14 @@ func main() {
 		return nil
 	})
 	if err != nil {
-		s.LogError(err.Error())
+		s.Error(err.Error())
 	}
 }
 
 func doWork() {
-	localLog.LogInfo("I'm Running!")
+	log.Info("I'm Running!")
 	select {}
 }
 func stopWork() {
-	localLog.LogInfo("I'm Stopping!")
+	log.Info("I'm Stopping!")
 }
