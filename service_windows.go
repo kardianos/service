@@ -27,7 +27,7 @@ func (ws *windowsService) Execute(args []string, r <-chan svc.ChangeRequest, cha
 	changes <- svc.Status{State: svc.StartPending}
 
 	if err := ws.onStart(); err != nil {
-		ws.LogError(err.Error())
+		ws.Error(err.Error())
 		return true, 1
 	}
 
@@ -41,7 +41,7 @@ loop:
 		case svc.Stop, svc.Shutdown:
 			changes <- svc.Status{State: svc.StopPending}
 			if err := ws.onStop(); err != nil {
-				ws.LogError(err.Error())
+				ws.Error(err.Error())
 				changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 				continue loop
 			}
