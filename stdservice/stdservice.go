@@ -55,7 +55,16 @@ func (c *Config) Logger() service.Logger {
 // Fill in configuration, then call Run() to setup basic handling.
 // Blocks until program completes. Is intended to handle the standard
 // simple cases for running a service.
+func (c *Config) Run() {
+	run(c)
+}
+
+// Depreciated. Same as *Config.Run().
 func Run(c *Config) {
+	run(c)
+}
+
+func run(c *Config) {
 	var s, err = service.NewService(c.Name, c.DisplayName, c.LongDescription)
 	c.s = s
 	c.l = s
