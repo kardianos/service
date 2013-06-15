@@ -122,7 +122,7 @@ func run(c *Config) {
 			}
 			fmt.Printf("Service \"%s\" stopped.\n", c.DisplayName)
 		default:
-			fmt.Printf("Options for \"%s\": (install | remove | run | start | stop)\n")
+			fmt.Printf("Options for \"%s\": (install | remove | run | start | stop)\n", os.Args[0])
 		}
 		return
 	}
