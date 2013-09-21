@@ -22,8 +22,19 @@ func DecodeJsonConfig(r io.Reader, v interface{}) error {
 
 // Simple JSON based configuration encoder.
 func EncodeJsonConfig(w io.Writer, v interface{}) error {
-	e := json.NewEncoder(w)
-	return e.Encode(v)
+	bb, err := json.MarshalIndent(v, "", "\t")
+	if err != nil {
+		return err
+	}
+	n, tot := 0, 0
+	for {
+		n, err = w.Write(bb[tot:])
+		tot += n
+		if len(bb) == tot {
+			break
+		}
+	}
+	return err
 }
 
 // Return a configuration file path. If baseName is empty,
