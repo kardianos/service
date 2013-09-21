@@ -20,6 +20,12 @@ func DecodeJsonConfig(r io.Reader, v interface{}) error {
 	return d.Decode(v)
 }
 
+// Simple JSON based configuration encoder.
+func EncodeJsonConfig(w io.Writer, v interface{}) error {
+	e := json.NewEncoder(w)
+	return e.Encode(v)
+}
+
 // Return a configuration file path. If baseName is empty,
 // then the current executable name without the extension
 // is used. If postfix is empty then DefaultPostfix is used.
