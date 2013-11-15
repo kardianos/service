@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 const DefaultPostfix = "_config.json"
@@ -118,12 +119,26 @@ func NewWatchConfig(filepath string, decode DecodeConfig, defaultConfig interfac
 }
 
 func (wc *WatchConfig) run() {
+	// Work around watch events being sent more then once.
+	ticker := time.NewTicker(time.Second)
+	trigger := false
+	waitOnce := false
 	for {
 		select {
 		case <-wc.close:
 			return
 		case <-wc.watch.Event:
-			wc.C <- wc
+			trigger = true
+		case <-ticker.C:
+			// Think of this as a PLC state machine.
+			if trigger && waitOnce {
+				wc.C <- wc
+				trigger = false
+				waitOnce = false
+			}
+			if trigger && !waitOnce {
+				waitOnce = true
+			}
 		}
 	}
 }
