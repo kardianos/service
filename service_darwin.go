@@ -112,7 +112,7 @@ func (s *darwinLaunchdService) Warning(format string, a ...interface{}) error {
 	return s.logger.Warning(fmt.Sprintf(format, a...))
 }
 func (s *darwinLaunchdService) Info(format string, a ...interface{}) error {
-	// on Darwin syslog.log defaults to loggint >= Notice (see /etc/asl.conf)
+	// On Darwin syslog.log defaults to loggint >= Notice (see /etc/asl.conf).
 	return s.logger.Notice(fmt.Sprintf(format, a...))
 }
 
