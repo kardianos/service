@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bufio"
 	"fmt"
 	"log/syslog"
 	"os"
@@ -43,20 +42,8 @@ func newService(name, displayName, description string) (Service, error) {
 }
 
 func isUpstart() bool {
-	f, err := os.Open("/etc/lsb-release")
-	if err != nil {
-		return false
-	}
-	defer f.Close()
-	r := bufio.NewReader(f)
-	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		if scanner.Text() == "DISTRIB_ID=Ubuntu" {
-			return true
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return false
+	if _, err := os.Stat("/sbin/initctl"); err == nil {
+		return true
 	}
 	return false
 }
