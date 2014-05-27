@@ -16,9 +16,10 @@ These commands will do the following actions:
 package stdservice
 
 import (
-	"bitbucket.org/kardianos/service"
 	"fmt"
 	"os"
+
+	"bitbucket.org/kardianos/service"
 )
 
 // Standard service configuration. Start MUST block.

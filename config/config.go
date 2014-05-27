@@ -4,13 +4,14 @@
 package config
 
 import (
-	"bitbucket.org/kardianos/osext"
-	"code.google.com/p/go.exp/fsnotify"
 	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	"bitbucket.org/kardianos/osext"
+	"code.google.com/p/go.exp/fsnotify"
 )
 
 const DefaultPostfix = "_config.json"

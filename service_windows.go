@@ -1,11 +1,12 @@
 package service
 
 import (
+	"fmt"
+
 	"bitbucket.org/kardianos/osext"
 	"code.google.com/p/winsvc/eventlog"
 	"code.google.com/p/winsvc/mgr"
 	"code.google.com/p/winsvc/svc"
-	"fmt"
 )
 
 func newService(name, displayName, description string) (*windowsService, error) {

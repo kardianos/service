@@ -1,9 +1,10 @@
 package main
 
 import (
-	"bitbucket.org/kardianos/service"
 	"fmt"
 	"os"
+
+	"bitbucket.org/kardianos/service"
 )
 
 var log service.Logger
