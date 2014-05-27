@@ -187,10 +187,22 @@ func (s *linuxService) Run(onStart, onStop func() error) (err error) {
 }
 
 func (s *linuxService) Start() error {
+	if s.flavor == initUpstart {
+		return exec.Command("initctl", "start", s.name).Run()
+	}
+	if s.flavor == initSystemd {
+		return exec.Command("systemctl", "start", s.name + ".service").Run()
+	}	
 	return exec.Command("service", s.name, "start").Run()
 }
 
 func (s *linuxService) Stop() error {
+	if s.flavor == initUpstart {
+		return exec.Command("initctl", "stop", s.name).Run()
+	}
+	if s.flavor == initSystemd {
+		return exec.Command("systemctl", "stop", s.name + ".service").Run()
+	}	
 	return exec.Command("service", s.name, "stop").Run()
 }
 
