@@ -319,8 +319,6 @@ stop on runlevel [!2345]
 
 #setuid username
 
-kill signal INT
-
 respawn
 respawn limit 10 5
 umask 022
