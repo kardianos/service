@@ -84,6 +84,7 @@ func doWork() {
 		case <-ticker.C:
 			log.Info("Still running...")
 		case <-exit:
+			ticker.Stop()
 			return
 		}
 	}
