@@ -9,7 +9,32 @@ import "bitbucket.org/kardianos/osext"
 // name. The description is an arbitrary string used to describe the
 // service.
 func NewService(name, displayName, description string) (Service, error) {
-	return newService(name, displayName, description)
+	return newService(&Config{
+		Name:        name,
+		DisplayName: displayName,
+		Description: description,
+	})
+}
+
+// Alpha API. Do not yet use.
+type Config struct {
+	Name, DisplayName, Description string
+
+	UserName  string   // Run as username.
+	Arguments []string // Run with arguments.
+
+	DependsOn        []string // Other services that this depends on.
+	WorkingDirectory string   // Service working directory.
+	ChRoot           string
+	UserService      bool // Install as a current user service.
+
+	// System specific parameters.
+	KV map[string]interface{}
+}
+
+// Alpha API. Do not yet use.
+func NewServiceConfig(c *Config) (Service, error) {
+	return newService(c)
 }
 
 // Represents a generic way to interact with the system's service.

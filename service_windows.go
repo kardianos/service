@@ -9,11 +9,11 @@ import (
 	"code.google.com/p/winsvc/svc"
 )
 
-func newService(name, displayName, description string) (*windowsService, error) {
+func newService(c *Config) (*windowsService, error) {
 	return &windowsService{
-		name:        name,
-		displayName: displayName,
-		description: description,
+		name:        c.Name,
+		displayName: c.DisplayName,
+		description: c.Description,
 	}, nil
 }
 

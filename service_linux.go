@@ -17,7 +17,9 @@ const (
 	initSystemd
 )
 
-func newService(name, displayName, description string) (Service, error) {
+const systemOs = "linux"
+
+func getFlavor() initFlavor {
 	flavor := initSystemV
 	if isUpstart() {
 		flavor = initUpstart
@@ -25,15 +27,19 @@ func newService(name, displayName, description string) (Service, error) {
 	if isSystemd() {
 		flavor = initSystemd
 	}
+	return flavor
+}
+
+func newService(c *Config) (Service, error) {
 	s := &linuxService{
-		flavor:      flavor,
-		name:        name,
-		displayName: displayName,
-		description: description,
+		flavor:      getFlavor(),
+		name:        c.Name,
+		displayName: c.DisplayName,
+		description: c.Description,
 	}
 
 	var err error
-	s.logger, err = syslog.New(syslog.LOG_INFO, name)
+	s.logger, err = syslog.New(syslog.LOG_INFO, s.name)
 	if err != nil {
 		return nil, err
 	}

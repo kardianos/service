@@ -13,14 +13,14 @@ import (
 
 const maxPathSize = 32 * 1024
 
-func newService(name, displayName, description string) (s *darwinLaunchdService, err error) {
+func newService(c *Config) (s *darwinLaunchdService, err error) {
 	s = &darwinLaunchdService{
-		name:        name,
-		displayName: displayName,
-		description: description,
+		name:        c.Name,
+		displayName: c.DisplayName,
+		description: c.Description,
 	}
 
-	s.logger, err = syslog.New(syslog.LOG_INFO, name)
+	s.logger, err = syslog.New(syslog.LOG_INFO, c.Name)
 	if err != nil {
 		return nil, err
 	}
