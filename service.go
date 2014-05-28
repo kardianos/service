@@ -1,5 +1,5 @@
 // Package service provides a simple way to create a system service.
-// Currently supports Windows, Linux/(systemd | Upstart), and OSX/Launchd.
+// Currently supports Windows, Linux/(systemd | Upstart | SysV), and OSX/Launchd.
 package service
 
 import "bitbucket.org/kardianos/osext"

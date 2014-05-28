@@ -17,8 +17,6 @@ const (
 	initSystemd
 )
 
-const systemOs = "linux"
-
 func getFlavor() initFlavor {
 	flavor := initSystemV
 	if isUpstart() {
