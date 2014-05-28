@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"bitbucket.org/kardianos/service"
 )
@@ -73,10 +74,21 @@ func main() {
 	}
 }
 
+var exit = make(chan struct{})
+
 func doWork() {
 	log.Info("I'm Running!")
-	select {}
+	ticker := time.NewTicker(time.Minute)
+	for {
+		select {
+		case <-ticker.C:
+			log.Info("Still running...")
+		case <-exit:
+			return
+		}
+	}
 }
 func stopWork() {
 	log.Info("I'm Stopping!")
+	exit <- struct{}{}
 }
