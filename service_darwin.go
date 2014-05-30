@@ -43,15 +43,6 @@ func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
 	return "/Library/LaunchDaemons/" + s.Name + ".plist", nil
 }
 
-func (s *darwinLaunchdService) kvBool(name string, def bool) bool {
-	if v, found := s.KV["KeepAlive"]; found {
-		if castValue, is := v.(bool); is {
-			return castValue
-		}
-	}
-	return def
-}
-
 func (s *darwinLaunchdService) Install() error {
 	confPath, err := s.getServiceFilePath()
 	if err != nil {
@@ -81,8 +72,8 @@ func (s *darwinLaunchdService) Install() error {
 	}{
 		Config:    s.Config,
 		Path:      path,
-		KeepAlive: s.kvBool("KeepAlive", true),
-		RunAtLoad: s.kvBool("RunAtLoad", false),
+		KeepAlive: s.KV.bool("KeepAlive", true),
+		RunAtLoad: s.KV.bool("RunAtLoad", false),
 	}
 
 	functions := template.FuncMap{

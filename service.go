@@ -29,7 +29,53 @@ type Config struct {
 	UserService      bool // Install as a current user service.
 
 	// System specific parameters.
-	KV map[string]interface{}
+	KV KeyValue
+}
+
+type KeyValue map[string]interface{}
+
+// Bool returns the value of the given name, assuming the value is a boolean.
+// If the value isn't found or is not of the type, the defaultValue is returned.
+func (kv KeyValue) bool(name string, defaultValue bool) bool {
+	if v, found := kv[name]; found {
+		if castValue, is := v.(bool); is {
+			return castValue
+		}
+	}
+	return defaultValue
+}
+
+// Int returns the value of the given name, assuming the value is an int.
+// If the value isn't found or is not of the type, the defaultValue is returned.
+func (kv KeyValue) int(name string, defaultValue int) int {
+	if v, found := kv[name]; found {
+		if castValue, is := v.(int); is {
+			return castValue
+		}
+	}
+	return defaultValue
+}
+
+// Int returns the value of the given name, assuming the value is a string.
+// If the value isn't found or is not of the type, the defaultValue is returned.
+func (kv KeyValue) string(name string, defaultValue string) string {
+	if v, found := kv[name]; found {
+		if castValue, is := v.(string); is {
+			return castValue
+		}
+	}
+	return defaultValue
+}
+
+// Int returns the value of the given name, assuming the value is a float64.
+// If the value isn't found or is not of the type, the defaultValue is returned.
+func (kv KeyValue) float64(name string, defaultValue float64) float64 {
+	if v, found := kv[name]; found {
+		if castValue, is := v.(float64); is {
+			return castValue
+		}
+	}
+	return defaultValue
 }
 
 // Alpha API. Do not yet use.
