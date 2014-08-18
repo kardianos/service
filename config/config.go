@@ -65,8 +65,7 @@ type EncodeConfig func(w io.Writer, v interface{}) error
 
 type WatchConfig struct {
 	// Notified here if the file changes.
-	C   chan *WatchConfig
-	Err chan error
+	C chan *WatchConfig
 
 	filepath string
 	watch    *fsnotify.Watcher
@@ -107,8 +106,7 @@ func NewWatchConfig(filepath string, decode DecodeConfig, defaultConfig interfac
 	}
 
 	wc := &WatchConfig{
-		C:   make(chan *WatchConfig),
-		Err: make(chan error),
+		C: make(chan *WatchConfig),
 
 		filepath: filepath,
 		watch:    watch,
@@ -130,10 +128,9 @@ func (wc *WatchConfig) run() {
 		select {
 		case <-wc.close:
 			close(wc.C)
-			close(wc.Err)
 			return
-		case err := <-wc.watch.Errors:
-			wc.Err <- err
+		case <-wc.watch.Errors:
+			// Nothing right now.
 		case <-wc.watch.Events:
 			trigger = true
 		case <-ticker.C:
