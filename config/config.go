@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"bitbucket.org/kardianos/osext"
-	"code.google.com/p/go.exp/fsnotify"
+	"gopkg.in/fsnotify.v1"
 )
 
 const DefaultPostfix = "_config.json"
@@ -65,7 +65,8 @@ type EncodeConfig func(w io.Writer, v interface{}) error
 
 type WatchConfig struct {
 	// Notified here if the file changes.
-	C chan *WatchConfig
+	C   chan *WatchConfig
+	Err chan error
 
 	filepath string
 	watch    *fsnotify.Watcher
@@ -100,13 +101,14 @@ func NewWatchConfig(filepath string, decode DecodeConfig, defaultConfig interfac
 	if err != nil {
 		return nil, err
 	}
-	err = watch.WatchFlags(filepath, fsnotify.FSN_MODIFY|fsnotify.FSN_CREATE)
+	err = watch.Add(filepath)
 	if err != nil {
 		return nil, err
 	}
 
 	wc := &WatchConfig{
-		C: make(chan *WatchConfig),
+		C:   make(chan *WatchConfig),
+		Err: make(chan error),
 
 		filepath: filepath,
 		watch:    watch,
@@ -127,8 +129,12 @@ func (wc *WatchConfig) run() {
 	for {
 		select {
 		case <-wc.close:
+			close(wc.C)
+			close(wc.Err)
 			return
-		case <-wc.watch.Event:
+		case err := <-wc.watch.Errors:
+			wc.Err <- err
+		case <-wc.watch.Events:
 			trigger = true
 		case <-ticker.C:
 			// Think of this as a PLC state machine.
