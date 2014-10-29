@@ -19,11 +19,10 @@ const (
 
 func getFlavor() initFlavor {
 	flavor := initSystemV
-	if isUpstart() {
-		flavor = initUpstart
-	}
 	if isSystemd() {
 		flavor = initSystemd
+	} else if isUpstart() {
+		flavor = initUpstart
 	}
 	return flavor
 }
@@ -82,12 +81,12 @@ func (f initFlavor) String() string {
 
 func (f initFlavor) ConfigPath(name string) string {
 	switch f {
+	case initSystemd:
+		return "/etc/systemd/system/" + name + ".service"
 	case initSystemV:
 		return "/etc/init.d/" + name
 	case initUpstart:
 		return "/etc/init/" + name + ".conf"
-	case initSystemd:
-		return "/etc/systemd/system/" + name + ".service"
 	default:
 		return ""
 	}
@@ -96,12 +95,12 @@ func (f initFlavor) ConfigPath(name string) string {
 func (f initFlavor) GetTemplate() *template.Template {
 	var templ string
 	switch f {
+	case initSystemd:
+		templ = systemdScript
 	case initSystemV:
 		templ = systemVScript
 	case initUpstart:
 		templ = upstartScript
-	case initSystemd:
-		templ = systemdScript
 	}
 	return template.Must(template.New(f.String() + "Script").Parse(templ))
 }
@@ -191,23 +190,25 @@ func (s *linuxService) Run(onStart, onStop func() error) (err error) {
 }
 
 func (s *linuxService) Start() error {
-	if s.flavor == initUpstart {
-		return exec.Command("initctl", "start", s.name).Run()
-	}
-	if s.flavor == initSystemd {
+	switch s.flavor {
+	case initSystemd:
 		return exec.Command("systemctl", "start", s.name+".service").Run()
+	case initUpstart:
+		return exec.Command("initctl", "start", s.name).Run()
+	default:
+		return exec.Command("service", s.name, "start").Run()
 	}
-	return exec.Command("service", s.name, "start").Run()
 }
 
 func (s *linuxService) Stop() error {
-	if s.flavor == initUpstart {
-		return exec.Command("initctl", "stop", s.name).Run()
-	}
-	if s.flavor == initSystemd {
+	switch s.flavor {
+	case initSystemd:
 		return exec.Command("systemctl", "stop", s.name+".service").Run()
+	case initUpstart:
+		return exec.Command("initctl", "stop", s.name).Run()
+	default:
+		return exec.Command("service", s.name, "stop").Run()
 	}
-	return exec.Command("service", s.name, "stop").Run()
 }
 
 func (s *linuxService) Error(format string, a ...interface{}) error {
