@@ -45,7 +45,7 @@ func newService(c *Config) (Service, error) {
 }
 
 func isUpstart() bool {
-	if _, err := os.Stat("/sbin/initctl"); err == nil {
+	if _, err := os.Stat("/sbin/upstart-udev-bridge"); err == nil {
 		return true
 	}
 	return false
@@ -62,6 +62,10 @@ type linuxService struct {
 	flavor                         initFlavor
 	name, displayName, description string
 	logger                         *syslog.Writer
+}
+
+func (ls *linuxService) String() string {
+	return fmt.Sprintf("Linux %s", ls.flavor.String())
 }
 
 type initFlavor uint8

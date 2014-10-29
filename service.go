@@ -89,6 +89,7 @@ type Service interface {
 	Controller
 	Runner
 	Logger
+	String() string
 }
 
 // A Generic way to stop and start a service.

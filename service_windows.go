@@ -23,6 +23,12 @@ type windowsService struct {
 	logger                         *eventlog.Log
 }
 
+const version = "Windows Service"
+
+func (ws *windowsService) String() string {
+	return version
+}
+
 func (ws *windowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}

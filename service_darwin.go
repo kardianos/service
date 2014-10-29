@@ -32,6 +32,12 @@ type darwinLaunchdService struct {
 	logger *syslog.Writer
 }
 
+const version = "Darwin Launchd"
+
+func (s *darwinLaunchdService) String() string {
+	return version
+}
+
 func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
 	if s.UserService {
 		u, err := user.Current()
