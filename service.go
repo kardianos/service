@@ -2,23 +2,16 @@
 // Currently supports Windows, Linux/(systemd | Upstart | SysV), and OSX/Launchd.
 package service
 
-import "bitbucket.org/kardianos/osext"
+import (
+	"errors"
+	"fmt"
+)
 
-// Creates a new service. name is the internal name
-// and should not contain spaces. Display name is the pretty print
-// name. The description is an arbitrary string used to describe the
-// service.
-func NewService(name, displayName, description string) (Service, error) {
-	return newService(&Config{
-		Name:        name,
-		DisplayName: displayName,
-		Description: description,
-	})
-}
-
-// Alpha API. Do not yet use.
+// Config provides the setup for a Service. The Name field is required.
 type Config struct {
-	Name, DisplayName, Description string
+	Name        string // Required name of the service. No spaces suggested.
+	DisplayName string // Display name, spaces allowed.
+	Description string // Long description of service.
 
 	UserName  string   // Run as username.
 	Arguments []string // Run with arguments.
@@ -32,6 +25,18 @@ type Config struct {
 	KV KeyValue
 }
 
+var errNameFieldRequired = errors.New("Config.Name field is required.")
+
+// New creates a new service based on a service interface and configuration.
+func New(i Interface, c *Config) (Service, error) {
+	if len(c.Name) == 0 {
+		return nil, errNameFieldRequired
+	}
+	return newService(i, c)
+}
+
+// KeyValue provides a list of platform specific options. See platform docs for
+// more details.
 type KeyValue map[string]interface{}
 
 // Bool returns the value of the given name, assuming the value is a boolean.
@@ -78,65 +83,116 @@ func (kv KeyValue) float64(name string, defaultValue float64) float64 {
 	return defaultValue
 }
 
-// Alpha API. Do not yet use.
-func NewServiceConfig(c *Config) (Service, error) {
-	return newService(c)
-}
-
-// Represents a generic way to interact with the system's service.
-type Service interface {
-	Installer
-	Controller
-	Runner
-	Logger
+// System represents the system and system's service being used.
+type System interface {
+	// String returns a description of the OS and service platform.
 	String() string
 }
 
-// A Generic way to stop and start a service.
-type Runner interface {
-	// Call quickly after initial entry point.  Does not return until
-	// service is ready to stop.  onStart is called when the service is
-	// starting, returning an error will fail to start the service.
-	// If an error is returned from onStop, the service will still stop.
-	// An error passed from onStart or onStop will be returned as
-	// an error from Run.
-	// Both callbacks should return quickly and not block.
-	Run(onStart, onStop func() error) error
+// LocalSystem get's the local system information.
+func LocalSystem() System {
+	return system
 }
 
-// Simple install and remove commands.
-type Installer interface {
-	// Installs this service on the system.  May return an
-	// error if this service is already installed.
-	Install() error
+// Interface represents the service interface for a program. Start runs before
+// the hosting process is granted control and Stop runs when control is returned.
+//
+//   1. OS service manager executes user program.
+//   2. User program sees it is executed from a service manager (IsInteractive is false).
+//   3. User program calls Service.Run() which blocks.
+//   4. Interface.Start() is called and quickly returns.
+//   5. User program runs.
+//   6. OS service manager signals the user program to stop.
+//   7. Interface.Stop() is called and quickly returns.
+//      - For a successful exit, os.Exit should not be called in Interface.Stop().
+//   8. Service.Run returns.
+//   9. User program should quickly exit.
+type Interface interface {
+	// Start provides a place to initiate the service. The service doesn't not
+	// signal a completed start until after this function returns, so the
+	// Start function must not take more then a few seconds at most.
+	Start(s Service) error
 
-	// Removes this service from the system.  May return an
-	// error if this service is not already installed.
-	Remove() error
+	// Stop provides a place to clean up program execution before it is terminated.
+	// It should not take more then a few seconds to execute.
+	// Stop should not call os.Exit directly in the function.
+	Stop(s Service) error
 }
 
-// A service that implements ServiceController is able to
-// start and stop itself.
-type Controller interface {
-	// Starts this service on the system.
+// Service represents a service that can be run or controlled.
+type Service interface {
+	// Run should be called shortly after the program entry point.
+	// After Interface.Stop has finished running, Run will stop blocking.
+	// After Run stops blocking, the program must exit shortly after.
+	Run() error
+
+	// Start signals to the OS service manager the given service should start.
 	Start() error
 
-	// Stops this service on the system.
+	// Stop signals to the OS service manager the given service should stop.
 	Stop() error
+
+	// Restart signals to the OS service manager the given service should stop then start.
+	Restart() error
+
+	// Install setups up the given service in the OS service manager. This may require
+	// greater rights. Will return an error if it is already installed.
+	Install() error
+
+	// Remove removes the given service from the OS service manager. This may require
+	// greater rights. Will return an error if the service is not present.
+	Remove() error
+
+	// Interactive returns false if running under the OS service manager
+	// and true otherwise.
+	Interactive() bool
+
+	// Opens and returns a system logger. If the user program is running
+	// interactively rather then as a service, the returned logger will write to
+	// os.Stderr.
+	Logger() (Logger, error)
+
+	// SystemLogger opens and returns a system logger.
+	SystemLogger() (Logger, error)
+
+	// String displays the name of the service. The display name if present,
+	// otherwise the name.
+	String() string
 }
 
-// A service that implements ServiceLogger can perform simple system logging.
+// ControlAction list valid string texts to use in Control.
+var ControlAction = [5]string{"start", "stop", "restart", "install", "remove"}
+
+// Control issues control functions to the service from a given action string.
+func Control(s Service, action string) error {
+	var err error
+	switch action {
+	case ControlAction[0]:
+		err = s.Start()
+	case ControlAction[1]:
+		err = s.Stop()
+	case ControlAction[2]:
+		err = s.Restart()
+	case ControlAction[3]:
+		err = s.Install()
+	case ControlAction[4]:
+		err = s.Remove()
+	default:
+		err = fmt.Errorf("Unknown action %s", action)
+	}
+	if err != nil {
+		return fmt.Errorf("Failed to %s %v: %v", action, s, err)
+	}
+	return nil
+}
+
+// Logger writes to the system log.
 type Logger interface {
-	// Basic log functions in the context of the service.
-	Error(format string, a ...interface{}) error
-	Warning(format string, a ...interface{}) error
-	Info(format string, a ...interface{}) error
-}
+	Error(v ...interface{}) error
+	Warning(v ...interface{}) error
+	Info(v ...interface{}) error
 
-// Depreciated. Use osext.Executable instead.
-// Returns the full path of the running executable
-// as reported by the system. Includes the executable
-// image name.
-func GetExePath() (exePath string, err error) {
-	return osext.Executable()
+	Errorf(format string, a ...interface{}) error
+	Warningf(format string, a ...interface{}) error
+	Infof(format string, a ...interface{}) error
 }

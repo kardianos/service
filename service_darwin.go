@@ -2,40 +2,57 @@ package service
 
 import (
 	"fmt"
-	"log/syslog"
 	"os"
 	"os/exec"
 	"os/signal"
 	"os/user"
 	"text/template"
+	"time"
 
 	"bitbucket.org/kardianos/osext"
 )
 
 const maxPathSize = 32 * 1024
 
-func newService(c *Config) (s *darwinLaunchdService, err error) {
-	s = &darwinLaunchdService{
+const version = "Darwin Launchd"
+
+type darwinSystem struct{}
+
+func (ls darwinSystem) String() string {
+	return version
+}
+
+var system = darwinSystem{}
+
+func isInteractive() (bool, error) {
+	// TODO: The PPID of Launchd is 1. The PPid of a service process should match launchd's PID.
+	return os.Getppid() != 1, nil
+}
+
+func newService(i Interface, c *Config) (*darwinLaunchdService, error) {
+	s := &darwinLaunchdService{
+		i:      i,
 		Config: c,
 	}
 
-	s.logger, err = syslog.New(syslog.LOG_INFO, c.Name)
-	if err != nil {
-		return nil, err
-	}
+	var err error
+	s.interactive, err = isInteractive()
 
-	return s, nil
+	return s, err
 }
 
 type darwinLaunchdService struct {
+	i Interface
 	*Config
-	logger *syslog.Writer
+
+	interactive bool
 }
 
-const version = "Darwin Launchd"
-
 func (s *darwinLaunchdService) String() string {
-	return version
+	if len(s.DisplayName) > 0 {
+		return s.DisplayName
+	}
+	return s.Name
 }
 
 func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
@@ -49,6 +66,9 @@ func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
 	return "/Library/LaunchDaemons/" + s.Name + ".plist", nil
 }
 
+func (s *darwinLaunchdService) Interactive() bool {
+	return s.interactive
+}
 func (s *darwinLaunchdService) Install() error {
 	confPath, err := s.getServiceFilePath()
 	if err != nil {
@@ -120,11 +140,19 @@ func (s *darwinLaunchdService) Stop() error {
 	cmd := exec.Command("launchctl", "unload", confPath)
 	return cmd.Run()
 }
+func (s *darwinLaunchdService) Restart() error {
+	err := s.Stop()
+	if err != nil {
+		return err
+	}
+	time.Sleep(50 * time.Millisecond)
+	return s.Start()
+}
 
-func (s *darwinLaunchdService) Run(onStart, onStop func() error) error {
+func (s *darwinLaunchdService) Run() error {
 	var err error
 
-	err = onStart()
+	err = s.i.Start(s)
 	if err != nil {
 		return err
 	}
@@ -135,18 +163,17 @@ func (s *darwinLaunchdService) Run(onStart, onStop func() error) error {
 
 	<-sigChan
 
-	return onStop()
+	return s.i.Stop(s)
 }
 
-func (s *darwinLaunchdService) Error(format string, a ...interface{}) error {
-	return s.logger.Err(fmt.Sprintf(format, a...))
+func (s *darwinLaunchdService) Logger() (Logger, error) {
+	if s.interactive {
+		return ConsoleLogger, nil
+	}
+	return s.SystemLogger()
 }
-func (s *darwinLaunchdService) Warning(format string, a ...interface{}) error {
-	return s.logger.Warning(fmt.Sprintf(format, a...))
-}
-func (s *darwinLaunchdService) Info(format string, a ...interface{}) error {
-	// On Darwin syslog.log defaults to loggint >= Notice (see /etc/asl.conf).
-	return s.logger.Notice(fmt.Sprintf(format, a...))
+func (s *darwinLaunchdService) SystemLogger() (Logger, error) {
+	return newSysLogger(s.Name)
 }
 
 var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>

@@ -1,95 +1,81 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"time"
 
-	"bitbucket.org/kardianos/service"
+	"bitbucket.org/kardianos/service2beta"
 )
 
-var log service.Logger
+var logger service.Logger
+
+type program struct {
+	exit chan struct{}
+}
+
+func (p *program) Start(s service.Service) error {
+	if s.Interactive() {
+		logger.Info("Running in terminal.")
+	} else {
+		logger.Info("Running under service manager.")
+	}
+	p.exit = make(chan struct{})
+	go p.run()
+	return nil
+}
+func (p *program) run() error {
+	logger.Infof("I'm running %v.", service.LocalSystem())
+	ticker := time.NewTicker(2 * time.Second)
+	for {
+		select {
+		case tm := <-ticker.C:
+			err := logger.Infof("Still running at %v...", tm)
+			if err != nil {
+				panic(err)
+			}
+		case <-p.exit:
+			ticker.Stop()
+			return nil
+		}
+	}
+	return nil
+}
+func (p *program) Stop(s service.Service) error {
+	err := logger.Info("I'm Stopping!")
+	if err != nil {
+		panic(err)
+	}
+	close(p.exit)
+	return nil
+}
 
 func main() {
-	var name = "GoServiceTest"
-	var displayName = "Go Service Test"
-	var desc = "This is a test Go service.  It is designed to run well."
+	svcConfig := &service.Config{
+		Name:        "GoServiceTest",
+		DisplayName: "Go Service Test",
+		Description: "This is a test Go service.",
+	}
 
-	var s, err = service.NewService(name, displayName, desc)
-	log = s
-
+	prg := &program{}
+	s, err := service.New(prg, svcConfig)
 	if err != nil {
-		fmt.Printf("%s unable to start: %s", displayName, err)
-		return
+		panic(err)
+	}
+	logger, err = s.SystemLogger()
+	if err != nil {
+		panic(err)
 	}
 
 	if len(os.Args) > 1 {
-		var err error
-		verb := os.Args[1]
-		switch verb {
-		case "install":
-			err = s.Install()
-			if err != nil {
-				fmt.Printf("Failed to install: %s\n", err)
-				return
-			}
-			fmt.Printf("Service \"%s\" installed.\n", displayName)
-		case "remove":
-			err = s.Remove()
-			if err != nil {
-				fmt.Printf("Failed to remove: %s\n", err)
-				return
-			}
-			fmt.Printf("Service \"%s\" removed.\n", displayName)
-		case "run":
-			doWork()
-		case "start":
-			err = s.Start()
-			if err != nil {
-				fmt.Printf("Failed to start: %s\n", err)
-				return
-			}
-			fmt.Printf("Service \"%s\" started.\n", displayName)
-		case "stop":
-			err = s.Stop()
-			if err != nil {
-				fmt.Printf("Failed to stop: %s\n", err)
-				return
-			}
-			fmt.Printf("Service \"%s\" stopped.\n", displayName)
+		err := service.Control(s, os.Args[1])
+		if err != nil {
+			log.Fatal(err)
 		}
 		return
 	}
-	err = s.Run(func() error {
-		// start
-		go doWork()
-		return nil
-	}, func() error {
-		// stop
-		stopWork()
-		return nil
-	})
+	err = s.Run()
 	if err != nil {
-		s.Error(err.Error())
+		logger.Error(err)
 	}
-}
-
-var exit = make(chan struct{})
-
-func doWork() {
-	log.Info("I'm Running!")
-	ticker := time.NewTicker(time.Minute)
-	for {
-		select {
-		case <-ticker.C:
-			log.Info("Still running...")
-		case <-exit:
-			ticker.Stop()
-			return
-		}
-	}
-}
-func stopWork() {
-	log.Info("I'm Stopping!")
-	exit <- struct{}{}
 }

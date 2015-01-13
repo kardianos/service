@@ -2,11 +2,11 @@ package service
 
 import (
 	"fmt"
-	"log/syslog"
 	"os"
 	"os/exec"
 	"os/signal"
 	"text/template"
+	"time"
 
 	"bitbucket.org/kardianos/osext"
 )
@@ -27,23 +27,6 @@ func getFlavor() initFlavor {
 	return flavor
 }
 
-func newService(c *Config) (Service, error) {
-	s := &linuxService{
-		flavor:      getFlavor(),
-		name:        c.Name,
-		displayName: c.DisplayName,
-		description: c.Description,
-	}
-
-	var err error
-	s.logger, err = syslog.New(syslog.LOG_INFO, s.name)
-	if err != nil {
-		return nil, err
-	}
-
-	return s, nil
-}
-
 func isUpstart() bool {
 	if _, err := os.Stat("/sbin/upstart-udev-bridge"); err == nil {
 		return true
@@ -59,13 +42,38 @@ func isSystemd() bool {
 }
 
 type linuxService struct {
-	flavor                         initFlavor
-	name, displayName, description string
-	logger                         *syslog.Writer
+	i Interface
+	*Config
+
+	interactive bool
 }
 
-func (ls *linuxService) String() string {
-	return fmt.Sprintf("Linux %s", ls.flavor.String())
+var flavor = getFlavor()
+
+type linuxSystem struct{}
+
+func (ls linuxSystem) String() string {
+	return fmt.Sprintf("Linux %s", flavor.String())
+}
+
+var system = linuxSystem{}
+
+func newService(i Interface, c *Config) (Service, error) {
+	s := &linuxService{
+		i:      i,
+		Config: c,
+	}
+	var err error
+	s.interactive, err = isInteractive()
+
+	return s, err
+}
+
+func (s *linuxService) String() string {
+	if len(s.DisplayName) > 0 {
+		return s.DisplayName
+	}
+	return s.Name
 }
 
 type initFlavor uint8
@@ -109,8 +117,17 @@ func (f initFlavor) GetTemplate() *template.Template {
 	return template.Must(template.New(f.String() + "Script").Parse(templ))
 }
 
+func isInteractive() (bool, error) {
+	// TODO: Is this true for user services?
+	return os.Getppid() != 1, nil
+}
+
+func (s *linuxService) Interactive() bool {
+	return s.interactive
+}
+
 func (s *linuxService) Install() error {
-	confPath := s.flavor.ConfigPath(s.name)
+	confPath := flavor.ConfigPath(s.Name)
 	_, err := os.Stat(confPath)
 	if err == nil {
 		return fmt.Errorf("Init already exists: %s", confPath)
@@ -132,33 +149,33 @@ func (s *linuxService) Install() error {
 		Description string
 		Path        string
 	}{
-		s.displayName,
-		s.description,
+		s.DisplayName,
+		s.Description,
 		path,
 	}
 
-	err = s.flavor.GetTemplate().Execute(f, to)
+	err = flavor.GetTemplate().Execute(f, to)
 	if err != nil {
 		return err
 	}
 
-	if s.flavor == initSystemV {
+	if flavor == initSystemV {
 		if err = os.Chmod(confPath, 0755); err != nil {
 			return err
 		}
 		for _, i := range [...]string{"2", "3", "4", "5"} {
-			if err = os.Symlink(confPath, "/etc/rc"+i+".d/S50"+s.name); err != nil {
+			if err = os.Symlink(confPath, "/etc/rc"+i+".d/S50"+s.Name); err != nil {
 				continue
 			}
 		}
 		for _, i := range [...]string{"0", "1", "6"} {
-			if err = os.Symlink(confPath, "/etc/rc"+i+".d/K02"+s.name); err != nil {
+			if err = os.Symlink(confPath, "/etc/rc"+i+".d/K02"+s.Name); err != nil {
 				continue
 			}
 		}
 	}
 
-	if s.flavor == initSystemd {
+	if flavor == initSystemd {
 		return exec.Command("systemctl", "daemon-reload").Run()
 	}
 
@@ -166,23 +183,30 @@ func (s *linuxService) Install() error {
 }
 
 func (s *linuxService) Remove() error {
-	if s.flavor == initSystemd {
-		exec.Command("systemctl", "disable", s.name+".service").Run()
+	if flavor == initSystemd {
+		exec.Command("systemctl", "disable", s.Name+".service").Run()
 	}
-	if err := os.Remove(s.flavor.ConfigPath(s.name)); err != nil {
+	if err := os.Remove(flavor.ConfigPath(s.Name)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *linuxService) Run(onStart, onStop func() error) (err error) {
-	err = onStart()
+func (s *linuxService) Logger() (Logger, error) {
+	if s.interactive {
+		return ConsoleLogger, nil
+	}
+	return s.SystemLogger()
+}
+func (s *linuxService) SystemLogger() (Logger, error) {
+	return newSysLogger(s.Name)
+}
+
+func (s *linuxService) Run() (err error) {
+	err = s.i.Start(s)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		err = onStop()
-	}()
 
 	sigChan := make(chan os.Signal, 3)
 
@@ -190,39 +214,38 @@ func (s *linuxService) Run(onStart, onStop func() error) (err error) {
 
 	<-sigChan
 
-	return nil
+	return s.i.Stop(s)
 }
 
 func (s *linuxService) Start() error {
-	switch s.flavor {
+	switch flavor {
 	case initSystemd:
-		return exec.Command("systemctl", "start", s.name+".service").Run()
+		return exec.Command("systemctl", "start", s.Name+".service").Run()
 	case initUpstart:
-		return exec.Command("initctl", "start", s.name).Run()
+		return exec.Command("initctl", "start", s.Name).Run()
 	default:
-		return exec.Command("service", s.name, "start").Run()
+		return exec.Command("service", s.Name, "start").Run()
 	}
 }
 
 func (s *linuxService) Stop() error {
-	switch s.flavor {
+	switch flavor {
 	case initSystemd:
-		return exec.Command("systemctl", "stop", s.name+".service").Run()
+		return exec.Command("systemctl", "stop", s.Name+".service").Run()
 	case initUpstart:
-		return exec.Command("initctl", "stop", s.name).Run()
+		return exec.Command("initctl", "stop", s.Name).Run()
 	default:
-		return exec.Command("service", s.name, "stop").Run()
+		return exec.Command("service", s.Name, "stop").Run()
 	}
 }
 
-func (s *linuxService) Error(format string, a ...interface{}) error {
-	return s.logger.Err(fmt.Sprintf(format, a...))
-}
-func (s *linuxService) Warning(format string, a ...interface{}) error {
-	return s.logger.Warning(fmt.Sprintf(format, a...))
-}
-func (s *linuxService) Info(format string, a ...interface{}) error {
-	return s.logger.Info(fmt.Sprintf(format, a...))
+func (s *linuxService) Restart() error {
+	err := s.Stop()
+	if err != nil {
+		return err
+	}
+	time.Sleep(50 * time.Millisecond)
+	return s.Start()
 }
 
 const systemVScript = `#!/bin/sh
