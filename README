@@ -2,3 +2,14 @@ service will install / un-install, start / stop, and run a program as a service 
 Currently supports Windows XP+, Linux/(systemd | Upstart | SysV), and OSX/Launchd.
 
 To start out follow "example/main.go".
+
+This package is still in BETA. Detecting if this is running as a daemon or from a
+user is not tested on all platforms. It is tested on Windows and Linux Upstart
+system service. Need to test the following platforms:
+ * Upstart, user service
+ * systemd system and user service
+ * Launchd system and user service
+
+Also the remainder of the configuration struct needs to be wired into the install
+step for most platforms. Platform capabilities and KeyValues need documentation.
+
