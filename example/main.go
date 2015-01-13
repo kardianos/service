@@ -62,7 +62,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	logger, err = s.SystemLogger()
+	logger, err = s.Logger()
 	if err != nil {
 		panic(err)
 	}
