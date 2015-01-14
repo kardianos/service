@@ -1,3 +1,7 @@
+// Copyright 2015 Daniel Theophanes.
+// Use of this source code is governed by a zlib-style
+// license that can be found in the LICENSE file.package service
+
 package service
 
 import (
@@ -5,11 +9,5 @@ import (
 )
 
 func TestPlatformName(t *testing.T) {
-	s, err := NewServiceConfig(&Config{
-		Name: "Test",
-	})
-	if err != nil {
-		t.Errorf("Failed to create service: %v", err)
-	}
-	t.Logf("Platform is %s", s.String())
+	t.Logf("Platform is %v", Local)
 }
