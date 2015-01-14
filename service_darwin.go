@@ -22,7 +22,21 @@ func (ls darwinSystem) String() string {
 	return version
 }
 
+func (ls darwinSystem) Interactive() bool {
+	return interactive
+}
+
 var system = darwinSystem{}
+
+var interactive = false
+
+func init() {
+	var err error
+	interactive, err = isInteractive()
+	if err != nil {
+		panic(err)
+	}
+}
 
 func isInteractive() (bool, error) {
 	// TODO: The PPID of Launchd is 1. The PPid of a service process should match launchd's PID.
@@ -35,17 +49,12 @@ func newService(i Interface, c *Config) (*darwinLaunchdService, error) {
 		Config: c,
 	}
 
-	var err error
-	s.interactive, err = isInteractive()
-
-	return s, err
+	return s, nil
 }
 
 type darwinLaunchdService struct {
 	i Interface
 	*Config
-
-	interactive bool
 }
 
 func (s *darwinLaunchdService) String() string {
@@ -66,9 +75,6 @@ func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
 	return "/Library/LaunchDaemons/" + s.Name + ".plist", nil
 }
 
-func (s *darwinLaunchdService) Interactive() bool {
-	return s.interactive
-}
 func (s *darwinLaunchdService) Install() error {
 	confPath, err := s.getServiceFilePath()
 	if err != nil {
@@ -166,14 +172,14 @@ func (s *darwinLaunchdService) Run() error {
 	return s.i.Stop(s)
 }
 
-func (s *darwinLaunchdService) Logger() (Logger, error) {
-	if s.interactive {
+func (s *darwinLaunchdService) Logger(errs chan<- error) (Logger, error) {
+	if interactive {
 		return ConsoleLogger, nil
 	}
-	return s.SystemLogger()
+	return s.SystemLogger(errs)
 }
-func (s *darwinLaunchdService) SystemLogger() (Logger, error) {
-	return newSysLogger(s.Name)
+func (s *darwinLaunchdService) SystemLogger(errs chan<- error) (Logger, error) {
+	return newSysLogger(s.Name, errs)
 }
 
 var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>

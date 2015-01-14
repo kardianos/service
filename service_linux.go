@@ -56,6 +56,10 @@ func (ls linuxSystem) String() string {
 	return fmt.Sprintf("Linux %s", flavor.String())
 }
 
+func (ls linuxSystem) Interactive() bool {
+	return interactive
+}
+
 var system = linuxSystem{}
 
 func newService(i Interface, c *Config) (Service, error) {
@@ -117,13 +121,19 @@ func (f initFlavor) GetTemplate() *template.Template {
 	return template.Must(template.New(f.String() + "Script").Parse(templ))
 }
 
+var interactive = false
+
+func init() {
+	var err error
+	interactive, err = isInteractive()
+	if err != nil {
+		panic(err)
+	}
+}
+
 func isInteractive() (bool, error) {
 	// TODO: Is this true for user services?
 	return os.Getppid() != 1, nil
-}
-
-func (s *linuxService) Interactive() bool {
-	return s.interactive
 }
 
 func (s *linuxService) Install() error {
@@ -192,14 +202,14 @@ func (s *linuxService) Remove() error {
 	return nil
 }
 
-func (s *linuxService) Logger() (Logger, error) {
+func (s *linuxService) Logger(errs chan<- error) (Logger, error) {
 	if s.interactive {
 		return ConsoleLogger, nil
 	}
-	return s.SystemLogger()
+	return s.SystemLogger(errs)
 }
-func (s *linuxService) SystemLogger() (Logger, error) {
-	return newSysLogger(s.Name)
+func (s *linuxService) SystemLogger(errs chan<- error) (Logger, error) {
+	return newSysLogger(s.Name, errs)
 }
 
 func (s *linuxService) Run() (err error) {

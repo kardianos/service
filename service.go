@@ -87,12 +87,14 @@ func (kv KeyValue) float64(name string, defaultValue float64) float64 {
 type System interface {
 	// String returns a description of the OS and service platform.
 	String() string
+
+	// Interactive returns false if running under the OS service manager
+	// and true otherwise.
+	Interactive() bool
 }
 
 // LocalSystem get's the local system information.
-func LocalSystem() System {
-	return system
-}
+var Local System = system
 
 // Interface represents the service interface for a program. Start runs before
 // the hosting process is granted control and Stop runs when control is returned.
@@ -143,17 +145,15 @@ type Service interface {
 	// greater rights. Will return an error if the service is not present.
 	Remove() error
 
-	// Interactive returns false if running under the OS service manager
-	// and true otherwise.
-	Interactive() bool
-
 	// Opens and returns a system logger. If the user program is running
 	// interactively rather then as a service, the returned logger will write to
-	// os.Stderr.
-	Logger() (Logger, error)
+	// os.Stderr. If errs is non-nil errors will be sent on errs as well as
+	// returned from Logger's functions.
+	Logger(errs chan<- error) (Logger, error)
 
-	// SystemLogger opens and returns a system logger.
-	SystemLogger() (Logger, error)
+	// SystemLogger opens and returns a system logger. If errs is non-nil errors
+	// will be sent on errs as well as returned from Logger's functions.
+	SystemLogger(errs chan<- error) (Logger, error)
 
 	// String displays the name of the service. The display name if present,
 	// otherwise the name.

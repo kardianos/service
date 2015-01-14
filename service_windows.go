@@ -17,13 +17,12 @@ const version = "Windows Service"
 type windowsService struct {
 	i Interface
 	*Config
-
-	interactive bool
 }
 
 // WindowsLogger allows using windows specific logging methods.
 type WindowsLogger struct {
-	ev *eventlog.Log
+	ev   *eventlog.Log
+	errs chan<- error
 }
 
 type windowsSystem struct{}
@@ -31,49 +30,67 @@ type windowsSystem struct{}
 func (windowsSystem) String() string {
 	return version
 }
+func (windowsSystem) Interactive() bool {
+	return interactive
+}
 
 var system = windowsSystem{}
 
+func (l WindowsLogger) send(err error) error {
+	if err == nil {
+		return nil
+	}
+	if l.errs != nil {
+		l.errs <- err
+	}
+	return err
+}
 func (l WindowsLogger) Error(v ...interface{}) error {
-	return l.ev.Error(3, fmt.Sprint(v...))
+	return l.send(l.ev.Error(3, fmt.Sprint(v...)))
 }
 func (l WindowsLogger) Warning(v ...interface{}) error {
-	return l.ev.Warning(2, fmt.Sprint(v...))
+	return l.send(l.ev.Warning(2, fmt.Sprint(v...)))
 }
 func (l WindowsLogger) Info(v ...interface{}) error {
-	return l.ev.Info(1, fmt.Sprint(v...))
+	return l.send(l.ev.Info(1, fmt.Sprint(v...)))
 }
 func (l WindowsLogger) Errorf(format string, a ...interface{}) error {
-	return l.ev.Error(3, fmt.Sprintf(format, a...))
+	return l.send(l.ev.Error(3, fmt.Sprintf(format, a...)))
 }
 func (l WindowsLogger) Warningf(format string, a ...interface{}) error {
-	return l.ev.Warning(2, fmt.Sprintf(format, a...))
+	return l.send(l.ev.Warning(2, fmt.Sprintf(format, a...)))
 }
 func (l WindowsLogger) Infof(format string, a ...interface{}) error {
-	return l.ev.Info(1, fmt.Sprintf(format, a...))
+	return l.send(l.ev.Info(1, fmt.Sprintf(format, a...)))
 }
 
 func (l WindowsLogger) NError(eventId uint32, v ...interface{}) error {
-	return l.ev.Error(eventId, fmt.Sprint(v...))
+	return l.send(l.ev.Error(eventId, fmt.Sprint(v...)))
 }
 func (l WindowsLogger) NWarning(eventId uint32, v ...interface{}) error {
-	return l.ev.Warning(eventId, fmt.Sprint(v...))
+	return l.send(l.ev.Warning(eventId, fmt.Sprint(v...)))
 }
 func (l WindowsLogger) NInfo(eventId uint32, v ...interface{}) error {
-	return l.ev.Info(eventId, fmt.Sprint(v...))
+	return l.send(l.ev.Info(eventId, fmt.Sprint(v...)))
 }
 func (l WindowsLogger) NErrorf(eventId uint32, format string, a ...interface{}) error {
-	return l.ev.Error(eventId, fmt.Sprintf(format, a...))
+	return l.send(l.ev.Error(eventId, fmt.Sprintf(format, a...)))
 }
 func (l WindowsLogger) NWarningf(eventId uint32, format string, a ...interface{}) error {
-	return l.ev.Warning(eventId, fmt.Sprintf(format, a...))
+	return l.send(l.ev.Warning(eventId, fmt.Sprintf(format, a...)))
 }
 func (l WindowsLogger) NInfof(eventId uint32, format string, a ...interface{}) error {
-	return l.ev.Info(eventId, fmt.Sprintf(format, a...))
+	return l.send(l.ev.Info(eventId, fmt.Sprintf(format, a...)))
 }
 
-func isInteractive() (bool, error) {
-	return svc.IsAnInteractiveSession()
+var interactive = false
+
+func init() {
+	var err error
+	interactive, err = svc.IsAnInteractiveSession()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func newService(i Interface, c *Config) (*windowsService, error) {
@@ -81,9 +98,7 @@ func newService(i Interface, c *Config) (*windowsService, error) {
 		i:      i,
 		Config: c,
 	}
-	var err error
-	ws.interactive, err = isInteractive()
-	return ws, err
+	return ws, nil
 }
 
 func (ws *windowsService) String() string {
@@ -124,10 +139,6 @@ loop:
 	}
 
 	return false, 0
-}
-
-func (ws *windowsService) Interactive() bool {
-	return ws.interactive
 }
 
 func (ws *windowsService) Install() error {
@@ -187,7 +198,7 @@ func (ws *windowsService) Remove() error {
 }
 
 func (ws *windowsService) Run() error {
-	if !ws.interactive {
+	if !interactive {
 		return svc.Run(ws.Name, ws)
 	}
 	err := ws.i.Start(ws)
@@ -243,16 +254,16 @@ func (ws *windowsService) Restart() error {
 	time.Sleep(50 * time.Millisecond)
 	return ws.Start()
 }
-func (ws *windowsService) Logger() (Logger, error) {
-	if ws.interactive {
+func (ws *windowsService) Logger(errs chan<- error) (Logger, error) {
+	if interactive {
 		return ConsoleLogger, nil
 	}
-	return ws.SystemLogger()
+	return ws.SystemLogger(errs)
 }
-func (ws *windowsService) SystemLogger() (Logger, error) {
+func (ws *windowsService) SystemLogger(errs chan<- error) (Logger, error) {
 	el, err := eventlog.Open(ws.Name)
 	if err != nil {
 		return nil, err
 	}
-	return WindowsLogger{el}, nil
+	return WindowsLogger{el, errs}, nil
 }
