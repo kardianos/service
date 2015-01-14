@@ -342,10 +342,13 @@ case "$1" in
 esac
 exit 0`
 
+// The upstart script should stop with an INT or the Go runtime will terminate
+// the program before the Stop handler can run.
 const upstartScript = `# {{.Description}}
 
 description     "{{.Display}}"
 
+kill signal INT
 start on filesystem or runlevel [2345]
 stop on runlevel [!2345]
 
