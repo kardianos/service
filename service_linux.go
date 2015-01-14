@@ -5,6 +5,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -95,21 +96,45 @@ func (f initFlavor) String() string {
 	case initSystemd:
 		return "systemd"
 	default:
-		return "unknown"
+		panic("Invalid flavor")
 	}
 }
 
-func (f initFlavor) ConfigPath(name string) string {
+// Systemd services should be supported, but are not currently.
+var errNoUserServiceSystemd = errors.New("User services are not supported on systemd.")
+
+var errNoUserServiceSystemV = errors.New("User services are not supported on SystemV.")
+
+// Upstart has some support for user services in graphical sessions.
+// Due to the mix of actual support for user services over versions, just don't bother.
+// Upstart will be replaced by systemd in most cases anyway.
+var errNoUserServiceUpstart = errors.New("User services are not supported on Upstart.")
+
+func (f initFlavor) ConfigPath(name string, c *Config) (cp string, err error) {
+	if c.UserService {
+		switch f {
+		case initSystemd:
+			err = errNoUserServiceSystemd
+		case initSystemV:
+			err = errNoUserServiceSystemV
+		case initUpstart:
+			err = errNoUserServiceUpstart
+		default:
+			panic("Invalid flavor")
+		}
+		return
+	}
 	switch f {
 	case initSystemd:
-		return "/etc/systemd/system/" + name + ".service"
+		cp = "/etc/systemd/system/" + name + ".service"
 	case initSystemV:
-		return "/etc/init.d/" + name
+		cp = "/etc/init.d/" + name
 	case initUpstart:
-		return "/etc/init/" + name + ".conf"
+		cp = "/etc/init/" + name + ".conf"
 	default:
-		return ""
+		panic("Invalid flavor")
 	}
+	return
 }
 
 func (f initFlavor) GetTemplate() *template.Template {
@@ -136,13 +161,16 @@ func init() {
 }
 
 func isInteractive() (bool, error) {
-	// TODO: Is this true for user services?
+	// TODO: This is not true for user services.
 	return os.Getppid() != 1, nil
 }
 
 func (s *linuxService) Install() error {
-	confPath := flavor.ConfigPath(s.Name)
-	_, err := os.Stat(confPath)
+	confPath, err := flavor.ConfigPath(s.Name, s.Config)
+	if err != nil {
+		return err
+	}
+	_, err = os.Stat(confPath)
 	if err == nil {
 		return fmt.Errorf("Init already exists: %s", confPath)
 	}
@@ -200,7 +228,11 @@ func (s *linuxService) Remove() error {
 	if flavor == initSystemd {
 		exec.Command("systemctl", "disable", s.Name+".service").Run()
 	}
-	if err := os.Remove(flavor.ConfigPath(s.Name)); err != nil {
+	cp, err := flavor.ConfigPath(s.Name, s.Config)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(cp); err != nil {
 		return err
 	}
 	return nil
