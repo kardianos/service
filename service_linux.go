@@ -224,7 +224,7 @@ func (s *linuxService) Install() error {
 	return nil
 }
 
-func (s *linuxService) Remove() error {
+func (s *linuxService) Uninstall() error {
 	if flavor == initSystemd {
 		exec.Command("systemctl", "disable", s.Name+".service").Run()
 	}

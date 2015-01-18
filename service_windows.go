@@ -179,7 +179,7 @@ func (ws *windowsService) Install() error {
 	return nil
 }
 
-func (ws *windowsService) Remove() error {
+func (ws *windowsService) Uninstall() error {
 	m, err := mgr.Connect()
 	if err != nil {
 		return err

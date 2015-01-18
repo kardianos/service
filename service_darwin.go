@@ -124,7 +124,7 @@ func (s *darwinLaunchdService) Install() error {
 	return t.Execute(f, to)
 }
 
-func (s *darwinLaunchdService) Remove() error {
+func (s *darwinLaunchdService) Uninstall() error {
 	s.Stop()
 
 	confPath, err := s.getServiceFilePath()
