@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 
 	"bitbucket.org/kardianos/osext"
@@ -21,6 +22,9 @@ const version = "Windows Service"
 type windowsService struct {
 	i Interface
 	*Config
+
+	errSync      sync.Mutex
+	stopStartErr error
 }
 
 // WindowsLogger allows using windows specific logging methods.
@@ -112,13 +116,23 @@ func (ws *windowsService) String() string {
 	return ws.Name
 }
 
+func (ws *windowsService) setError(err error) {
+	ws.errSync.Lock()
+	defer ws.errSync.Unlock()
+	ws.stopStartErr = err
+}
+func (ws *windowsService) getError() error {
+	ws.errSync.Lock()
+	defer ws.errSync.Unlock()
+	return ws.stopStartErr
+}
+
 func (ws *windowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (bool, uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
 
 	if err := ws.i.Start(ws); err != nil {
-		// TODO: log error.
-		// ws.Error(err.Error())
+		ws.setError(err)
 		return true, 1
 	}
 
@@ -132,8 +146,7 @@ loop:
 		case svc.Stop, svc.Shutdown:
 			changes <- svc.Status{State: svc.StopPending}
 			if err := ws.i.Stop(ws); err != nil {
-				// TODO: Log error.
-				// ws.Error(err.Error())
+				ws.setError(err)
 				return true, 2
 			}
 			break loop
@@ -202,8 +215,21 @@ func (ws *windowsService) Uninstall() error {
 }
 
 func (ws *windowsService) Run() error {
+	ws.setError(nil)
 	if !interactive {
-		return svc.Run(ws.Name, ws)
+		// Return error messages from start and stop routines
+		// that get executed in the Execute method.
+		// Guarded with a mutex as it may run a different thread
+		// (callback from windows).
+		runErr := svc.Run(ws.Name, ws)
+		startStopErr := ws.getError()
+		if startStopErr != nil {
+			return startStopErr
+		}
+		if runErr != nil {
+			return runErr
+		}
+		return nil
 	}
 	err := ws.i.Start(ws)
 	if err != nil {
