@@ -9,5 +9,5 @@ import (
 )
 
 func TestPlatformName(t *testing.T) {
-	t.Logf("Platform is %v", Local)
+	t.Logf("Platform is %v", Platform())
 }

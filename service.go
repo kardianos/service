@@ -129,8 +129,7 @@ type Config struct {
 	UserName  string   // Run as username.
 	Arguments []string // Run with arguments.
 
-	DependsOn        []string // Other services that this depends on.
-	WorkingDirectory string   // Service working directory.
+	WorkingDirectory string // Service working directory.
 	ChRoot           string
 	UserService      bool // Install as a current user service.
 
