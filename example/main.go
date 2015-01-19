@@ -6,8 +6,8 @@
 package main
 
 import (
+	"flag"
 	"log"
-	"os"
 	"time"
 
 	"bitbucket.org/kardianos/service2beta"
@@ -61,6 +61,9 @@ func (p *program) Stop(s service.Service) error {
 //   Handle service controls (optional).
 //   Run the service.
 func main() {
+	svcFlag := flag.String("service", "", "Control the system service.")
+	flag.Parse()
+
 	svcConfig := &service.Config{
 		Name:        "GoServiceTest",
 		DisplayName: "Go Service Test",
@@ -77,6 +80,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	go func() {
 		for {
 			err := <-errs
@@ -86,8 +90,8 @@ func main() {
 		}
 	}()
 
-	if len(os.Args) > 1 {
-		err := service.Control(s, os.Args[1])
+	if len(*svcFlag) != 0 {
+		err := service.Control(s, *svcFlag)
 		if err != nil {
 			log.Printf("Valid actions: %q\n", service.ControlAction)
 			log.Fatal(err)

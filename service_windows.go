@@ -5,9 +5,11 @@
 package service
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"time"
 
@@ -163,8 +165,20 @@ func (ws *windowsService) Install() error {
 	if err != nil {
 		return err
 	}
-	// Used if path contains a space.
-	exepath = `"` + exepath + `"`
+	binPath := &bytes.Buffer{}
+	// Quote exe path in case it contains a string.
+	binPath.WriteRune('"')
+	binPath.WriteString(exepath)
+	binPath.WriteRune('"')
+
+	// Arguments are encoded with the binary path to service.
+	// Enclose arguments in quotes. Escape quotes with a backslash.
+	for _, arg := range ws.Arguments {
+		binPath.WriteRune(' ')
+		binPath.WriteString(`"`)
+		binPath.WriteString(strings.Replace(arg, `"`, `\"`, -1))
+		binPath.WriteString(`"`)
+	}
 	m, err := mgr.Connect()
 	if err != nil {
 		return err
@@ -175,10 +189,12 @@ func (ws *windowsService) Install() error {
 		s.Close()
 		return fmt.Errorf("service %s already exists", ws.Name)
 	}
-	s, err = m.CreateService(ws.Name, exepath, mgr.Config{
-		DisplayName: ws.DisplayName,
-		Description: ws.Description,
-		StartType:   mgr.StartAutomatic,
+	s, err = m.CreateService(ws.Name, binPath.String(), mgr.Config{
+		DisplayName:      ws.DisplayName,
+		Description:      ws.Description,
+		StartType:        mgr.StartAutomatic,
+		ServiceStartName: ws.UserName,
+		Password:         ws.KV.string("Password", ""),
 	})
 	if err != nil {
 		return err
