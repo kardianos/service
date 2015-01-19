@@ -15,8 +15,8 @@
 	package main
 
 	import (
+		"flag"
 		"log"
-		"os"
 		"time"
 
 		"bitbucket.org/kardianos/service2beta"
@@ -31,7 +31,7 @@
 	}
 
 	func (p *program) Start(s service.Service) error {
-		if service.Local.Interactive() {
+		if service.Interactive() {
 			logger.Info("Running in terminal.")
 		} else {
 			logger.Info("Running under service manager.")
@@ -43,7 +43,7 @@
 		return nil
 	}
 	func (p *program) run() error {
-		logger.Infof("I'm running %v.", service.Local)
+		logger.Infof("I'm running %v.", service.Platform())
 		ticker := time.NewTicker(2 * time.Second)
 		for {
 			select {
@@ -70,6 +70,9 @@
 	//   Handle service controls (optional).
 	//   Run the service.
 	func main() {
+		svcFlag := flag.String("service", "", "Control the system service.")
+		flag.Parse()
+
 		svcConfig := &service.Config{
 			Name:        "GoServiceTest",
 			DisplayName: "Go Service Test",
@@ -86,6 +89,7 @@
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		go func() {
 			for {
 				err := <-errs
@@ -95,8 +99,8 @@
 			}
 		}()
 
-		if len(os.Args) > 1 {
-			err := service.Control(s, os.Args[1])
+		if len(*svcFlag) != 0 {
+			err := service.Control(s, *svcFlag)
 			if err != nil {
 				log.Printf("Valid actions: %q\n", service.ControlAction)
 				log.Fatal(err)
@@ -192,8 +196,19 @@ func (kv KeyValue) float64(name string, defaultValue float64) float64 {
 	return defaultValue
 }
 
-// System represents the system and system's service being used.
-type System interface {
+// Platform returns a description of the OS and service platform.
+func Platform() string {
+	return system.String()
+}
+
+// Interactive returns false if running under the OS service manager
+// and true otherwise.
+func Interactive() bool {
+	return system.Interactive()
+}
+
+// runningSystem represents the system and system's service being used.
+type runningSystem interface {
 	// String returns a description of the OS and service platform.
 	String() string
 
@@ -202,8 +217,8 @@ type System interface {
 	Interactive() bool
 }
 
-// LocalSystem get's the local system information.
-var Local System = system
+// Be sure to implement each platform.
+var _ runningSystem = system
 
 // Interface represents the service interface for a program. Start runs before
 // the hosting process is granted control and Stop runs when control is returned.

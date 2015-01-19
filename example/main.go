@@ -22,7 +22,7 @@ type program struct {
 }
 
 func (p *program) Start(s service.Service) error {
-	if service.Local.Interactive() {
+	if service.Interactive() {
 		logger.Info("Running in terminal.")
 	} else {
 		logger.Info("Running under service manager.")
@@ -34,7 +34,7 @@ func (p *program) Start(s service.Service) error {
 	return nil
 }
 func (p *program) run() error {
-	logger.Infof("I'm running %v.", service.Local)
+	logger.Infof("I'm running %v.", service.Platform())
 	ticker := time.NewTicker(2 * time.Second)
 	for {
 		select {
