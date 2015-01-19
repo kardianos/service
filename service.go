@@ -113,7 +113,7 @@
 		}
 	}
 */
-package service
+package service // import github.com/kardianos/service
 
 import (
 	"errors"
