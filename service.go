@@ -130,8 +130,8 @@ type Config struct {
 	ChRoot           string
 	UserService      bool // Install as a current user service.
 
-	// System specific parameters.
-	KV KeyValue
+	// System specific options.
+	Option KeyValue
 }
 
 var errNameFieldRequired = errors.New("Config.Name field is required.")
