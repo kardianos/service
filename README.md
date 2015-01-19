@@ -1,10 +1,14 @@
+# service (BETA)
 service will install / un-install, start / stop, and run a program as a service (daemon).
 Currently supports Windows XP+, Linux/(systemd | Upstart | SysV), and OSX/Launchd.
 
-To start out follow "example/main.go".
+Windows controls services by setting up callbacks that is non-trivial. This
+is very different then other systems. This package provides the same API
+despite the substantial differences.
+It also can be used to detect how a program is called, from an interactive
+terminal or from a service manager.
 
-This package is still in BETA.
-
+## TODO
 Need to test the Interactive test for the following platforms:
  * SysV
  * systemd system and user service
