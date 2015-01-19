@@ -218,6 +218,10 @@ func (s *linuxService) Install() error {
 	}
 
 	if flavor == initSystemd {
+		err = exec.Command("systemctl", "enable", s.Name+".service").Run()
+		if err != nil {
+			return err
+		}
 		return exec.Command("systemctl", "daemon-reload").Run()
 	}
 
@@ -422,6 +426,8 @@ ConditionFileIsExecutable={{.Path}}
 StartLimitInterval=5
 StartLimitBurst=10
 ExecStart={{.Path}}
+Restart=always
+RestartSec=120
 
 [Install]
 WantedBy=multi-user.target
