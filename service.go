@@ -10,69 +10,35 @@
 // despite the substantial differences.
 // It also can be used to detect how a program is called, from an interactive
 // terminal or from a service manager.
+//
+// Examples in the example/ folder.
 /*
-	// Simple service that only works by printing a log message every few seconds.
 	package main
 
 	import (
-		"flag"
 		"log"
-		"time"
 
 		"github.com/kardianos/service"
 	)
 
 	var logger service.Logger
 
-	// Program structures.
-	//  Define Start and Stop methods.
-	type program struct {
-		exit chan struct{}
-	}
+	type program struct{}
 
 	func (p *program) Start(s service.Service) error {
-		if service.Interactive() {
-			logger.Info("Running in terminal.")
-		} else {
-			logger.Info("Running under service manager.")
-		}
-		p.exit = make(chan struct{})
-
 		// Start should not block. Do the actual work async.
 		go p.run()
 		return nil
 	}
-	func (p *program) run() error {
-		logger.Infof("I'm running %v.", service.Platform())
-		ticker := time.NewTicker(2 * time.Second)
-		for {
-			select {
-			case tm := <-ticker.C:
-				logger.Infof("Still running at %v...", tm)
-			case <-p.exit:
-				ticker.Stop()
-				return nil
-			}
-		}
-		return nil
+	func (p *program) run() {
+		// Do work here
 	}
 	func (p *program) Stop(s service.Service) error {
-		// Any work in Stop should be quick, usually a few seconds at most.
-		logger.Info("I'm Stopping!")
-		close(p.exit)
+		// Stop should not block. Return with a few seconds.
 		return nil
 	}
 
-	// Service setup.
-	//   Define service config.
-	//   Create the service.
-	//   Setup the logger.
-	//   Handle service controls (optional).
-	//   Run the service.
 	func main() {
-		svcFlag := flag.String("service", "", "Control the system service.")
-		flag.Parse()
-
 		svcConfig := &service.Config{
 			Name:        "GoServiceTest",
 			DisplayName: "Go Service Test",
@@ -84,28 +50,9 @@
 		if err != nil {
 			log.Fatal(err)
 		}
-		errs := make(chan error, 5)
-		logger, err = s.Logger(errs)
+		logger, err = s.Logger(nil)
 		if err != nil {
 			log.Fatal(err)
-		}
-
-		go func() {
-			for {
-				err := <-errs
-				if err != nil {
-					log.Print(err)
-				}
-			}
-		}()
-
-		if len(*svcFlag) != 0 {
-			err := service.Control(s, *svcFlag)
-			if err != nil {
-				log.Printf("Valid actions: %q\n", service.ControlAction)
-				log.Fatal(err)
-			}
-			return
 		}
 		err = s.Run()
 		if err != nil {
