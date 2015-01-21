@@ -19,7 +19,7 @@
 		"log"
 		"time"
 
-		"bitbucket.org/kardianos/service2beta"
+		"github.com/kardianos/service"
 	)
 
 	var logger service.Logger
