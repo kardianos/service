@@ -191,12 +191,12 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
 "http://www.apple.com/DTDs/PropertyList-1.0.dtd" >
 <plist version='1.0'>
 <dict>
-<key>Label</key><string>{{.Name}}</string>
+<key>Label</key><string>{{html .Name}}</string>
 <key>ProgramArguments</key>
 <array>
-        <string>{{.Path}}</string>
+        <string>{{html .Path}}</string>
 {{range .Config.Arguments}}
-        <string>{{.}}</string>
+        <string>{{html .}}</string>
 {{end}}
 </array>
 <key>KeepAlive</key><{{bool .KeepAlive}}/>
