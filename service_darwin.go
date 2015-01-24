@@ -195,6 +195,9 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
 <key>ProgramArguments</key>
 <array>
         <string>{{.Path}}</string>
+{{range .Config.Arguments}}
+        <string>{{.}}</string>
+{{end}}
 </array>
 <key>KeepAlive</key><{{bool .KeepAlive}}/>
 <key>RunAtLoad</key><{{bool .RunAtLoad}}/>
