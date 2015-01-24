@@ -199,6 +199,9 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
         <string>{{html .}}</string>
 {{end}}
 </array>
+{{if .UserName}}<key>UserName</key><string>{{html .UserName}}</string>{{end}}
+{{if .ChRoot}}<key>RootDirectory</key><string>{{html .ChRoot}}</string>{{end}}
+{{if .WorkingDirectory}}<key>WorkingDirectory</key><string>{{html .WorkingDirectory}}</string>{{end}}
 <key>KeepAlive</key><{{bool .KeepAlive}}/>
 <key>RunAtLoad</key><{{bool .RunAtLoad}}/>
 <key>Disabled</key><false/>

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"text/template"
 	"time"
 
@@ -137,7 +138,7 @@ func (f initFlavor) ConfigPath(name string, c *Config) (cp string, err error) {
 	return
 }
 
-func (f initFlavor) GetTemplate() *template.Template {
+func (f initFlavor) Template() *template.Template {
 	var templ string
 	switch f {
 	case initSystemd:
@@ -147,7 +148,7 @@ func (f initFlavor) GetTemplate() *template.Template {
 	case initUpstart:
 		templ = upstartScript
 	}
-	return template.Must(template.New(f.String() + "Script").Parse(templ))
+	return template.Must(template.New(f.String() + "Script").Funcs(tf).Parse(templ))
 }
 
 var interactive = false
@@ -196,7 +197,7 @@ func (s *linuxService) Install() error {
 		path,
 	}
 
-	err = flavor.GetTemplate().Execute(f, to)
+	err = flavor.Template().Execute(f, to)
 	if err != nil {
 		return err
 	}
@@ -296,6 +297,12 @@ func (s *linuxService) Restart() error {
 	}
 	time.Sleep(50 * time.Millisecond)
 	return s.Start()
+}
+
+var tf = map[string]interface{}{
+	"cmd": func(s string) string {
+		return `"` + strings.Replace(s, `"`, `\"`, -1) + `"`
+	},
 }
 
 const systemVScript = `#!/bin/sh
@@ -420,12 +427,15 @@ exec {{.Path}}
 
 const systemdScript = `[Unit]
 Description={{.Description}}
-ConditionFileIsExecutable={{.Path}}
+ConditionFileIsExecutable={{.Path|cmd}}
 
 [Service]
 StartLimitInterval=5
 StartLimitBurst=10
-ExecStart={{.Path}}
+ExecStart={{.Path|cmd}}{{range .Arguments}} {{.|cmd}}{{end}}
+{{if .ChRoot}}RootDirectory={{.ChRoot|cmd}}{{end}}
+{{if .WorkingDirectory}}WorkingDirectory={{.WorkingDirectory|cmd}}{{end}}
+{{if .UserName}}User={{.UserName}}{{end}}
 Restart=always
 RestartSec=120
 
