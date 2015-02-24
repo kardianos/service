@@ -13,7 +13,7 @@ import (
 	"text/template"
 	"time"
 
-	"bitbucket.org/kardianos/osext"
+	"github.com/kardianos/osext"
 )
 
 const maxPathSize = 32 * 1024
