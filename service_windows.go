@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"bitbucket.org/kardianos/osext"
+	"github.com/kardianos/osext"
 	"code.google.com/p/winsvc/eventlog"
 	"code.google.com/p/winsvc/mgr"
 	"code.google.com/p/winsvc/svc"
