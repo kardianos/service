@@ -18,7 +18,7 @@
 	import (
 		"log"
 
-		"github.com/nollan/service"
+		"github.com/kardianos/service"
 	)
 
 	var logger service.Logger
@@ -60,7 +60,7 @@
 		}
 	}
 */
-package service // import "github.com/nollan/service"
+package service // import "github.com/kardianos/service"
 
 import (
 	"errors"
