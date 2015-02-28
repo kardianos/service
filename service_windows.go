@@ -195,6 +195,7 @@ func (ws *windowsService) Install() error {
 		StartType:        mgr.StartAutomatic,
 		ServiceStartName: ws.UserName,
 		Password:         ws.Option.string("Password", ""),
+		Dependencies:     ws.Dependencies,
 	})
 	if err != nil {
 		return err

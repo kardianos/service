@@ -69,9 +69,10 @@ import (
 
 // Config provides the setup for a Service. The Name field is required.
 type Config struct {
-	Name        string // Required name of the service. No spaces suggested.
-	DisplayName string // Display name, spaces allowed.
-	Description string // Long description of service.
+	Name         string   // Required name of the service. No spaces suggested.
+	DisplayName  string   // Display name, spaces allowed.
+	Description  string   // Long description of service.
+	Dependencies []string // Array of service dependencies.
 
 	UserName  string   // Run as username.
 	Arguments []string // Run with arguments.
