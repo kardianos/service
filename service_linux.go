@@ -21,13 +21,16 @@ const (
 	initSystemV = initFlavor(iota)
 	initUpstart
 	initSystemd
+	initNotAvailable
 )
 
 func getFlavor() initFlavor {
-	flavor := initSystemV
-	if isSystemd() {
-		flavor = initSystemd
-	} else if isUpstart() {
+	flavor := initNotAvailable
+	switch {
+	// XXX: enable when systemd bug is fixed
+	//case isSystemd():
+	//	flavor = initSystemd
+	case isUpstart():
 		flavor = initUpstart
 	}
 	return flavor
@@ -167,6 +170,10 @@ func isInteractive() (bool, error) {
 }
 
 func (s *linuxService) Install() error {
+	if ok, err := notSupported(); ok {
+		return err
+	}
+
 	confPath, err := flavor.ConfigPath(s.Name, s.Config)
 	if err != nil {
 		return err
@@ -232,6 +239,10 @@ func (s *linuxService) Install() error {
 }
 
 func (s *linuxService) Uninstall() error {
+	if ok, err := notSupported(); ok {
+		return err
+	}
+
 	if flavor == initSystemd {
 		exec.Command("systemctl", "disable", s.Name+".service").Run()
 	}
@@ -271,6 +282,9 @@ func (s *linuxService) Run() (err error) {
 }
 
 func (s *linuxService) Start() error {
+	if ok, err := notSupported(); ok {
+		return err
+	}
 	switch flavor {
 	case initSystemd:
 		return exec.Command("systemctl", "start", s.Name+".service").Run()
@@ -282,6 +296,9 @@ func (s *linuxService) Start() error {
 }
 
 func (s *linuxService) Stop() error {
+	if ok, err := notSupported(); ok {
+		return err
+	}
 	switch flavor {
 	case initSystemd:
 		return exec.Command("systemctl", "stop", s.Name+".service").Run()
@@ -299,6 +316,13 @@ func (s *linuxService) Restart() error {
 	}
 	time.Sleep(50 * time.Millisecond)
 	return s.Start()
+}
+
+func notSupported() (bool, error) {
+	if flavor == initNotAvailable {
+		return true, errors.New("No supported init system. Supported: upstart, systemd.")
+	}
+	return false, nil
 }
 
 var tf = map[string]interface{}{
