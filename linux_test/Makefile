@@ -20,7 +20,7 @@ systemd: test
 	@echo systemd
 	@cp service.test systemd/
 	@docker build -q --tag="service.test.systemd" systemd
-	@-docker run service.test.systemd
+	@-docker run --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:ro service.test.systemd
 	@-docker rm $(shell docker ps -l -q)
 	@-docker rmi -f service.test.systemd
 	@-rm systemd/service.test
