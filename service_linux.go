@@ -191,10 +191,12 @@ func (s *linuxService) Install() error {
 		Display     string
 		Description string
 		Path        string
+		Arguments   []string
 	}{
 		s.DisplayName,
 		s.Description,
 		path,
+		s.Config.Arguments,
 	}
 
 	err = flavor.Template().Execute(f, to)
@@ -321,7 +323,7 @@ const systemVScript = `#!/bin/sh
 # Description:       {{.Description}}
 ### END INIT INFO
 
-cmd="{{.Path}}"
+cmd="{{.Path}}{{range .Arguments}} {{.|cmd}}{{end}}"
 
 name=$(basename $0)
 pid_file="/var/run/$name.pid"
@@ -422,7 +424,7 @@ pre-start script
 end script
 
 # Start
-exec {{.Path}}
+exec {{.Path}}{{range .Arguments}} {{.|cmd}}{{end}}
 `
 
 const systemdScript = `[Unit]
