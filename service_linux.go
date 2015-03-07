@@ -188,15 +188,11 @@ func (s *linuxService) Install() error {
 	}
 
 	var to = &struct {
-		Display     string
-		Description string
-		Path        string
-		Arguments   []string
+		*Config
+		Path string
 	}{
-		s.DisplayName,
-		s.Description,
+		s.Config,
 		path,
-		s.Config.Arguments,
 	}
 
 	err = flavor.Template().Execute(f, to)
@@ -319,7 +315,7 @@ const systemVScript = `#!/bin/sh
 # Required-Stop:
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: {{.Display}}
+# Short-Description: {{.DisplayName}}
 # Description:       {{.Description}}
 ### END INIT INFO
 
@@ -405,7 +401,7 @@ exit 0`
 // the program before the Stop handler can run.
 const upstartScript = `# {{.Description}}
 
-description     "{{.Display}}"
+ {{if .DisplayName}}description    "{{.DisplayName}}"{{end}}
 
 kill signal INT
 start on filesystem or runlevel [2345]
