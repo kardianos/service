@@ -155,8 +155,6 @@ func (kv KeyValue) float64(name string, defaultValue float64) float64 {
 	return defaultValue
 }
 
-// TODO: Do these really need to be package level?
-
 // Platform returns a description of the system service.
 func Platform() string {
 	if system == nil {
@@ -184,14 +182,17 @@ func newSystem() System {
 	return nil
 }
 
-// TODO: Choose system could return the choosen system.
-
 // ChooseSystem chooses a system from the given system services.
 // SystemServices are considered in the order they are suggested.
 // Calling this may change what Interactive and Platform return.
 func ChooseSystem(a ...System) {
 	systemRegistry = a
 	system = newSystem()
+}
+
+// ChosenSystem returns the system that service will use.
+func ChosenSystem() System {
+	return system
 }
 
 // AvailableSystems returns the list of system services considered
