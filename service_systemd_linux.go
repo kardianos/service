@@ -98,8 +98,6 @@ func (s *systemd) Install() error {
 		return err
 	}
 	return exec.Command("systemctl", "daemon-reload").Run()
-
-	return nil
 }
 
 func (s *systemd) Uninstall() error {

@@ -22,15 +22,27 @@ const version = "Darwin Launchd"
 
 type darwinSystem struct{}
 
-func (ls darwinSystem) String() string {
+func (darwinSystem) String() string {
 	return version
 }
-
-func (ls darwinSystem) Interactive() bool {
+func (darwinSystem) Detect() bool {
+	return true
+}
+func (darwinSystem) Interactive() bool {
 	return interactive
 }
+func (darwinSystem) New(i Interface, c *Config) (Service, error) {
+	s := &darwinLaunchdService{
+		i:      i,
+		Config: c,
+	}
 
-var system = darwinSystem{}
+	return s, nil
+}
+
+func init() {
+	ChooseSystem(darwinSystem{})
+}
 
 var interactive = false
 
@@ -45,15 +57,6 @@ func init() {
 func isInteractive() (bool, error) {
 	// TODO: The PPID of Launchd is 1. The PPid of a service process should match launchd's PID.
 	return os.Getppid() != 1, nil
-}
-
-func newService(i Interface, c *Config) (*darwinLaunchdService, error) {
-	s := &darwinLaunchdService{
-		i:      i,
-		Config: c,
-	}
-
-	return s, nil
 }
 
 type darwinLaunchdService struct {

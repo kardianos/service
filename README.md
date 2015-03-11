@@ -10,7 +10,6 @@ terminal or from a service manager.
 
 ## TODO
 Need to test the Interactive test for the following platforms:
- * SysV
  * systemd system and user service
  * Launchd system and user service
 

@@ -12,54 +12,53 @@
 // terminal or from a service manager.
 //
 // Examples in the example/ folder.
-/*
-	package main
-
-	import (
-		"log"
-
-		"github.com/kardianos/service"
-	)
-
-	var logger service.Logger
-
-	type program struct{}
-
-	func (p *program) Start(s service.Service) error {
-		// Start should not block. Do the actual work async.
-		go p.run()
-		return nil
-	}
-	func (p *program) run() {
-		// Do work here
-	}
-	func (p *program) Stop(s service.Service) error {
-		// Stop should not block. Return with a few seconds.
-		return nil
-	}
-
-	func main() {
-		svcConfig := &service.Config{
-			Name:        "GoServiceTest",
-			DisplayName: "Go Service Test",
-			Description: "This is a test Go service.",
-		}
-
-		prg := &program{}
-		s, err := service.New(prg, svcConfig)
-		if err != nil {
-			log.Fatal(err)
-		}
-		logger, err = s.Logger(nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-		err = s.Run()
-		if err != nil {
-			logger.Error(err)
-		}
-	}
-*/
+//
+//	package main
+//
+//	import (
+//		"log"
+//
+//		"github.com/kardianos/service"
+//	)
+//
+//	var logger service.Logger
+//
+//	type program struct{}
+//
+//	func (p *program) Start(s service.Service) error {
+//		// Start should not block. Do the actual work async.
+//		go p.run()
+//		return nil
+//	}
+//	func (p *program) run() {
+//		// Do work here
+//	}
+//	func (p *program) Stop(s service.Service) error {
+//		// Stop should not block. Return with a few seconds.
+//		return nil
+//	}
+//
+//	func main() {
+//		svcConfig := &service.Config{
+//			Name:        "GoServiceTest",
+//			DisplayName: "Go Service Test",
+//			Description: "This is a test Go service.",
+//		}
+//
+//		prg := &program{}
+//		s, err := service.New(prg, svcConfig)
+//		if err != nil {
+//			log.Fatal(err)
+//		}
+//		logger, err = s.Logger(nil)
+//		if err != nil {
+//			log.Fatal(err)
+//		}
+//		err = s.Run()
+//		if err != nil {
+//			logger.Error(err)
+//		}
+//	}
 package service // import "github.com/kardianos/service"
 
 import (
@@ -85,14 +84,27 @@ type Config struct {
 	Option KeyValue
 }
 
-var errNameFieldRequired = errors.New("Config.Name field is required.")
+var (
+	system         System
+	systemRegistry []System
+)
+
+var (
+	// ErrNameFieldRequired is returned when Conifg.Name is empty.
+	ErrNameFieldRequired = errors.New("Config.Name field is required.")
+	// ErrNoServiceSystemDetected is returned when no system was detected.
+	ErrNoServiceSystemDetected = errors.New("No service system detected.")
+)
 
 // New creates a new service based on a service interface and configuration.
 func New(i Interface, c *Config) (Service, error) {
 	if len(c.Name) == 0 {
-		return nil, errNameFieldRequired
+		return nil, ErrNameFieldRequired
 	}
-	return newService(i, c)
+	if system == nil {
+		return nil, ErrNoServiceSystemDetected
+	}
+	return system.New(i, c)
 }
 
 // KeyValue provides a list of platform specific options. See platform docs for
@@ -143,29 +155,66 @@ func (kv KeyValue) float64(name string, defaultValue float64) float64 {
 	return defaultValue
 }
 
-// Platform returns a description of the OS and service platform.
+// TODO: Do these really need to be package level?
+
+// Platform returns a description of the system service.
 func Platform() string {
+	if system == nil {
+		return ""
+	}
 	return system.String()
 }
 
 // Interactive returns false if running under the OS service manager
 // and true otherwise.
 func Interactive() bool {
+	if system == nil {
+		return true
+	}
 	return system.Interactive()
 }
 
-// runningSystem represents the system and system's service being used.
-type runningSystem interface {
-	// String returns a description of the OS and service platform.
-	String() string
-
-	// Interactive returns false if running under the OS service manager
-	// and true otherwise.
-	Interactive() bool
+func newSystem() System {
+	for _, choice := range systemRegistry {
+		if choice.Detect() == false {
+			continue
+		}
+		return choice
+	}
+	return nil
 }
 
-// Be sure to implement each platform.
-var _ runningSystem = system
+// TODO: Choose system could return the choosen system.
+
+// ChooseSystem chooses a system from the given system services.
+// SystemServices are considered in the order they are suggested.
+// Calling this may change what Interactive and Platform return.
+func ChooseSystem(a ...System) {
+	systemRegistry = a
+	system = newSystem()
+}
+
+// AvailableSystems returns the list of system services considered
+// when choosing the system service.
+func AvailableSystems() []System {
+	return systemRegistry
+}
+
+// System represents the service manager that is available.
+type System interface {
+	// String returns a description of the system.
+	String() string
+
+	// Detect returns true if the system is available to use.
+	Detect() bool
+
+	// Interactive returns false if running under the system service manager
+	// and true otherwise.
+	Interactive() bool
+
+	// New creates a new service for this system.
+	New(i Interface, c *Config) (Service, error)
+}
 
 // Interface represents the service interface for a program. Start runs before
 // the hosting process is granted control and Stop runs when control is returned.
@@ -191,6 +240,8 @@ type Interface interface {
 	// Stop should not call os.Exit directly in the function.
 	Stop(s Service) error
 }
+
+// TODO: Add Configure to Service interface.
 
 // Service represents a service that can be run or controlled.
 type Service interface {

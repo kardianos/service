@@ -5,18 +5,15 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
 )
 
-type newServiceFunc func(i Interface, c *Config) (Service, error)
-
 type linuxSystem struct {
 	interactive  bool
 	selectedName string
-	selectedNew  newServiceFunc
+	selectedNew  func(i Interface, c *Config) (Service, error)
 }
 
 func (ls linuxSystem) String() string {
@@ -27,35 +24,28 @@ func (ls linuxSystem) Interactive() bool {
 	return ls.interactive
 }
 
-type systemChoice interface {
-	Name() string
-	Detect() bool
-	Interactive() bool
-	New(i Interface, c *Config) (Service, error)
-}
-
-type linuxSystemChoice struct {
+type linuxSystemService struct {
 	name        string
 	detect      func() bool
 	interactive func() bool
 	new         func(i Interface, c *Config) (Service, error)
 }
 
-func (sc linuxSystemChoice) Name() string {
+func (sc linuxSystemService) String() string {
 	return sc.name
 }
-func (sc linuxSystemChoice) Detect() bool {
+func (sc linuxSystemService) Detect() bool {
 	return sc.detect()
 }
-func (sc linuxSystemChoice) Interactive() bool {
+func (sc linuxSystemService) Interactive() bool {
 	return sc.interactive()
 }
-func (sc linuxSystemChoice) New(i Interface, c *Config) (Service, error) {
+func (sc linuxSystemService) New(i Interface, c *Config) (Service, error) {
 	return sc.new(i, c)
 }
 
-var systemRegistry = []systemChoice{
-	linuxSystemChoice{
+func init() {
+	ChooseSystem(linuxSystemService{
 		name:   "systemd",
 		detect: isSystemd,
 		interactive: func() bool {
@@ -64,49 +54,25 @@ var systemRegistry = []systemChoice{
 		},
 		new: newSystemdService,
 	},
-	linuxSystemChoice{
-		name:   "Upstart",
-		detect: isUpstart,
-		interactive: func() bool {
-			is, _ := isInteractive()
-			return is
+		linuxSystemService{
+			name:   "Upstart",
+			detect: isUpstart,
+			interactive: func() bool {
+				is, _ := isInteractive()
+				return is
+			},
+			new: newUpstartService,
 		},
-		new: newUpstartService,
-	},
-	linuxSystemChoice{
-		name:   "System-V",
-		detect: func() bool { return true },
-		interactive: func() bool {
-			is, _ := isInteractive()
-			return is
+		linuxSystemService{
+			name:   "System-V",
+			detect: func() bool { return true },
+			interactive: func() bool {
+				is, _ := isInteractive()
+				return is
+			},
+			new: newSystemVService,
 		},
-		new: newSystemVService,
-	},
-}
-
-func newLinuxSystem() linuxSystem {
-	for _, choice := range systemRegistry {
-		if choice.Detect() == false {
-			continue
-		}
-		return linuxSystem{
-			interactive:  choice.Interactive(),
-			selectedName: choice.Name(),
-			selectedNew:  choice.New,
-		}
-	}
-	return linuxSystem{}
-}
-
-var system = newLinuxSystem()
-
-var errNoServiceSystemDetected = errors.New("No service system detected.")
-
-func newService(i Interface, c *Config) (Service, error) {
-	if system.selectedNew == nil {
-		return nil, errNoServiceSystemDetected
-	}
-	return system.selectedNew(i, c)
+	)
 }
 
 func isInteractive() (bool, error) {

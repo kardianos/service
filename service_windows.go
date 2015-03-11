@@ -13,10 +13,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardianos/osext"
 	"code.google.com/p/winsvc/eventlog"
 	"code.google.com/p/winsvc/mgr"
 	"code.google.com/p/winsvc/svc"
+	"github.com/kardianos/osext"
 )
 
 const version = "Windows Service"
@@ -40,11 +40,23 @@ type windowsSystem struct{}
 func (windowsSystem) String() string {
 	return version
 }
+func (windowsSystem) Detect() bool {
+	return true
+}
 func (windowsSystem) Interactive() bool {
 	return interactive
 }
+func (windowsSystem) New(i Interface, c *Config) (Service, error) {
+	ws := &windowsService{
+		i:      i,
+		Config: c,
+	}
+	return ws, nil
+}
 
-var system = windowsSystem{}
+func init() {
+	ChooseSystem(windowsSystem{})
+}
 
 func (l WindowsLogger) send(err error) error {
 	if err == nil {
@@ -101,14 +113,6 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-}
-
-func newService(i Interface, c *Config) (*windowsService, error) {
-	ws := &windowsService{
-		i:      i,
-		Config: c,
-	}
-	return ws, nil
 }
 
 func (ws *windowsService) String() string {
