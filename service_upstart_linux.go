@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"syscall"
 	"text/template"
 	"time"
 
@@ -122,7 +123,7 @@ func (s *upstart) Run() (err error) {
 
 	sigChan := make(chan os.Signal, 3)
 
-	signal.Notify(sigChan, os.Interrupt, os.Kill)
+	signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt, os.Kill)
 
 	<-sigChan
 
