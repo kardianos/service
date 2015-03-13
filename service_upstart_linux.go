@@ -123,7 +123,7 @@ func (s *upstart) Run() (err error) {
 
 	sigChan := make(chan os.Signal, 3)
 
-	signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt, os.Kill)
+	signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
 
 	<-sigChan
 
