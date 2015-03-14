@@ -12,8 +12,6 @@ import (
 	"syscall"
 	"text/template"
 	"time"
-
-	"github.com/kardianos/osext"
 )
 
 func isSystemd() bool {
@@ -75,7 +73,7 @@ func (s *systemd) Install() error {
 	}
 	defer f.Close()
 
-	path, err := osext.Executable()
+	path, err := s.execPath()
 	if err != nil {
 		return err
 	}

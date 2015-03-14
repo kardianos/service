@@ -64,6 +64,9 @@ package service // import "github.com/kardianos/service"
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
+
+	"github.com/kardianos/osext"
 )
 
 // Config provides the setup for a Service. The Name field is required.
@@ -76,12 +79,22 @@ type Config struct {
 	UserName  string   // Run as username.
 	Arguments []string // Run with arguments.
 
+	// Optional field to specify the executable for service.
+	// If empty the current executable is used.
+	Executable       string
 	WorkingDirectory string // Service working directory.
 	ChRoot           string
 	UserService      bool // Install as a current user service.
 
 	// System specific options.
 	Option KeyValue
+}
+
+func (c *Config) execPath() (string, error) {
+	if len(c.Executable) != 0 {
+		return filepath.Abs(c.Executable)
+	}
+	return osext.Executable()
 }
 
 var (

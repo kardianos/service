@@ -8,12 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
-	"syscall"
 	"text/template"
 	"time"
-
-	"github.com/kardianos/osext"
 )
 
 func isUpstart() bool {
@@ -77,7 +75,7 @@ func (s *upstart) Install() error {
 	}
 	defer f.Close()
 
-	path, err := osext.Executable()
+	path, err := s.execPath()
 	if err != nil {
 		return err
 	}
@@ -122,7 +120,7 @@ func (s *upstart) Run() (err error) {
 
 	sigChan := make(chan os.Signal, 3)
 
-	signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
+	signal.Notify(sigChan, os.Interrupt, os.Kill)
 
 	<-sigChan
 
@@ -130,11 +128,11 @@ func (s *upstart) Run() (err error) {
 }
 
 func (s *upstart) Start() error {
-	return run("initctl", "start", s.Name)
+	return exec.Command("initctl", "start", s.Name).Run()
 }
 
 func (s *upstart) Stop() error {
-	return run("initctl", "stop", s.Name)
+	return exec.Command("initctl", "stop", s.Name).Run()
 }
 
 func (s *upstart) Restart() error {

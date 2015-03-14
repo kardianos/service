@@ -12,8 +12,6 @@ import (
 	"syscall"
 	"text/template"
 	"time"
-
-	"github.com/kardianos/osext"
 )
 
 type sysv struct {
@@ -67,7 +65,7 @@ func (s *sysv) Install() error {
 	}
 	defer f.Close()
 
-	path, err := osext.Executable()
+	path, err := s.execPath()
 	if err != nil {
 		return err
 	}

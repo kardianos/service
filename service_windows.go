@@ -16,7 +16,6 @@ import (
 	"code.google.com/p/winsvc/eventlog"
 	"code.google.com/p/winsvc/mgr"
 	"code.google.com/p/winsvc/svc"
-	"github.com/kardianos/osext"
 )
 
 const version = "Windows Service"
@@ -165,10 +164,11 @@ loop:
 }
 
 func (ws *windowsService) Install() error {
-	exepath, err := osext.Executable()
+	exepath, err := ws.execPath()
 	if err != nil {
 		return err
 	}
+
 	binPath := &bytes.Buffer{}
 	// Quote exe path in case it contains a string.
 	binPath.WriteRune('"')

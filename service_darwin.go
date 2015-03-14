@@ -12,8 +12,6 @@ import (
 	"syscall"
 	"text/template"
 	"time"
-
-	"github.com/kardianos/osext"
 )
 
 const maxPathSize = 32 * 1024
@@ -98,7 +96,7 @@ func (s *darwinLaunchdService) Install() error {
 	}
 	defer f.Close()
 
-	path, err := osext.Executable()
+	path, err := s.execPath()
 	if err != nil {
 		return err
 	}
