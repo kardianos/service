@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"os/user"
+	"syscall"
 	"text/template"
 	"time"
 
@@ -172,7 +173,7 @@ func (s *darwinLaunchdService) Run() error {
 
 	var sigChan = make(chan os.Signal, 3)
 
-	signal.Notify(sigChan, os.Interrupt, os.Kill)
+	signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
 
 	<-sigChan
 
