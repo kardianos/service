@@ -9,6 +9,7 @@ package service
 import (
 	"fmt"
 	"log/syslog"
+	"os/exec"
 )
 
 func newSysLogger(name string, errs chan<- error) (Logger, error) {
@@ -48,4 +49,13 @@ func (s sysLogger) Warningf(format string, a ...interface{}) error {
 }
 func (s sysLogger) Infof(format string, a ...interface{}) error {
 	return s.send(s.Writer.Info(fmt.Sprintf(format, a...)))
+}
+
+func run(command string, arguments ...string) error {
+	cmd := exec.Command(command, arguments...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%q failed: %v, %s", command, err, out)
+	}
+	return nil
 }

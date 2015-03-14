@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"syscall"
 	"text/template"
@@ -140,11 +139,11 @@ func (s *sysv) Run() (err error) {
 }
 
 func (s *sysv) Start() error {
-	return exec.Command("service", s.Name, "start").Run()
+	return run("service", s.Name, "start")
 }
 
 func (s *sysv) Stop() error {
-	return exec.Command("service", s.Name, "stop").Run()
+	return run("service", s.Name, "stop")
 }
 
 func (s *sysv) Restart() error {

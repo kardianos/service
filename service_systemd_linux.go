@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"syscall"
 	"text/template"
@@ -94,15 +93,18 @@ func (s *systemd) Install() error {
 		return err
 	}
 
-	err = exec.Command("systemctl", "enable", s.Name+".service").Run()
+	err = run("systemctl", "enable", s.Name+".service")
 	if err != nil {
 		return err
 	}
-	return exec.Command("systemctl", "daemon-reload").Run()
+	return run("systemctl", "daemon-reload")
 }
 
 func (s *systemd) Uninstall() error {
-	exec.Command("systemctl", "disable", s.Name+".service").Run()
+	err := run("systemctl", "disable", s.Name+".service")
+	if err != nil {
+		return err
+	}
 	cp, err := s.configPath()
 	if err != nil {
 		return err
@@ -139,11 +141,11 @@ func (s *systemd) Run() (err error) {
 }
 
 func (s *systemd) Start() error {
-	return exec.Command("systemctl", "start", s.Name+".service").Run()
+	return run("systemctl", "start", s.Name+".service")
 }
 
 func (s *systemd) Stop() error {
-	return exec.Command("systemctl", "stop", s.Name+".service").Run()
+	return run("systemctl", "stop", s.Name+".service")
 }
 
 func (s *systemd) Restart() error {

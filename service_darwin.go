@@ -7,7 +7,6 @@ package service
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"os/user"
 	"syscall"
@@ -143,16 +142,14 @@ func (s *darwinLaunchdService) Start() error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("launchctl", "load", confPath)
-	return cmd.Run()
+	return run("launchctl", "load", confPath)
 }
 func (s *darwinLaunchdService) Stop() error {
 	confPath, err := s.getServiceFilePath()
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("launchctl", "unload", confPath)
-	return cmd.Run()
+	return run("launchctl", "unload", confPath)
 }
 func (s *darwinLaunchdService) Restart() error {
 	err := s.Stop()
