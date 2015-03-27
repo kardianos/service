@@ -190,6 +190,7 @@ case "$1" in
             echo "Already started"
         else
             echo "Starting $name"
+            {{if .WorkingDirectory}}cd '{{.WorkingDirectory}}'{{end}}
             $cmd >> "$stdout_log" 2>> "$stderr_log" &
             echo $! > "$pid_file"
             if ! is_running; then

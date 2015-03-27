@@ -83,7 +83,7 @@ type Config struct {
 	Executable string
 
 	// The following fields are not supported on Windows.
-	WorkingDirectory string // Initial working directory.
+	WorkingDirectory string // Initial working directory. Supported on OSX, systemd, system-V
 	ChRoot           string
 
 	// Install as a current user service. Only supported on OS X.
