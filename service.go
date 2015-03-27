@@ -70,12 +70,14 @@ import (
 )
 
 const (
-	optionKeepAlive          = "KeepAlive"
-	optionKeepAliveDefault   = true
-	optionRunAtLoad          = "RunAtLoad"
-	optionRunAtLoadDefault   = false
-	optionUserService        = "UserService"
-	optionUserServiceDefault = false
+	optionKeepAlive            = "KeepAlive"
+	optionKeepAliveDefault     = true
+	optionRunAtLoad            = "RunAtLoad"
+	optionRunAtLoadDefault     = false
+	optionUserService          = "UserService"
+	optionUserServiceDefault   = false
+	optionSessionCreate        = "SessionCreate"
+	optionSessionCreateDefault = true
 )
 
 // Config provides the setup for a Service. The Name field is required.
@@ -103,6 +105,7 @@ type Config struct {
 	//    - KeepAlive   bool (true)
 	//    - RunAtLoad   bool (false)
 	//    - UserService bool (false) // Install as a current user service.
+	//    - SessionCreate bool (true)
 	Option KeyValue
 }
 
