@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"text/template"
 	"time"
@@ -128,11 +127,11 @@ func (s *upstart) Run() (err error) {
 }
 
 func (s *upstart) Start() error {
-	return exec.Command("initctl", "start", s.Name).Run()
+	return run("initctl", "start", s.Name)
 }
 
 func (s *upstart) Stop() error {
-	return exec.Command("initctl", "stop", s.Name).Run()
+	return run("initctl", "stop", s.Name)
 }
 
 func (s *upstart) Restart() error {
