@@ -75,18 +75,24 @@ type Config struct {
 	DisplayName  string   // Display name, spaces allowed.
 	Description  string   // Long description of service.
 	Dependencies []string // Array of service dependencies.
-
-	UserName  string   // Run as username.
-	Arguments []string // Run with arguments.
+	UserName     string   // Run as username.
+	Arguments    []string // Run with arguments.
 
 	// Optional field to specify the executable for service.
 	// If empty the current executable is used.
-	Executable       string
-	WorkingDirectory string // Service working directory.
+	Executable string
+
+	// The following fields are not supported on Windows.
+	WorkingDirectory string // Initial working directory.
 	ChRoot           string
-	UserService      bool // Install as a current user service.
+
+	// Install as a current user service. Only supported on OS X.
+	UserService bool
 
 	// System specific options.
+	//  * OS X
+	//    - KeepAlive bool (true)
+	//    - RunAtLoad bool (false)
 	Option KeyValue
 }
 
