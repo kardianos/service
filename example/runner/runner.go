@@ -25,6 +25,8 @@ type Config struct {
 	Exec string
 	Args []string
 	Env  []string
+
+	Stderr, Stdout string
 }
 
 var logger service.Logger
@@ -61,12 +63,28 @@ func (p *program) run(cmd *exec.Cmd) {
 		}
 	}()
 
-	out, err := cmd.CombinedOutput()
+	if p.Stderr != "" {
+		f, err := os.OpenFile(p.Stderr, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+		if err != nil {
+			logger.Warningf("Failed to open std err %q: %v", p.Stderr, err)
+			return
+		}
+		defer f.Close()
+		cmd.Stderr = f
+	}
+	if p.Stdout != "" {
+		f, err := os.OpenFile(p.Stdout, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+		if err != nil {
+			logger.Warningf("Failed to open std out %q: %v", p.Stdout, err)
+			return
+		}
+		defer f.Close()
+		cmd.Stdout = f
+	}
+
+	err := cmd.Run()
 	if err != nil {
 		logger.Warningf("Error running: %v", err)
-	}
-	if len(out) != 0 {
-		logger.Info(string(out))
 	}
 
 	return

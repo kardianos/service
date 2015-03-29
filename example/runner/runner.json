@@ -11,5 +11,8 @@
 		"GOROOT_BOOTSTRAP=C:\\dev\\go_ready",
 		"HOMEDRIVE=C:",
 		"HOMEPATH=\\Documents and Settings\\Administrator"
-	]
+	],
+	
+	"Stderr": "C:\\builder_err.log",
+	"Stdout": "C:\\builder_out.log"
 }
