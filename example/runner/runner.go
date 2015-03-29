@@ -36,6 +36,8 @@ type program struct {
 	service service.Service
 
 	*Config
+
+	cmd *exec.Cmd
 }
 
 func (p *program) Start(s service.Service) error {
@@ -46,14 +48,14 @@ func (p *program) Start(s service.Service) error {
 		return fmt.Errorf("Failed to find executable %q: %v", p.Exec, err)
 	}
 
-	cmd := exec.Command(fullExec, p.Args...)
-	cmd.Dir = p.Dir
-	cmd.Env = p.Env
+	p.cmd = exec.Command(fullExec, p.Args...)
+	p.cmd.Dir = p.Dir
+	p.cmd.Env = append(os.Environ(), p.Env...)
 
-	go p.run(cmd)
+	go p.run()
 	return nil
 }
-func (p *program) run(cmd *exec.Cmd) {
+func (p *program) run() {
 	logger.Info("Starting ", p.DisplayName)
 	defer func() {
 		if service.Interactive() {
@@ -70,7 +72,7 @@ func (p *program) run(cmd *exec.Cmd) {
 			return
 		}
 		defer f.Close()
-		cmd.Stderr = f
+		p.cmd.Stderr = f
 	}
 	if p.Stdout != "" {
 		f, err := os.OpenFile(p.Stdout, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
@@ -79,10 +81,10 @@ func (p *program) run(cmd *exec.Cmd) {
 			return
 		}
 		defer f.Close()
-		cmd.Stdout = f
+		p.cmd.Stdout = f
 	}
 
-	err := cmd.Run()
+	err := p.cmd.Run()
 	if err != nil {
 		logger.Warningf("Error running: %v", err)
 	}
@@ -92,6 +94,9 @@ func (p *program) run(cmd *exec.Cmd) {
 func (p *program) Stop(s service.Service) error {
 	close(p.exit)
 	logger.Info("Stopping ", p.DisplayName)
+	if p.cmd.ProcessState.Exited() == false {
+		p.cmd.Process.Kill()
+	}
 	if service.Interactive() {
 		os.Exit(0)
 	}
