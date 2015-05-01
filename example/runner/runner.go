@@ -18,6 +18,7 @@ import (
 	"github.com/kardianos/service"
 )
 
+// Config is the runner app config structure.
 type Config struct {
 	Name, DisplayName, Description string
 
