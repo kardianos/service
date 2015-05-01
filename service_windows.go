@@ -16,7 +16,7 @@ import (
 	"golang.org/x/sys/windows/svc/mgr"
 )
 
-const version = "Windows Service"
+const version = "windows-service"
 
 type windowsService struct {
 	i Interface

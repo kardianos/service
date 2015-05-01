@@ -16,7 +16,7 @@ import (
 
 const maxPathSize = 32 * 1024
 
-const version = "Darwin Launchd"
+const version = "darwin-launchd"
 
 type darwinSystem struct{}
 

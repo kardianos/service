@@ -5,24 +5,9 @@
 package service
 
 import (
-	"fmt"
 	"os"
 	"strings"
 )
-
-type linuxSystem struct {
-	interactive  bool
-	selectedName string
-	selectedNew  func(i Interface, c *Config) (Service, error)
-}
-
-func (ls linuxSystem) String() string {
-	return fmt.Sprintf("Linux %s", ls.selectedName)
-}
-
-func (ls linuxSystem) Interactive() bool {
-	return ls.interactive
-}
 
 type linuxSystemService struct {
 	name        string
@@ -46,7 +31,7 @@ func (sc linuxSystemService) New(i Interface, c *Config) (Service, error) {
 
 func init() {
 	ChooseSystem(linuxSystemService{
-		name:   "systemd",
+		name:   "linux-systemd",
 		detect: isSystemd,
 		interactive: func() bool {
 			is, _ := isInteractive()
@@ -55,7 +40,7 @@ func init() {
 		new: newSystemdService,
 	},
 		linuxSystemService{
-			name:   "Upstart",
+			name:   "linux-upstart",
 			detect: isUpstart,
 			interactive: func() bool {
 				is, _ := isInteractive()
@@ -64,7 +49,7 @@ func init() {
 			new: newUpstartService,
 		},
 		linuxSystemService{
-			name:   "System-V",
+			name:   "unix-systemv",
 			detect: func() bool { return true },
 			interactive: func() bool {
 				is, _ := isInteractive()
