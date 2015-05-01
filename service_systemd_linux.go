@@ -46,7 +46,7 @@ func (s *systemd) String() string {
 var errNoUserServiceSystemd = errors.New("User services are not supported on systemd.")
 
 func (s *systemd) configPath() (cp string, err error) {
-	if s.Config.UserService {
+	if s.Option.bool(optionUserService, optionUserServiceDefault) {
 		err = errNoUserServiceSystemd
 		return
 	}

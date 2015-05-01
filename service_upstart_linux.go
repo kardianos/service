@@ -47,7 +47,7 @@ func (s *upstart) String() string {
 var errNoUserServiceUpstart = errors.New("User services are not supported on Upstart.")
 
 func (s *upstart) configPath() (cp string, err error) {
-	if s.Config.UserService {
+	if s.Option.bool(optionUserService, optionUserServiceDefault) {
 		err = errNoUserServiceUpstart
 		return
 	}

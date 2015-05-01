@@ -69,30 +69,40 @@ import (
 	"github.com/kardianos/osext"
 )
 
+const (
+	optionKeepAlive          = "KeepAlive"
+	optionKeepAliveDefault   = true
+	optionRunAtLoad          = "RunAtLoad"
+	optionRunAtLoadDefault   = false
+	optionUserService        = "UserService"
+	optionUserServiceDefault = false
+)
+
 // Config provides the setup for a Service. The Name field is required.
 type Config struct {
-	Name         string   // Required name of the service. No spaces suggested.
-	DisplayName  string   // Display name, spaces allowed.
-	Description  string   // Long description of service.
-	Dependencies []string // Array of service dependencies.
-	UserName     string   // Run as username.
-	Arguments    []string // Run with arguments.
+	Name        string   // Required name of the service. No spaces suggested.
+	DisplayName string   // Display name, spaces allowed.
+	Description string   // Long description of service.
+	UserName    string   // Run as username.
+	Arguments   []string // Run with arguments.
 
 	// Optional field to specify the executable for service.
 	// If empty the current executable is used.
 	Executable string
 
+	// Array of service dependencies.
+	// Not yet implemented on Linux or OS X.
+	Dependencies []string
+
 	// The following fields are not supported on Windows.
 	WorkingDirectory string // Initial working directory.
 	ChRoot           string
 
-	// Install as a current user service. Only supported on OS X.
-	UserService bool
-
 	// System specific options.
 	//  * OS X
-	//    - KeepAlive bool (true)
-	//    - RunAtLoad bool (false)
+	//    - KeepAlive   bool (true)
+	//    - RunAtLoad   bool (false)
+	//    - UserService bool (false) // Install as a current user service.
 	Option KeyValue
 }
 

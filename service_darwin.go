@@ -70,7 +70,7 @@ func (s *darwinLaunchdService) String() string {
 }
 
 func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
-	if s.UserService {
+	if s.Option.bool(optionUserService, optionUserServiceDefault) {
 		u, err := user.Current()
 		if err != nil {
 			return "", err
@@ -109,8 +109,8 @@ func (s *darwinLaunchdService) Install() error {
 	}{
 		Config:    s.Config,
 		Path:      path,
-		KeepAlive: s.Option.bool("KeepAlive", true),
-		RunAtLoad: s.Option.bool("RunAtLoad", false),
+		KeepAlive: s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
+		RunAtLoad: s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
 	}
 
 	functions := template.FuncMap{
