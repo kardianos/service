@@ -45,7 +45,6 @@ func (p *program) run() error {
 			return nil
 		}
 	}
-	return nil
 }
 func (p *program) Stop(s service.Service) error {
 	// Any work in Stop should be quick, usually a few seconds at most.
