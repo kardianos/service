@@ -64,42 +64,65 @@ func (l WindowsLogger) send(err error) error {
 	}
 	return err
 }
+
+// Error logs an error message.
 func (l WindowsLogger) Error(v ...interface{}) error {
 	return l.send(l.ev.Error(3, fmt.Sprint(v...)))
 }
+
+// Warning logs an warning message.
 func (l WindowsLogger) Warning(v ...interface{}) error {
 	return l.send(l.ev.Warning(2, fmt.Sprint(v...)))
 }
+
+// Info logs an info message.
 func (l WindowsLogger) Info(v ...interface{}) error {
 	return l.send(l.ev.Info(1, fmt.Sprint(v...)))
 }
+
+// Errorf logs an error message.
 func (l WindowsLogger) Errorf(format string, a ...interface{}) error {
 	return l.send(l.ev.Error(3, fmt.Sprintf(format, a...)))
 }
+
+// Warningf logs an warning message.
 func (l WindowsLogger) Warningf(format string, a ...interface{}) error {
 	return l.send(l.ev.Warning(2, fmt.Sprintf(format, a...)))
 }
+
+// Infof logs an info message.
 func (l WindowsLogger) Infof(format string, a ...interface{}) error {
 	return l.send(l.ev.Info(1, fmt.Sprintf(format, a...)))
 }
 
-func (l WindowsLogger) NError(eventId uint32, v ...interface{}) error {
-	return l.send(l.ev.Error(eventId, fmt.Sprint(v...)))
+// NError logs an error message and an event ID.
+func (l WindowsLogger) NError(eventID uint32, v ...interface{}) error {
+	return l.send(l.ev.Error(eventID, fmt.Sprint(v...)))
 }
-func (l WindowsLogger) NWarning(eventId uint32, v ...interface{}) error {
-	return l.send(l.ev.Warning(eventId, fmt.Sprint(v...)))
+
+// NWarning logs an warning message and an event ID.
+func (l WindowsLogger) NWarning(eventID uint32, v ...interface{}) error {
+	return l.send(l.ev.Warning(eventID, fmt.Sprint(v...)))
 }
-func (l WindowsLogger) NInfo(eventId uint32, v ...interface{}) error {
-	return l.send(l.ev.Info(eventId, fmt.Sprint(v...)))
+
+// NInfo logs an info message and an event ID.
+func (l WindowsLogger) NInfo(eventID uint32, v ...interface{}) error {
+	return l.send(l.ev.Info(eventID, fmt.Sprint(v...)))
 }
-func (l WindowsLogger) NErrorf(eventId uint32, format string, a ...interface{}) error {
-	return l.send(l.ev.Error(eventId, fmt.Sprintf(format, a...)))
+
+// NErrorf logs an error message and an event ID.
+func (l WindowsLogger) NErrorf(eventID uint32, format string, a ...interface{}) error {
+	return l.send(l.ev.Error(eventID, fmt.Sprintf(format, a...)))
 }
-func (l WindowsLogger) NWarningf(eventId uint32, format string, a ...interface{}) error {
-	return l.send(l.ev.Warning(eventId, fmt.Sprintf(format, a...)))
+
+// NWarningf logs an warning message and an event ID.
+func (l WindowsLogger) NWarningf(eventID uint32, format string, a ...interface{}) error {
+	return l.send(l.ev.Warning(eventID, fmt.Sprintf(format, a...)))
 }
-func (l WindowsLogger) NInfof(eventId uint32, format string, a ...interface{}) error {
-	return l.send(l.ev.Info(eventId, fmt.Sprintf(format, a...)))
+
+// NInfof logs an info message and an event ID.
+func (l WindowsLogger) NInfof(eventID uint32, format string, a ...interface{}) error {
+	return l.send(l.ev.Info(eventID, fmt.Sprintf(format, a...)))
 }
 
 var interactive = false
