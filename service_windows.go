@@ -5,17 +5,15 @@
 package service
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"time"
 
-	"code.google.com/p/winsvc/eventlog"
-	"code.google.com/p/winsvc/mgr"
-	"code.google.com/p/winsvc/svc"
+	"golang.org/x/sys/windows/svc"
+	"golang.org/x/sys/windows/svc/eventlog"
+	"golang.org/x/sys/windows/svc/mgr"
 )
 
 const version = "Windows Service"
@@ -169,20 +167,6 @@ func (ws *windowsService) Install() error {
 		return err
 	}
 
-	binPath := &bytes.Buffer{}
-	// Quote exe path in case it contains a string.
-	binPath.WriteRune('"')
-	binPath.WriteString(exepath)
-	binPath.WriteRune('"')
-
-	// Arguments are encoded with the binary path to service.
-	// Enclose arguments in quotes. Escape quotes with a backslash.
-	for _, arg := range ws.Arguments {
-		binPath.WriteRune(' ')
-		binPath.WriteString(`"`)
-		binPath.WriteString(strings.Replace(arg, `"`, `\"`, -1))
-		binPath.WriteString(`"`)
-	}
 	m, err := mgr.Connect()
 	if err != nil {
 		return err
@@ -193,14 +177,14 @@ func (ws *windowsService) Install() error {
 		s.Close()
 		return fmt.Errorf("service %s already exists", ws.Name)
 	}
-	s, err = m.CreateService(ws.Name, binPath.String(), mgr.Config{
+	s, err = m.CreateService(ws.Name, exepath, mgr.Config{
 		DisplayName:      ws.DisplayName,
 		Description:      ws.Description,
 		StartType:        mgr.StartAutomatic,
 		ServiceStartName: ws.UserName,
 		Password:         ws.Option.string("Password", ""),
 		Dependencies:     ws.Dependencies,
-	})
+	}, ws.Arguments...)
 	if err != nil {
 		return err
 	}
@@ -278,7 +262,7 @@ func (ws *windowsService) Start() error {
 		return err
 	}
 	defer s.Close()
-	return s.Start([]string{})
+	return s.Start()
 }
 
 func (ws *windowsService) Stop() error {
