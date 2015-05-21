@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"os/user"
+	"path/filepath"
 	"syscall"
 	"text/template"
 	"time"
@@ -85,6 +86,12 @@ func (s *darwinLaunchdService) Install() error {
 	if err != nil {
 		return err
 	}
+
+	if !filepath.IsAbs(confPath) {
+		// Ensure ~/Library/LaunchAgents/ exist on a fresh new Mac.
+		os.Mkdir(filepath.Dir(confPath))
+	}
+
 	_, err = os.Stat(confPath)
 	if err == nil {
 		return fmt.Errorf("Init already exists: %s", confPath)
