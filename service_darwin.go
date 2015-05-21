@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"os/user"
+	"path/filepath"
 	"syscall"
 	"text/template"
 	"time"
@@ -33,6 +34,8 @@ func (darwinSystem) New(i Interface, c *Config) (Service, error) {
 	s := &darwinLaunchdService{
 		i:      i,
 		Config: c,
+
+		userService: c.Option.bool(optionUserService, optionUserServiceDefault),
 	}
 
 	return s, nil
@@ -60,6 +63,8 @@ func isInteractive() (bool, error) {
 type darwinLaunchdService struct {
 	i Interface
 	*Config
+
+	userService bool
 }
 
 func (s *darwinLaunchdService) String() string {
@@ -70,7 +75,7 @@ func (s *darwinLaunchdService) String() string {
 }
 
 func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
-	if s.Option.bool(optionUserService, optionUserServiceDefault) {
+	if s.userService {
 		u, err := user.Current()
 		if err != nil {
 			return "", err
@@ -88,6 +93,14 @@ func (s *darwinLaunchdService) Install() error {
 	_, err = os.Stat(confPath)
 	if err == nil {
 		return fmt.Errorf("Init already exists: %s", confPath)
+	}
+
+	if s.userService {
+		// Ensure that ~/Library/LaunchAgents exists.
+		err = os.MkdirAll(filepath.Dir(confPath), 0700)
+		if err != nil {
+			return err
+		}
 	}
 
 	f, err := os.Create(confPath)
