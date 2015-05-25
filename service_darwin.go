@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"text/template"
 	"time"
+	"errors"
 )
 
 const maxPathSize = 32 * 1024
@@ -74,13 +75,27 @@ func (s *darwinLaunchdService) String() string {
 	return s.Name
 }
 
+func (s *darwinLaunchdService) getHomeDir() (string, error) {
+	u, err := user.Current()
+	if err == nil {
+		return u.HomeDir, nil
+	}
+
+	// alternate methods
+	homeDir := os.Getenv("HOME") // *nix
+	if homeDir == "" {
+		return "", errors.New("User home directory not found.")
+	}
+	return homeDir, nil
+}
+
 func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
 	if s.userService {
-		u, err := user.Current()
+		homeDir, err := s.getHomeDir()
 		if err != nil {
 			return "", err
 		}
-		return u.HomeDir + "/Library/LaunchAgents/" + s.Name + ".plist", nil
+		return homeDir + "/Library/LaunchAgents/" + s.Name + ".plist", nil
 	}
 	return "/Library/LaunchDaemons/" + s.Name + ".plist", nil
 }
