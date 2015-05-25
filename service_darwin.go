@@ -133,12 +133,13 @@ func (s *darwinLaunchdService) Install() error {
 		*Config
 		Path string
 
-		KeepAlive, RunAtLoad bool
+		KeepAlive, RunAtLoad, SessionCreate bool
 	}{
-		Config:    s.Config,
-		Path:      path,
-		KeepAlive: s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
-		RunAtLoad: s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
+		Config:        s.Config,
+		Path:          path,
+		KeepAlive:     s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
+		RunAtLoad:     s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
+		SessionCreate: s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
 	}
 
 	functions := template.FuncMap{
@@ -231,6 +232,7 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
 {{if .WorkingDirectory}}<key>WorkingDirectory</key><string>{{html .WorkingDirectory}}</string>{{end}}
 <key>KeepAlive</key><{{bool .KeepAlive}}/>
 <key>RunAtLoad</key><{{bool .RunAtLoad}}/>
+<key>SessionCreate</key><{{bool .SessionCreate}}/>
 <key>Disabled</key><false/>
 </dict>
 </plist>
