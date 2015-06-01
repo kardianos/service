@@ -102,9 +102,10 @@ type Config struct {
 
 	// System specific options.
 	//  * OS X
-	//    - KeepAlive   bool (true)
-	//    - RunAtLoad   bool (false)
-	//    - UserService bool (false) // Install as a current user service.
+	//    - KeepAlive     bool (true)
+	//    - RunAtLoad     bool (false)
+	//    - UserService   bool (false) - Install as a current user service.
+	//    - SessionCreate bool (false) - Create a full user session.
 	Option KeyValue
 }
 
