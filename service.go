@@ -70,12 +70,14 @@ import (
 )
 
 const (
-	optionKeepAlive          = "KeepAlive"
-	optionKeepAliveDefault   = true
-	optionRunAtLoad          = "RunAtLoad"
-	optionRunAtLoadDefault   = false
-	optionUserService        = "UserService"
-	optionUserServiceDefault = false
+	optionKeepAlive            = "KeepAlive"
+	optionKeepAliveDefault     = true
+	optionRunAtLoad            = "RunAtLoad"
+	optionRunAtLoadDefault     = false
+	optionUserService          = "UserService"
+	optionUserServiceDefault   = false
+	optionSessionCreate        = "SessionCreate"
+	optionSessionCreateDefault = false
 )
 
 // Config provides the setup for a Service. The Name field is required.

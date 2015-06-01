@@ -5,6 +5,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -13,7 +14,6 @@ import (
 	"syscall"
 	"text/template"
 	"time"
-	"errors"
 )
 
 const maxPathSize = 32 * 1024
@@ -134,11 +134,13 @@ func (s *darwinLaunchdService) Install() error {
 		Path string
 
 		KeepAlive, RunAtLoad bool
+		SessionCreate        bool
 	}{
-		Config:    s.Config,
-		Path:      path,
-		KeepAlive: s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
-		RunAtLoad: s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
+		Config:        s.Config,
+		Path:          path,
+		KeepAlive:     s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
+		RunAtLoad:     s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
+		SessionCreate: s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
 	}
 
 	functions := template.FuncMap{
@@ -229,6 +231,7 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
 {{if .UserName}}<key>UserName</key><string>{{html .UserName}}</string>{{end}}
 {{if .ChRoot}}<key>RootDirectory</key><string>{{html .ChRoot}}</string>{{end}}
 {{if .WorkingDirectory}}<key>WorkingDirectory</key><string>{{html .WorkingDirectory}}</string>{{end}}
+<key>SessionCreate</key><{{bool .SessionCreate}}/>
 <key>KeepAlive</key><{{bool .KeepAlive}}/>
 <key>RunAtLoad</key><{{bool .RunAtLoad}}/>
 <key>Disabled</key><false/>
