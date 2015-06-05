@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strconv"
 	"sync"
 	"time"
 
+	"golang.org/x/sys/windows/registry"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/eventlog"
 	"golang.org/x/sys/windows/svc/mgr"
@@ -300,18 +302,78 @@ func (ws *windowsService) Stop() error {
 		return err
 	}
 	defer s.Close()
-	_, err = s.Control(svc.Stop)
-	return err
+
+	return ws.stopWait(s)
 }
 
 func (ws *windowsService) Restart() error {
-	err := ws.Stop()
+	m, err := mgr.Connect()
 	if err != nil {
 		return err
 	}
-	time.Sleep(50 * time.Millisecond)
-	return ws.Start()
+	defer m.Disconnect()
+
+	s, err := m.OpenService(ws.Name)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	err = ws.stopWait(s)
+	if err != nil {
+		return err
+	}
+
+	return s.Start()
 }
+
+func (ws *windowsService) stopWait(s *mgr.Service) error {
+	// First stop the service. Then wait for the service to
+	// actually stop before starting it.
+	status, err := s.Control(svc.Stop)
+	if err != nil {
+		return err
+	}
+
+	timeDuration := time.Millisecond * 50
+
+	timeout := time.After(getStopTimeout() + (timeDuration * 2))
+	tick := time.NewTicker(timeDuration)
+	defer tick.Stop()
+
+	for status.State != svc.Stopped {
+		select {
+		case <-tick.C:
+			status, err = s.Query()
+			if err != nil {
+				return err
+			}
+		case <-timeout:
+			break
+		}
+	}
+	return nil
+}
+
+// getStopTimeout fetches the time before windows will kill the service.
+func getStopTimeout() time.Duration {
+	// For default and paths see https://support.microsoft.com/en-us/kb/146092
+	defaultTimeout := time.Millisecond * 20000
+	key, err := registry.OpenKey(registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Control`, registry.READ)
+	if err != nil {
+		return defaultTimeout
+	}
+	sv, _, err := key.GetStringValue("WaitToKillServiceTimeout")
+	if err != nil {
+		return defaultTimeout
+	}
+	v, err := strconv.Atoi(sv)
+	if err != nil {
+		return defaultTimeout
+	}
+	return time.Millisecond * time.Duration(v)
+}
+
 func (ws *windowsService) Logger(errs chan<- error) (Logger, error) {
 	if interactive {
 		return ConsoleLogger, nil
