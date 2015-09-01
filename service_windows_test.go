@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
-func TestPlatformName(t *testing.T) {
-	t.Logf("Platform is %v", Platform())
+func TestTimeout(t *testing.T) {
+	stopSpan := getStopTimeout()
+	t.Log("Max Stop Duration", stopSpan)
 }

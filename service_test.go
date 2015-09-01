@@ -1,6 +1,6 @@
 // Copyright 2015 Daniel Theophanes.
 // Use of this source code is governed by a zlib-style
-// license that can be found in the LICENSE file.package service
+// license that can be found in the LICENSE file.
 
 package service_test
 
@@ -55,7 +55,7 @@ func TestInstallRunRestartStopRemove(t *testing.T) {
 	}
 	err = s.Uninstall()
 	if err != nil {
-		t.Fatal("stop", err)
+		t.Fatal("uninstall", err)
 	}
 }
 
