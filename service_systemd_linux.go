@@ -11,7 +11,6 @@ import (
 	"os/signal"
 	"syscall"
 	"text/template"
-	"time"
 )
 
 func isSystemd() bool {
@@ -147,12 +146,7 @@ func (s *systemd) Stop() error {
 }
 
 func (s *systemd) Restart() error {
-	err := s.Stop()
-	if err != nil {
-		return err
-	}
-	time.Sleep(50 * time.Millisecond)
-	return s.Start()
+	return run("systemctl", "restart", s.Name+".service")
 }
 
 const systemdScript = `[Unit]
