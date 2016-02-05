@@ -117,11 +117,11 @@ func (s *upstart) Run() (err error) {
 		return err
 	}
 
-	sigChan := make(chan os.Signal, 3)
-
-	signal.Notify(sigChan, os.Interrupt, os.Kill)
-
-	<-sigChan
+	s.Option.funcSingle(optionRunWait, func() {
+		var sigChan = make(chan os.Signal, 3)
+		signal.Notify(sigChan, os.Interrupt, os.Kill)
+		<-sigChan
+	})()
 
 	return s.i.Stop(s)
 }

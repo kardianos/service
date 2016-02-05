@@ -127,11 +127,11 @@ func (s *sysv) Run() (err error) {
 		return err
 	}
 
-	sigChan := make(chan os.Signal, 3)
-
-	signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
-
-	<-sigChan
+	s.Option.funcSingle(optionRunWait, func() {
+		var sigChan = make(chan os.Signal, 3)
+		signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
+		<-sigChan
+	})()
 
 	return s.i.Stop(s)
 }

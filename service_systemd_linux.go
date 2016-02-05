@@ -80,9 +80,11 @@ func (s *systemd) Install() error {
 	var to = &struct {
 		*Config
 		Path string
+		ReloadSignal string
 	}{
 		s.Config,
 		path,
+		s.Option.string(optionReloadSignal, ""),
 	}
 
 	err = s.template().Execute(f, to)
@@ -128,11 +130,11 @@ func (s *systemd) Run() (err error) {
 		return err
 	}
 
-	sigChan := make(chan os.Signal, 3)
-
-	signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
-
-	<-sigChan
+	s.Option.funcSingle(optionRunWait, func() {
+		var sigChan = make(chan os.Signal, 3)
+		signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
+		<-sigChan
+	})()
 
 	return s.i.Stop(s)
 }
@@ -160,6 +162,7 @@ ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
 {{if .ChRoot}}RootDirectory={{.ChRoot|cmd}}{{end}}
 {{if .WorkingDirectory}}WorkingDirectory={{.WorkingDirectory|cmd}}{{end}}
 {{if .UserName}}User={{.UserName}}{{end}}
+{{if .ReloadSignal}}ExecReload=/bin/kill -{{.ReloadSignal}} "$MAINPID"{{end}}
 Restart=always
 RestartSec=120
 
