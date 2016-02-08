@@ -81,10 +81,12 @@ func (s *systemd) Install() error {
 		*Config
 		Path string
 		ReloadSignal string
+		PIDFile string
 	}{
 		s.Config,
 		path,
 		s.Option.string(optionReloadSignal, ""),
+		s.Option.string(optionPIDFile, ""),
 	}
 
 	err = s.template().Execute(f, to)
@@ -163,6 +165,7 @@ ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
 {{if .WorkingDirectory}}WorkingDirectory={{.WorkingDirectory|cmd}}{{end}}
 {{if .UserName}}User={{.UserName}}{{end}}
 {{if .ReloadSignal}}ExecReload=/bin/kill -{{.ReloadSignal}} "$MAINPID"{{end}}
+{{if .PIDFile}}PIDFile={{.PIDFile|cmd}}{{end}}
 Restart=always
 RestartSec=120
 

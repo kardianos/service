@@ -81,6 +81,7 @@ const (
 
 	optionRunWait      = "RunWait"
 	optionReloadSignal = "ReloadSignal"
+	optionPIDFile      = "PIDFile"
 )
 
 // Config provides the setup for a Service. The Name field is required.
@@ -112,6 +113,7 @@ type Config struct {
 	//  * POSIX
 	//    - RunWait      func() (wait for SIGNAL) - Do not install signal but wait for this function to return.
 	//    - ReloadSignal string () [USR1, ...] - Signal to send on reaload.
+	//    - PIDFile     string () [/run/prog.pid] - Location of the PID file.
 	Option KeyValue
 }
 
