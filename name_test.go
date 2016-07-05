@@ -5,9 +5,16 @@
 package service
 
 import (
+	"runtime"
+	"strings"
 	"testing"
 )
 
 func TestPlatformName(t *testing.T) {
-	t.Logf("Platform is %v", Platform())
+	got := Platform()
+	t.Logf("Platform is %v", got)
+	wantPrefix := runtime.GOOS + "-"
+	if !strings.HasPrefix(got, wantPrefix) {
+		t.Errorf("Platform() want: /^%s.*$/, got: %s", wantPrefix, got)
+	}
 }
