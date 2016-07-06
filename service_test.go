@@ -6,8 +6,8 @@ package service_test
 
 import (
 	"log"
-	"os"
 	"testing"
+	"time"
 
 	"github.com/kardianos/service"
 )
@@ -19,67 +19,45 @@ var sc = &service.Config{
 	Arguments: []string{runAsServiceArg},
 }
 
-func TestMain(m *testing.M) {
-	if len(os.Args) > 1 && os.Args[1] == runAsServiceArg {
-		runService()
-		return
-	}
-	os.Exit(m.Run())
-}
-
-func TestInstallRunRestartStopRemove(t *testing.T) {
-	p := &program{}
-	s, err := service.New(p, sc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = s.Uninstall()
-
-	err = s.Install()
-	if err != nil {
-		t.Fatal("install", err)
-	}
-	defer s.Uninstall()
-
-	err = s.Start()
-	if err != nil {
-		t.Fatal("start", err)
-	}
-	err = s.Restart()
-	if err != nil {
-		t.Fatal("restart", err)
-	}
-	err = s.Stop()
-	if err != nil {
-		t.Fatal("stop", err)
-	}
-	err = s.Uninstall()
-	if err != nil {
-		t.Fatal("uninstall", err)
-	}
-}
-
-func runService() {
+func TestRunInterrupt(t *testing.T) {
 	p := &program{}
 	s, err := service.New(p, sc)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	go func() {
+		<-time.After(1 * time.Second)
+		interruptProcess(t)
+	}()
+
+	go func() {
+		<-time.After(3 * time.Second)
+		if !p.hasStopped {
+			panic("Run() hasn't been stopped")
+		}
+	}()
+
 	err = s.Run()
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-type program struct{}
+type program struct {
+	hasRun     bool
+	hasStopped bool
+}
 
 func (p *program) Start(s service.Service) error {
 	go p.run()
 	return nil
 }
 func (p *program) run() {
+	p.hasRun = true
 	// Do work here
 }
 func (p *program) Stop(s service.Service) error {
+	p.hasStopped = true
 	return nil
 }
