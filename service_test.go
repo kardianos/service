@@ -5,7 +5,6 @@
 package service_test
 
 import (
-	"log"
 	"testing"
 	"time"
 
@@ -23,7 +22,7 @@ func TestRunInterrupt(t *testing.T) {
 	p := &program{}
 	s, err := service.New(p, sc)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatalf("New err: %s", err)
 	}
 
 	go func() {
@@ -38,9 +37,8 @@ func TestRunInterrupt(t *testing.T) {
 		}
 	}()
 
-	err = s.Run()
-	if err != nil {
-		log.Fatal(err)
+	if err = s.Run(); err != nil {
+		t.Fatalf("Run() err: %s", err)
 	}
 }
 
