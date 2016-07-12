@@ -11,15 +11,11 @@ import (
 	"github.com/kardianos/service"
 )
 
-const runAsServiceArg = "RunThisAsService"
-
-var sc = &service.Config{
-	Name:      "go_service_test",
-	Arguments: []string{runAsServiceArg},
-}
-
 func TestRunInterrupt(t *testing.T) {
 	p := &program{}
+	sc := &service.Config{
+		Name: "go_service_test",
+	}
 	s, err := service.New(p, sc)
 	if err != nil {
 		t.Fatalf("New err: %s", err)
@@ -31,9 +27,11 @@ func TestRunInterrupt(t *testing.T) {
 	}()
 
 	go func() {
-		<-time.After(3 * time.Second)
-		if !p.hasStopped {
-			panic("Run() hasn't been stopped")
+		for i := 0; i < 25 && p.numStopped == 0; i++ {
+			<-time.After(200 * time.Millisecond)
+		}
+		if p.numStopped == 0 {
+			t.Fatal("Run() hasn't been stopped")
 		}
 	}()
 
@@ -43,8 +41,7 @@ func TestRunInterrupt(t *testing.T) {
 }
 
 type program struct {
-	hasRun     bool
-	hasStopped bool
+	numStopped int
 }
 
 func (p *program) Start(s service.Service) error {
@@ -52,10 +49,9 @@ func (p *program) Start(s service.Service) error {
 	return nil
 }
 func (p *program) run() {
-	p.hasRun = true
 	// Do work here
 }
 func (p *program) Stop(s service.Service) error {
-	p.hasStopped = true
+	p.numStopped++
 	return nil
 }
