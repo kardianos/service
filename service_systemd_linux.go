@@ -79,9 +79,9 @@ func (s *systemd) Install() error {
 
 	var to = &struct {
 		*Config
-		Path string
+		Path         string
 		ReloadSignal string
-		PIDFile string
+		PIDFile      string
 	}{
 		s.Config,
 		path,
