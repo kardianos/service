@@ -8,61 +8,171 @@
 package service_test
 
 import (
+	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
+	"regexp"
 	"testing"
+	"time"
 
 	"github.com/kardianos/service"
 )
 
+const runAsServiceArg = "RunThisAsService"
+
 func TestMain(m *testing.M) {
-	if len(os.Args) > 1 && os.Args[1] == runAsServiceArg {
+	if len(os.Args) == 2 {
+		os.Exit(m.Run())
+	} else if len(os.Args) == 4 && os.Args[2] == runAsServiceArg {
+		reportDir := os.Args[3]
+		writeReport(reportDir, "call")
 		runService()
-		return
+		writeReport(reportDir, "finished")
+		os.Exit(0)
 	}
-	os.Exit(m.Run())
+
+	log.Fatalf("Invalid arguments: %v", os.Args)
 }
 
 func TestInstallRunRestartStopRemove(t *testing.T) {
 	p := &program{}
-	s, err := service.New(p, sc)
-	if err != nil {
-		t.Fatal(err)
-	}
+	reportDir := mustTempDir(t)
+	defer os.RemoveAll(reportDir)
+
+	s := mustNewRunAsService(t, p, reportDir)
 	_ = s.Uninstall()
 
-	err = s.Install()
-	if err != nil {
-		t.Fatal("install", err)
+	if err := s.Install(); err != nil {
+		t.Fatal("Install", err)
 	}
 	defer s.Uninstall()
 
-	err = s.Start()
-	if err != nil {
-		t.Fatal("start", err)
+	if err := s.Start(); err != nil {
+		t.Fatal("Start", err)
 	}
-	err = s.Restart()
-	if err != nil {
+	defer s.Stop()
+	checkReport(t, reportDir, "Start()", 1, 0)
+
+	if err := s.Restart(); err != nil {
 		t.Fatal("restart", err)
 	}
-	err = s.Stop()
-	if err != nil {
+
+	checkReport(t, reportDir, "Restart()", 2, 1)
+	p.numStopped = 0
+	if err := s.Stop(); err != nil {
 		t.Fatal("stop", err)
 	}
-	err = s.Uninstall()
-	if err != nil {
+	checkReport(t, reportDir, "Stop()", 2, 2)
+
+	if err := s.Uninstall(); err != nil {
 		t.Fatal("uninstall", err)
 	}
 }
 
 func runService() {
 	p := &program{}
+	sc := &service.Config{
+		Name: "go_service_test",
+	}
 	s, err := service.New(p, sc)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = s.Run()
+	if err = s.Run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func mustTempDir(t *testing.T) string {
+	dir, err := ioutil.TempDir("", "servicetest")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func writeReport(reportDir string, action string) {
+	b := []byte("go_test_service_report")
+	timeStamp := time.Now().UnixNano()
+	err := ioutil.WriteFile(
+		filepath.Join(reportDir, fmt.Sprintf("%d-%s", timeStamp, action)),
+		b,
+		0644,
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+var matchActionRegexp = regexp.MustCompile("^(\\d+-)([a-z]*)$")
+
+func getReport(
+	t *testing.T,
+	reportDir string,
+) (numCalls int, numFinished int) {
+	numCalls = 0
+	numFinished = 0
+	files, err := ioutil.ReadDir(reportDir)
+	if err != nil {
+		t.Fatalf("ReadDir(%s) err: %s", reportDir, err)
+	}
+
+	for _, file := range files {
+		if matchActionRegexp.MatchString(file.Name()) {
+			action := matchActionRegexp.ReplaceAllString(file.Name(), "$2")
+			switch action {
+			case "call":
+				numCalls++
+			case "finished":
+				numFinished++
+			default:
+				t.Fatalf("getReport() found report with incorrect action: %s", action)
+			}
+		}
+	}
+	return
+}
+
+func checkReport(
+	t *testing.T,
+	reportDir string,
+	msgPrefix string,
+	wantNumCalled int,
+	wantNumFinished int,
+) {
+	var numCalled int
+	var numFinished int
+	for i := 0; i < 25; i++ {
+		numCalled, numFinished = getReport(t, reportDir)
+		<-time.After(200 * time.Millisecond)
+		if numCalled == wantNumCalled && numFinished == wantNumFinished {
+			return
+		}
+	}
+	if numCalled != wantNumCalled {
+		t.Fatalf("%s - numCalled: %d, want %d",
+			msgPrefix, numCalled, wantNumCalled)
+	}
+	if numFinished != wantNumFinished {
+		t.Fatalf("%s - numFinished: %d, want %d",
+			msgPrefix, numFinished, wantNumFinished)
+	}
+}
+
+func mustNewRunAsService(
+	t *testing.T,
+	p *program,
+	reportDir string,
+) service.Service {
+	sc := &service.Config{
+		Name:      "go_service_test",
+		Arguments: []string{"-test.v=true", runAsServiceArg, reportDir},
+	}
+	s, err := service.New(p, sc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
 }
