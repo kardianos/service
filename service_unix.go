@@ -41,6 +41,10 @@ func (s sysLogger) Warning(v ...interface{}) error {
 func (s sysLogger) Info(v ...interface{}) error {
 	return s.send(s.Writer.Info(fmt.Sprint(v...)))
 }
+func (s sysLogger) Debug(v ...interface{}) error {
+	fmt.Print(v...)
+	return nil
+}
 func (s sysLogger) Errorf(format string, a ...interface{}) error {
 	return s.send(s.Writer.Err(fmt.Sprintf(format, a...)))
 }
@@ -49,6 +53,10 @@ func (s sysLogger) Warningf(format string, a ...interface{}) error {
 }
 func (s sysLogger) Infof(format string, a ...interface{}) error {
 	return s.send(s.Writer.Info(fmt.Sprintf(format, a...)))
+}
+func (s sysLogger) Debugf(format string, a ...interface{}) error {
+	fmt.Printf(format, a...)
+	return nil
 }
 
 func run(command string, arguments ...string) error {
