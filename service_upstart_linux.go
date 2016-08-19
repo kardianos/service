@@ -155,7 +155,7 @@ kill signal INT
 start on filesystem or runlevel [2345]
 stop on runlevel [!2345]
 
-#setuid username
+{{if .UserName}}setuid {{.UserName}}{{end}}
 
 respawn
 respawn limit 10 5
