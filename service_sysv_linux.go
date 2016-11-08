@@ -176,6 +176,8 @@ pid_file="/var/run/$name.pid"
 stdout_log="/var/log/$name.log"
 stderr_log="/var/log/$name.err"
 
+[ -e /etc/sysconfig/$name ] && . /etc/sysconfig/$name
+
 get_pid() {
     cat "$pid_file"
 }
