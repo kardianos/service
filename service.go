@@ -64,9 +64,6 @@ package service // import "github.com/kardianos/service"
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
-
-	"github.com/kardianos/osext"
 )
 
 const (
@@ -115,13 +112,6 @@ type Config struct {
 	//    - ReloadSignal string () [USR1, ...] - Signal to send on reaload.
 	//    - PIDFile     string () [/run/prog.pid] - Location of the PID file.
 	Option KeyValue
-}
-
-func (c *Config) execPath() (string, error) {
-	if len(c.Executable) != 0 {
-		return filepath.Abs(c.Executable)
-	}
-	return osext.Executable()
 }
 
 var (
