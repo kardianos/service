@@ -81,10 +81,12 @@ func (s *upstart) Install() error {
 
 	var to = &struct {
 		*Config
-		Path string
+		Path                       string
+		UpstartForksChildProcesses bool
 	}{
 		s.Config,
 		path,
+		s.Option.bool(optionUpstartForksChildProcesses, optionUpstartForksChildProcessesDefault),
 	}
 
 	return s.template().Execute(f, to)
@@ -147,7 +149,7 @@ func (s *upstart) Restart() error {
 // the program before the Stop handler can run.
 const upstartScript = `# {{.Description}}
 
- {{if .DisplayName}}description    "{{.DisplayName}}"{{end}}
+{{if .DisplayName}}description    "{{.DisplayName}}"{{end}}
 
 kill signal INT
 {{if .ChRoot}}chroot {{.ChRoot}}{{end}}
@@ -155,7 +157,9 @@ kill signal INT
 start on filesystem or runlevel [2345]
 stop on runlevel [!2345]
 
+{{if not .UpstartForksChildProcesses }}
 {{if .UserName}}setuid {{.UserName}}{{end}}
+{{end}}
 
 respawn
 respawn limit 10 5
@@ -168,5 +172,11 @@ pre-start script
 end script
 
 # Start
+{{if .UpstartForksChildProcesses }}
+script
+exec su - {{if .UserName}}{{.UserName}}{{end}} -c '{{.Path}}{{range .Arguments}} {{.|cmd}}{{end}}'
+end script
+{{else}}
 exec {{.Path}}{{range .Arguments}} {{.|cmd}}{{end}}
+{{end}}
 `
