@@ -174,9 +174,13 @@ end script
 # Start
 {{if .UpstartForksChildProcesses }}
 script
-exec su - {{if .UserName}}{{.UserName}}{{end}} -c '{{.Path}}{{range .Arguments}} {{.|cmd}}{{end}}'
+exec su - {{if .UserName}}{{.UserName}}{{end}} -c 'set -a; test -e /etc/sysconfig/{{.Name}} && . /etc/sysconfig/{{.Name}}; {{.Path}}{{range .Arguments}} {{.|cmd}}{{end}}'
 end script
 {{else}}
-exec {{.Path}}{{range .Arguments}} {{.|cmd}}{{end}}
+script
+set -a;
+test -e /etc/sysconfig/{{.Name}} && . /etc/sysconfig/{{.Name}};
+exec {{.Path}}{{range .Arguments}} {{.|cmd}}{{end}};
+end script
 {{end}}
 `
