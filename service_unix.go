@@ -8,6 +8,7 @@ package service
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log/syslog"
 	"os/exec"
 )
@@ -53,9 +54,35 @@ func (s sysLogger) Infof(format string, a ...interface{}) error {
 
 func run(command string, arguments ...string) error {
 	cmd := exec.Command(command, arguments...)
-	out, err := cmd.CombinedOutput()
+
+	// Connect pipe to read Stderr
+	stderr, err := cmd.StderrPipe()
+
 	if err != nil {
-		return fmt.Errorf("%q failed: %v, %s", command, err, out)
+		// Failed to connect pipe
+		return fmt.Errorf("%q failed to connect stderr pipe: %v", command, err)
 	}
+
+	// Do not use cmd.Run()
+	if err := cmd.Start(); err != nil {
+		// Problem while copying stdin, stdout, or stderr
+		return fmt.Errorf("%q failed: %v", command, err)
+	}
+
+	// Zero exit status
+	// Darwin: launchctl can fail with a zero exit status,
+	// so check for emtpy stderr
+	if command == "launchctl" {
+		slurp, _ := ioutil.ReadAll(stderr)
+		if len(slurp) > 0 {
+			return fmt.Errorf("%q failed with stderr: %s", command, slurp)
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
+		// Command didn't exit with a zero exit status.
+		return fmt.Errorf("%q failed: %v", command, err)
+	}
+
 	return nil
 }
