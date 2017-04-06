@@ -290,6 +290,13 @@ func (ws *windowsService) Start() error {
 	return s.Start()
 }
 
+func (ws *windowsService) Enable() error {
+    return fmt.Errorf("Enable is not supported for Windows yet")
+}
+func (ws *windowsService) Disable() error {
+    return fmt.Errorf("Disable is not supported for Windows yet")
+}
+
 func (ws *windowsService) Stop() error {
 	m, err := mgr.Connect()
 	if err != nil {

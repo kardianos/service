@@ -304,6 +304,10 @@ type Service interface {
 	// Install setups up the given service in the OS service manager. This may require
 	// greater rights. Will return an error if it is already installed.
 	Install() error
+    
+    
+	Enable() error
+	Disable() error
 
 	// Uninstall removes the given service from the OS service manager. This may require
 	// greater rights. Will return an error if the service is not present.
@@ -325,7 +329,7 @@ type Service interface {
 }
 
 // ControlAction list valid string texts to use in Control.
-var ControlAction = [5]string{"start", "stop", "restart", "install", "uninstall"}
+var ControlAction = [7]string{"start", "stop", "restart", "install", "uninstall","enable","disable"}
 
 // Control issues control functions to the service from a given action string.
 func Control(s Service, action string) error {
@@ -341,6 +345,10 @@ func Control(s Service, action string) error {
 		err = s.Install()
 	case ControlAction[4]:
 		err = s.Uninstall()
+	case ControlAction[5]:
+		err = s.Enable()
+	case ControlAction[6]:
+		err = s.Disable()
 	default:
 		err = fmt.Errorf("Unknown action %s", action)
 	}

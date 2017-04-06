@@ -152,6 +152,12 @@ func (s *systemd) Stop() error {
 func (s *systemd) Restart() error {
 	return run("systemctl", "restart", s.Name+".service")
 }
+func (s *systemd) Enable() error {
+	return run("systemctl", "enable", s.Name+".service")
+}
+func (s *systemd) Disable() error {
+	return run("systemctl", "disable", s.Name+".service")
+}
 
 const systemdScript = `[Unit]
 Description={{.Description}}

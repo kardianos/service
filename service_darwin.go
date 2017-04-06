@@ -188,6 +188,13 @@ func (s *darwinLaunchdService) Restart() error {
 	return s.Start()
 }
 
+func (s *darwinLaunchdService) Enable() error {
+    return fmt.Errorf("Enable is not supported for darwin yet")
+}
+func (s *darwinLaunchdService) Disable() error {
+    return fmt.Errorf("Disable is not supported for darwin yet")
+}
+
 func (s *darwinLaunchdService) Run() error {
 	var err error
 
