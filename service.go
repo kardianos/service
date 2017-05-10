@@ -79,6 +79,9 @@ const (
 	optionRunWait      = "RunWait"
 	optionReloadSignal = "ReloadSignal"
 	optionPIDFile      = "PIDFile"
+
+	optionUpstartForksChildProcesses        = "UpstartForksChildProcesses"
+	optionUpstartForksChildProcessesDefault = false
 )
 
 // Config provides the setup for a Service. The Name field is required.
@@ -111,6 +114,7 @@ type Config struct {
 	//    - RunWait      func() (wait for SIGNAL) - Do not install signal but wait for this function to return.
 	//    - ReloadSignal string () [USR1, ...] - Signal to send on reaload.
 	//    - PIDFile     string () [/run/prog.pid] - Location of the PID file.
+	//    - UpstartForksChildProcesses bool (false) - Indicates that services forks multiple processes, executing them with wrapper script to prevent Upstart from killing child processes.
 	Option KeyValue
 }
 
