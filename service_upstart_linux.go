@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"strings"
 	"text/template"
 	"time"
 )
@@ -19,7 +21,7 @@ func isUpstart() bool {
 	}
 	if _, err := os.Stat("/sbin/init"); err == nil {
 		if out, err := exec.Command("/sbin/init", "--version").Output(); err == nil {
-			if strings.Contains(string(out),"init (upstart") {
+			if strings.Contains(string(out), "init (upstart") {
 				return true
 			}
 		}
