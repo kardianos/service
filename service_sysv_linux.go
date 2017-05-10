@@ -153,6 +153,13 @@ func (s *sysv) Restart() error {
 	return s.Start()
 }
 
+func (s *sysv) Enable() error {
+    return fmt.Errorf("Enable is not supported for sysv yet")
+}
+func (s *sysv) Disable() error {
+    return fmt.Errorf("Disable is not supported for sysv yet")
+}
+
 const sysvScript = `#!/bin/sh
 # For RedHat and cousins:
 # chkconfig: - 99 01

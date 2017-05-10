@@ -152,6 +152,14 @@ func (s *upstart) Restart() error {
 	return s.Start()
 }
 
+
+func (s *upstart) Enable() error {
+    return fmt.Errorf("Enable is not supported for upstart yet")
+}
+func (s *upstart) Disable() error {
+    return fmt.Errorf("Disable is not supported for upstart yet")
+}
+
 // The upstart script should stop with an INT or the Go runtime will terminate
 // the program before the Stop handler can run.
 const upstartScript = `# {{.Description}}
