@@ -82,6 +82,11 @@ func (l WindowsLogger) Info(v ...interface{}) error {
 	return l.send(l.ev.Info(1, fmt.Sprint(v...)))
 }
 
+func (l WindowsLogger) Debug(v ...interface{}) error {
+	fmt.Print(v...)
+	return nil
+}
+
 // Errorf logs an error message.
 func (l WindowsLogger) Errorf(format string, a ...interface{}) error {
 	return l.send(l.ev.Error(3, fmt.Sprintf(format, a...)))
@@ -95,6 +100,11 @@ func (l WindowsLogger) Warningf(format string, a ...interface{}) error {
 // Infof logs an info message.
 func (l WindowsLogger) Infof(format string, a ...interface{}) error {
 	return l.send(l.ev.Info(1, fmt.Sprintf(format, a...)))
+}
+
+func (l WindowsLogger) Debugf(format string, a ...interface{}) error {
+	fmt.Printf(format, a...)
+	return nil
 }
 
 // NError logs an error message and an event ID.

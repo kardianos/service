@@ -13,13 +13,14 @@ import (
 var ConsoleLogger = consoleLogger{}
 
 type consoleLogger struct {
-	info, warn, err *log.Logger
+	info, warn, err, debug *log.Logger
 }
 
 func init() {
 	ConsoleLogger.info = log.New(os.Stderr, "I: ", log.Ltime)
 	ConsoleLogger.warn = log.New(os.Stderr, "W: ", log.Ltime)
 	ConsoleLogger.err = log.New(os.Stderr, "E: ", log.Ltime)
+	ConsoleLogger.debug = log.New(os.Stderr, "D: ", log.Ltime)
 }
 
 func (c consoleLogger) Error(v ...interface{}) error {
@@ -34,6 +35,12 @@ func (c consoleLogger) Info(v ...interface{}) error {
 	c.info.Print(v...)
 	return nil
 }
+func (c consoleLogger) Debug(v ...interface{}) error {
+	if Interactive() {
+		c.debug.Print(v...)
+	}
+	return nil
+}
 func (c consoleLogger) Errorf(format string, a ...interface{}) error {
 	c.err.Printf(format, a...)
 	return nil
@@ -44,5 +51,11 @@ func (c consoleLogger) Warningf(format string, a ...interface{}) error {
 }
 func (c consoleLogger) Infof(format string, a ...interface{}) error {
 	c.info.Printf(format, a...)
+	return nil
+}
+func (c consoleLogger) Debugf(format string, a ...interface{}) error {
+	if Interactive() {
+		c.debug.Printf(format, a...)
+	}
 	return nil
 }
