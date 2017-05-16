@@ -82,11 +82,13 @@ func (s *systemd) Install() error {
 		Path         string
 		ReloadSignal string
 		PIDFile      string
+		LimitNOFILE  int
 	}{
 		s.Config,
 		path,
 		s.Option.string(optionReloadSignal, ""),
 		s.Option.string(optionPIDFile, ""),
+		s.Option.int(optionLimitNOFILE, optionLimitNOFILEDefault),
 	}
 
 	err = s.template().Execute(f, to)
@@ -166,6 +168,7 @@ ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
 {{if .UserName}}User={{.UserName}}{{end}}
 {{if .ReloadSignal}}ExecReload=/bin/kill -{{.ReloadSignal}} "$MAINPID"{{end}}
 {{if .PIDFile}}PIDFile={{.PIDFile|cmd}}{{end}}
+{{if gt .LimitNOFILE -1 }}LimitNOFILE={{.LimitNOFILE}}{{end}}
 Restart=always
 RestartSec=120
 EnvironmentFile=-/etc/sysconfig/{{.Name}}

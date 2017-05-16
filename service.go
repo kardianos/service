@@ -79,6 +79,9 @@ const (
 	optionRunWait      = "RunWait"
 	optionReloadSignal = "ReloadSignal"
 	optionPIDFile      = "PIDFile"
+
+	optionLimitNOFILE        = "LimitNOFILE"
+	optionLimitNOFILEDefault = -1 // -1 = don't set in configuration
 )
 
 // Config provides the setup for a Service. The Name field is required.
@@ -111,6 +114,8 @@ type Config struct {
 	//    - RunWait      func() (wait for SIGNAL) - Do not install signal but wait for this function to return.
 	//    - ReloadSignal string () [USR1, ...] - Signal to send on reaload.
 	//    - PIDFile     string () [/run/prog.pid] - Location of the PID file.
+	//  * Linux (systemd)
+	//    - LimitNOFILE	 int - Maximum open files (ulimit -n) (https://serverfault.com/questions/628610/increasing-nproc-for-processes-launched-by-systemd-on-centos-7)
 	Option KeyValue
 }
 
