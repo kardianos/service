@@ -156,9 +156,9 @@ func (s *upstart) Restart() error {
 // the program before the Stop handler can run.
 const upstartScript = `# {{.Description}}
 
- {{if .DisplayName}}description    "{{.DisplayName}}"{{end}}
+{{if .DisplayName}}description    "{{.DisplayName}}"{{end}}
 
-kill signal INT
+#kill signal INT
 {{if .ChRoot}}chroot {{.ChRoot}}{{end}}
 {{if .WorkingDirectory}}chdir {{.WorkingDirectory}}{{end}}
 start on filesystem or runlevel [2345]
