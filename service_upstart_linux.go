@@ -158,7 +158,7 @@ const upstartScript = `# {{.Description}}
 
 {{if .DisplayName}}description    "{{.DisplayName}}"{{end}}
 
-kill signal INT
+#kill signal INT
 {{if .ChRoot}}chroot {{.ChRoot}}{{end}}
 {{if .WorkingDirectory}}chdir {{.WorkingDirectory}}{{end}}
 start on filesystem or runlevel [2345]
