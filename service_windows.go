@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"context"
 	"golang.org/x/sys/windows/registry"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/eventlog"
@@ -24,8 +25,9 @@ type windowsService struct {
 	i Interface
 	*Config
 
-	errSync      sync.Mutex
-	stopStartErr error
+	errSync                sync.Mutex
+	stopStartErr           error
+	cancelInterruptHandler context.CancelFunc
 }
 
 // WindowsLogger allows using windows specific logging methods.
@@ -266,13 +268,26 @@ func (ws *windowsService) Run() error {
 		return err
 	}
 
-	sigChan := make(chan os.Signal)
+	ctx, cancel := context.WithCancel(context.Background())
+	ws.cancelInterruptHandler = cancel
+	return <-ws.HandleInterrupt(ctx)
+}
 
-	signal.Notify(sigChan, os.Interrupt, os.Kill)
+func (ws *windowsService) HandleInterrupt(ctx context.Context) chan error {
+	errChan := make(chan error)
 
-	<-sigChan
+	go func() {
+		sigChan := make(chan os.Signal)
+		signal.Notify(sigChan, os.Interrupt, os.Kill)
+		select {
+		case <-sigChan:
+		case <-ctx.Done():
+		}
 
-	return ws.i.Stop(ws)
+		errChan <- ws.i.Stop(ws)
+	}()
+
+	return errChan
 }
 
 func (ws *windowsService) Start() error {
@@ -291,6 +306,11 @@ func (ws *windowsService) Start() error {
 }
 
 func (ws *windowsService) Stop() error {
+	if ws.cancelInterruptHandler != nil {
+		ws.cancelInterruptHandler()
+		return nil
+	}
+
 	m, err := mgr.Connect()
 	if err != nil {
 		return err

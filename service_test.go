@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kardianos/service"
+	"errors"
 )
 
 func TestRunInterrupt(t *testing.T) {
@@ -54,4 +55,70 @@ func (p *program) run() {
 func (p *program) Stop(s service.Service) error {
 	p.numStopped++
 	return nil
+}
+
+func TestRunSelfStop(t *testing.T) {
+	p := &selfStoppingProgram{}
+	sc := &service.Config{
+		Name: "go_service_test",
+	}
+	s, err := service.New(p, sc)
+	if err != nil {
+		t.Fatalf("New err: %s", err)
+	}
+
+	errForTest := errors.New("TestErr")
+	p.svc = s
+	p.errOnStop = errForTest
+
+
+	go func() {
+		for i := 0; i < 25 && p.numStopped == 0; i++ {
+			<-time.After(200 * time.Millisecond)
+		}
+
+		if p.numStopped == 0 {
+			t.Fatal("Run() hasn't been stopped")
+		}
+	}()
+	time.Sleep(time.Millisecond)
+
+	select {
+	case err := <-RunServiceAsync(s):
+		if err != nil && err != errForTest{
+			t.Fatalf("Run() err: %s, expected: %s", err, errForTest)
+		}
+
+	case <-time.After(time.Second*2):
+		t.Fatalf("Service process hasn't been stopped")
+	}
+}
+
+func RunServiceAsync(svc service.Service) chan error {
+	ch := make(chan error)
+	go func () {
+		ch <- svc.Run()
+	}()
+	return ch
+}
+
+type selfStoppingProgram struct {
+	numStopped int
+	svc service.Service
+	errOnStop error
+}
+
+func (p *selfStoppingProgram) Start(s service.Service) error {
+	go p.run()
+	return nil
+}
+func (p *selfStoppingProgram) run() {
+	// Do work here
+	// time.Sleep(1*time.Second)
+
+	p.svc.Stop()
+}
+func (p *selfStoppingProgram) Stop(s service.Service) error {
+	p.numStopped++
+	return p.errOnStop
 }
