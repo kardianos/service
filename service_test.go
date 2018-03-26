@@ -10,6 +10,7 @@ import (
 
 	"github.com/kardianos/service"
 	"errors"
+	"context"
 )
 
 func TestRunInterrupt(t *testing.T) {
@@ -59,8 +60,11 @@ func (p *program) Stop(s service.Service) error {
 
 func TestRunSelfStop(t *testing.T) {
 	p := &selfStoppingProgram{}
+	kv := service.KeyValue{"RunWait": p.RunWaitFunc(context.Background())}
+
 	sc := &service.Config{
 		Name: "go_service_test",
+		Option: kv,
 	}
 	s, err := service.New(p, sc)
 	if err != nil {
@@ -106,6 +110,7 @@ type selfStoppingProgram struct {
 	numStopped int
 	svc service.Service
 	errOnStop error
+	stopFunc context.CancelFunc
 }
 
 func (p *selfStoppingProgram) Start(s service.Service) error {
@@ -114,10 +119,22 @@ func (p *selfStoppingProgram) Start(s service.Service) error {
 }
 func (p *selfStoppingProgram) run() {
 	// Do work here
-	// time.Sleep(1*time.Second)
-
-	p.svc.Stop()
+	time.Sleep(1*time.Second)
+	p.stopFunc()
 }
+
+func (p *selfStoppingProgram) RunWaitFunc(ctx context.Context) func() {
+	ctx, cancel := context.WithCancel(context.Background())
+	p.stopFunc = cancel
+
+	return func () {
+		select {
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
 func (p *selfStoppingProgram) Stop(s service.Service) error {
 	p.numStopped++
 	return p.errOnStop

@@ -12,6 +12,9 @@ import (
 
 	"github.com/kardianos/service"
 	"github.com/pkg/errors"
+	"context"
+	"os/signal"
+	"syscall"
 )
 
 var logger service.Logger
@@ -19,6 +22,7 @@ var logger service.Logger
 type program struct{
 	svc service.Service
 	logger service.Logger
+	stopFunc context.CancelFunc
 }
 
 func (p *program) Start(s service.Service) error {
@@ -32,7 +36,7 @@ func (p *program) run() {
 	err := doSomethingBlockingWithErr()
 	if err != nil {
 		p.logger.Errorf("Err while doing something: %s", err)
-		p.svc.Stop()
+		p.stopFunc()
 	}
 }
 
@@ -47,14 +51,37 @@ func (p *program) Stop(s service.Service) error {
 	return nil
 }
 
+func (p *program) RunWaitFunc(ctx context.Context) func() {
+	ctx, cancel := context.WithCancel(context.Background())
+	p.stopFunc = cancel
+
+	var sigChan = make(chan os.Signal, 3)
+	signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
+
+	return func () {
+		select {
+		case <-ctx.Done():
+			log.Println("Terminated with context")
+			return
+		case <-sigChan:
+			log.Println("Terminated with signal")
+			return
+		}
+	}
+}
+
 func main() {
+	prg := &program{}
+	kv := service.KeyValue{"RunWait": prg.RunWaitFunc(context.Background())}
+
 	svcConfig := &service.Config{
 		Name:        "GoServiceExampleStopOnErr",
 		DisplayName: "Go Service Example: Stop On Error",
 		Description: "This is an example Go service that stops on error.",
+		Option: kv,
 	}
 
-	prg := &program{}
+
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
 		log.Fatal(err)

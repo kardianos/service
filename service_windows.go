@@ -268,26 +268,13 @@ func (ws *windowsService) Run() error {
 		return err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	ws.cancelInterruptHandler = cancel
-	return <-ws.HandleInterrupt(ctx)
-}
-
-func (ws *windowsService) HandleInterrupt(ctx context.Context) chan error {
-	errChan := make(chan error)
-
-	go func() {
-		sigChan := make(chan os.Signal)
+	ws.Option.funcSingle(optionRunWait, func() {
+		var sigChan = make(chan os.Signal)
 		signal.Notify(sigChan, os.Interrupt, os.Kill)
-		select {
-		case <-sigChan:
-		case <-ctx.Done():
-		}
+		<-sigChan
+	})()
 
-		errChan <- ws.i.Stop(ws)
-	}()
-
-	return errChan
+	return ws.i.Stop(ws)
 }
 
 func (ws *windowsService) Start() error {
