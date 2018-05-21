@@ -164,10 +164,10 @@ func (s *systemd) Restart() error {
 const systemdScript = `[Unit]
 Description={{.Description}}
 ConditionFileIsExecutable={{.Path|cmdEscape}}
-{{if .Wants}}PIDFile={{.Wants}}{{end}}
-{{if .Requires}}PIDFile={{.Requires}}{{end}}
-{{if .Before}}PIDFile={{.Before}}{{end}}
-{{if .After}}PIDFile={{.After}}{{end}}
+{{if .Wants}}Wants={{.Wants}}{{end}}
+{{if .Requires}}Requires={{.Requires}}{{end}}
+{{if .Before}}Before={{.Before}}{{end}}
+{{if .After}}After={{.After}}{{end}}
 
 [Service]
 StartLimitInterval=5
