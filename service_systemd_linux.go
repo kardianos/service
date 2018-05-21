@@ -82,11 +82,19 @@ func (s *systemd) Install() error {
 		Path         string
 		ReloadSignal string
 		PIDFile      string
+		Wants        string
+		Requires     string
+		Before       string
+		After        string
 	}{
 		s.Config,
 		path,
 		s.Option.string(optionReloadSignal, ""),
 		s.Option.string(optionPIDFile, ""),
+		s.Option.string(optionWants, ""),
+		s.Option.string(optionRequires, ""),
+		s.Option.string(optionBefore, ""),
+		s.Option.string(optionAfter, ""),
 	}
 
 	err = s.template().Execute(f, to)
@@ -156,6 +164,10 @@ func (s *systemd) Restart() error {
 const systemdScript = `[Unit]
 Description={{.Description}}
 ConditionFileIsExecutable={{.Path|cmdEscape}}
+{{if .Wants}}PIDFile={{.Wants}}{{end}}
+{{if .Requires}}PIDFile={{.Requires}}{{end}}
+{{if .Before}}PIDFile={{.Before}}{{end}}
+{{if .After}}PIDFile={{.After}}{{end}}
 
 [Service]
 StartLimitInterval=5
