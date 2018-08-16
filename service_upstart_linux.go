@@ -68,24 +68,9 @@ func (s *upstart) configPath() (cp string, err error) {
 
 func (s *upstart) hasKillStanza() bool {
 	defaultValue := true
-
-	out, err := exec.Command("/sbin/init", "--version").Output()
-	if err != nil {
+	version := s.getUpstartVersion()
+	if version == nil {
 		return defaultValue
-	}
-
-	re := regexp.MustCompile(`init \(upstart (\d+.\d+.\d+)\)`)
-	matches := re.FindStringSubmatch(string(out))
-	if len(matches) != 2 {
-		return defaultValue
-	}
-
-	version := make([]int, 3)
-	for idx, vStr := range strings.Split(matches[1], ".") {
-		version[idx], err = strconv.Atoi(vStr)
-		if err != nil {
-			return defaultValue
-		}
 	}
 
 	maxVersion := []int{0, 6, 5}
@@ -94,6 +79,43 @@ func (s *upstart) hasKillStanza() bool {
 	}
 
 	return defaultValue
+}
+
+func (s *upstart) hasSetUIDStanza() bool {
+	defaultValue := true
+	version := s.getUpstartVersion()
+	if version == nil {
+		return defaultValue
+	}
+
+	maxVersion := []int{1, 4, 0}
+	if versionAtMost(version, maxVersion) {
+		return false
+	}
+
+	return defaultValue
+}
+
+func (s *upstart) getUpstartVersion() []int {
+	out, err := exec.Command("/sbin/init", "--version").Output()
+	if err != nil {
+		return nil
+	}
+
+	re := regexp.MustCompile(`init \(upstart (\d+.\d+.\d+)\)`)
+	matches := re.FindStringSubmatch(string(out))
+	if len(matches) != 2 {
+		return nil
+	}
+
+	version := make([]int, 3)
+	for idx, vStr := range strings.Split(matches[1], ".") {
+		version[idx], err = strconv.Atoi(vStr)
+		if err != nil {
+			return nil
+		}
+	}
+	return version
 }
 
 func versionAtMost(version, max []int) bool {
@@ -133,12 +155,16 @@ func (s *upstart) Install() error {
 
 	var to = &struct {
 		*Config
-		Path          string
-		HasKillStanza bool
+		Path            string
+		HasKillStanza   bool
+		HasSetUIDStanza bool
+		LogOutput       bool
 	}{
 		s.Config,
 		path,
 		s.hasKillStanza(),
+		s.hasSetUIDStanza(),
+		s.Option.bool(optionLogOutput, optionLogOutputDefault),
 	}
 
 	return s.template().Execute(f, to)
@@ -209,7 +235,7 @@ const upstartScript = `# {{.Description}}
 start on filesystem or runlevel [2345]
 stop on runlevel [!2345]
 
-{{if .UserName}}setuid {{.UserName}}{{end}}
+{{if and .UserName .HasSetUIDStanza}}setuid {{.UserName}}{{end}}
 
 respawn
 respawn limit 10 5
@@ -222,5 +248,18 @@ pre-start script
 end script
 
 # Start
-exec {{.Path}}{{range .Arguments}} {{.|cmd}}{{end}}
+script
+	{{if .LogOutput}}
+	stdout_log="/var/log/{{.Name}}.out"
+	stderr_log="/var/log/{{.Name}}.err"
+	{{end}}
+	
+	if [ -f "/etc/sysconfig/{{.Name}}" ]; then
+		set -a
+		source /etc/sysconfig/{{.Name}}
+		set +a
+	fi
+
+	exec {{if and .UserName (not .HasSetUIDStanza)}}sudo -E -u {{.UserName}} {{end}}{{.Path}}{{range .Arguments}} {{.|cmd}}{{end}}{{if .LogOutput}} >> $stdout_log 2>> $stderr_log{{end}}
+end script
 `
