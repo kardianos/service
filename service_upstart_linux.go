@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"regexp"
-	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -108,24 +107,7 @@ func (s *upstart) getUpstartVersion() []int {
 		return nil
 	}
 
-	version := make([]int, 3)
-	for idx, vStr := range strings.Split(matches[1], ".") {
-		version[idx], err = strconv.Atoi(vStr)
-		if err != nil {
-			return nil
-		}
-	}
-	return version
-}
-
-func versionAtMost(version, max []int) bool {
-	for idx, m := range max {
-		v := version[idx]
-		if v > m {
-			return false
-		}
-	}
-	return true
+	return parseVersion(matches[1])
 }
 
 func (s *upstart) template() *template.Template {
@@ -166,6 +148,10 @@ func (s *upstart) Install() error {
 		s.hasSetUIDStanza(),
 		s.Option.bool(optionLogOutput, optionLogOutputDefault),
 	}
+
+	fmt.Printf("upstarts supports kill stanza: %t\n", to.HasKillStanza)
+	fmt.Printf("upstarts supports setuid stanza: %t\n", to.HasSetUIDStanza)
+	fmt.Printf("log output to files: %t\n", to.LogOutput)
 
 	return s.template().Execute(f, to)
 }
