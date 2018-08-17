@@ -73,7 +73,7 @@ func (s *upstart) hasKillStanza() bool {
 	}
 
 	maxVersion := []int{0, 6, 5}
-	if versionAtMost(version, maxVersion) {
+	if matches, err := versionAtMost(version, maxVersion); err != nil || matches {
 		return false
 	}
 
@@ -88,7 +88,7 @@ func (s *upstart) hasSetUIDStanza() bool {
 	}
 
 	maxVersion := []int{1, 4, 0}
-	if versionAtMost(version, maxVersion) {
+	if matches, err := versionAtMost(version, maxVersion); err != nil || matches {
 		return false
 	}
 
