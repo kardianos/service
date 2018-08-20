@@ -83,18 +83,6 @@ const (
 	optionPIDFile      = "PIDFile"
 )
 
-// Status represents service status as an interger value
-type Status int
-
-// Status of service represented as an integer
-const (
-	StatusNotImplemented Status = iota
-	StatusUnknown
-	StatusError
-	StatusRunning
-	StatusStopped
-)
-
 // Config provides the setup for a Service. The Name field is required.
 type Config struct {
 	Name        string   // Required name of the service. No spaces suggested.
