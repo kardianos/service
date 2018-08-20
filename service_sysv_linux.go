@@ -143,6 +143,23 @@ func (s *sysv) Run() (err error) {
 	return s.i.Stop(s)
 }
 
+func (s *sysv) Status() (Status, string, error) {
+	_, out, err := runWithOutput("service", s.Name, "status")
+	if err != nil {
+		return StatusError, out, err
+	}
+
+	if out == "Running" {
+		return StatusRunning, out, nil
+	}
+
+	if out == "Stopped" {
+		return StatusStopped, out, nil
+	}
+
+	return StatusUnknown, out, nil
+}
+
 func (s *sysv) Start() error {
 	return run("service", s.Name, "start")
 }

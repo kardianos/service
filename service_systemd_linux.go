@@ -8,10 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"regexp"
 	"strconv"
+	"strings"
 	"syscall"
 	"text/template"
 )
@@ -57,13 +57,13 @@ func (s *systemd) configPath() (cp string, err error) {
 }
 
 func (s *systemd) getSystemdVersion() int64 {
-	out, err := exec.Command("/usr/bin/systemctl", "--version").Output()
+	_, out, err := runWithOutput("systemctl", "--version")
 	if err != nil {
 		return -1
 	}
 
 	re := regexp.MustCompile(`systemd ([0-9]+)`)
-	matches := re.FindStringSubmatch(string(out))
+	matches := re.FindStringSubmatch(out)
 	if len(matches) != 2 {
 		return -1
 	}
@@ -187,6 +187,27 @@ func (s *systemd) Run() (err error) {
 	})()
 
 	return s.i.Stop(s)
+}
+
+func (s *systemd) Status() (Status, string, error) {
+	exitCode, out, err := runWithOutput("systemctl", "is-active", s.Name)
+	if exitCode == 0 && err != nil {
+		return StatusError, out, err
+	}
+
+	if strings.HasPrefix(out, "active") {
+		return StatusRunning, out, nil
+	}
+
+	if strings.HasPrefix(out, "inactive") {
+		return StatusStopped, out, nil
+	}
+
+	if strings.HasPrefix(out, "failed") {
+		return StatusError, out, nil
+	}
+
+	return StatusUnknown, out, nil
 }
 
 func (s *systemd) Start() error {

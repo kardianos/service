@@ -88,6 +88,23 @@ const (
 	optionLaunchdConfig = "LaunchdConfig"
 )
 
+// Status represents service status as an interger value
+type Status int
+
+// Status of service represented as an integer
+const (
+	StatusNotImplemented Status = iota
+	StatusUnknown
+	StatusError
+	StatusStarting
+	StatusRunning
+	StatusPausing
+	StatusPaused
+	StatusContinuing
+	StatusStopping
+	StatusStopped
+)
+
 // Config provides the setup for a Service. The Name field is required.
 type Config struct {
 	Name        string   // Required name of the service. No spaces suggested.
@@ -334,6 +351,9 @@ type Service interface {
 	// String displays the name of the service. The display name if present,
 	// otherwise the name.
 	String() string
+
+	// Status returns the current service status.
+	Status() (Status, string, error)
 }
 
 // ControlAction list valid string texts to use in Control.
