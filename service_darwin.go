@@ -100,6 +100,25 @@ func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
 	return "/Library/LaunchDaemons/" + s.Name + ".plist", nil
 }
 
+func (s *darwinLaunchdService) template() *template.Template {
+	functions := template.FuncMap{
+		"bool": func(v bool) string {
+			if v {
+				return "true"
+			}
+			return "false"
+		},
+	}
+
+	customConfig := s.Option.string(optionLaunchdConfig, "")
+
+	if customConfig != "" {
+		return template.Must(template.New("").Funcs(functions).Parse(customConfig))
+	} else {
+		return template.Must(template.New("").Funcs(functions).Parse(launchdConfig))
+	}
+}
+
 func (s *darwinLaunchdService) Install() error {
 	confPath, err := s.getServiceFilePath()
 	if err != nil {
@@ -143,16 +162,7 @@ func (s *darwinLaunchdService) Install() error {
 		SessionCreate: s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
 	}
 
-	functions := template.FuncMap{
-		"bool": func(v bool) string {
-			if v {
-				return "true"
-			}
-			return "false"
-		},
-	}
-	t := template.Must(template.New("launchdConfig").Funcs(functions).Parse(launchdConfig))
-	return t.Execute(f, to)
+	return s.template().Execute(f, to)
 }
 
 func (s *darwinLaunchdService) Uninstall() error {
