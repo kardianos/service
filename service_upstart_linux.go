@@ -20,9 +20,9 @@ func isUpstart() bool {
 	if _, err := os.Stat("/sbin/upstart-udev-bridge"); err == nil {
 		return true
 	}
-	if _, err := os.Stat("/sbin/init"); err == nil {
-		if out, err := exec.Command("/sbin/init", "--version").Output(); err == nil {
-			if strings.Contains(string(out), "init (upstart") {
+	if _, err := os.Stat("/sbin/initctl"); err == nil {
+		if out, err := exec.Command("/sbin/initctl", "--version").Output(); err == nil {
+			if strings.Contains(string(out), "initctl (upstart") {
 				return true
 			}
 		}
@@ -96,12 +96,12 @@ func (s *upstart) hasSetUIDStanza() bool {
 }
 
 func (s *upstart) getUpstartVersion() []int {
-	out, err := exec.Command("/sbin/init", "--version").Output()
+	out, err := exec.Command("/sbin/initctl", "--version").Output()
 	if err != nil {
 		return nil
 	}
 
-	re := regexp.MustCompile(`init \(upstart (\d+.\d+.\d+)\)`)
+	re := regexp.MustCompile(`initctl \(upstart (\d+.\d+.\d+)\)`)
 	matches := re.FindStringSubmatch(string(out))
 	if len(matches) != 2 {
 		return nil
