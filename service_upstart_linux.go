@@ -155,10 +155,6 @@ func (s *upstart) Install() error {
 		s.Option.bool(optionLogOutput, optionLogOutputDefault),
 	}
 
-	fmt.Printf("upstarts supports kill stanza: %t\n", to.HasKillStanza)
-	fmt.Printf("upstarts supports setuid stanza: %t\n", to.HasSetUIDStanza)
-	fmt.Printf("log output to files: %t\n", to.LogOutput)
-
 	return s.template().Execute(f, to)
 }
 
