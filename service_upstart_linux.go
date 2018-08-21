@@ -111,7 +111,13 @@ func (s *upstart) getUpstartVersion() []int {
 }
 
 func (s *upstart) template() *template.Template {
-	return template.Must(template.New("").Funcs(tf).Parse(upstartScript))
+	customScript := s.Option.string(optionUpstartScript, "")
+
+	if customScript != "" {
+		return template.Must(template.New("").Funcs(tf).Parse(customScript))
+	} else {
+		return template.Must(template.New("").Funcs(tf).Parse(upstartScript))
+	}
 }
 
 func (s *upstart) Install() error {

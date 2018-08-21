@@ -52,8 +52,15 @@ func (s *systemd) configPath() (cp string, err error) {
 	cp = "/etc/systemd/system/" + s.Config.Name + ".service"
 	return
 }
+
 func (s *systemd) template() *template.Template {
-	return template.Must(template.New("").Funcs(tf).Parse(systemdScript))
+	customScript := s.Option.string(optionSystemdScript, "")
+
+	if customScript != "" {
+		return template.Must(template.New("").Funcs(tf).Parse(customScript))
+	} else {
+		return template.Must(template.New("").Funcs(tf).Parse(systemdScript))
+	}
 }
 
 func (s *systemd) Install() error {

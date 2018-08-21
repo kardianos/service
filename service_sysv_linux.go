@@ -45,8 +45,15 @@ func (s *sysv) configPath() (cp string, err error) {
 	cp = "/etc/init.d/" + s.Config.Name
 	return
 }
+
 func (s *sysv) template() *template.Template {
-	return template.Must(template.New("").Funcs(tf).Parse(sysvScript))
+	customScript := s.Option.string(optionSysvScript, "")
+
+	if customScript != "" {
+		return template.Must(template.New("").Funcs(tf).Parse(customScript))
+	} else {
+		return template.Must(template.New("").Funcs(tf).Parse(sysvScript))
+	}
 }
 
 func (s *sysv) Install() error {

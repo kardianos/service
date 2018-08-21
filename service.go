@@ -81,6 +81,11 @@ const (
 	optionRunWait      = "RunWait"
 	optionReloadSignal = "ReloadSignal"
 	optionPIDFile      = "PIDFile"
+
+	optionSystemdScript = "SystemdScript"
+	optionSysvScript    = "SysvScript"
+	optionUpstartScript = "UpstartScript"
+	optionLaunchdConfig = "LaunchdConfig"
 )
 
 // Config provides the setup for a Service. The Name field is required.
@@ -105,15 +110,19 @@ type Config struct {
 
 	// System specific options.
 	//  * OS X
-	//    - KeepAlive     bool (true)
-	//    - RunAtLoad     bool (false)
-	//    - UserService   bool (false) - Install as a current user service.
-	//    - SessionCreate bool (false) - Create a full user session.
+	//    - LaunchdConfig string ()      - Use custom launchd config
+	//    - KeepAlive     bool   (true)
+	//    - RunAtLoad     bool   (false)
+	//    - UserService   bool   (false) - Install as a current user service.
+	//    - SessionCreate bool   (false) - Create a full user session.
 	//  * POSIX
-	//    - RunWait       func() (wait for SIGNAL) - Do not install signal but wait for this function to return.
-	//    - ReloadSignal  string () [USR1, ...] - Signal to send on reaload.
+	//    - SystemdScript string ()                 - Use custom systemd script
+	//    - UpstartScript string ()                 - Use custom upstart script
+	//    - SysvScript    string ()                 - Use custom sysv script
+	//    - RunWait       func() (wait for SIGNAL)  - Do not install signal but wait for this function to return.
+	//    - ReloadSignal  string () [USR1, ...]     - Signal to send on reaload.
 	//    - PIDFile       string () [/run/prog.pid] - Location of the PID file.
-	//    - LogOutput     bool   (false) - Redirect StdErr & StdOut to files.
+	//    - LogOutput     bool   (false)            - Redirect StdErr & StdOut to files.
 	Option KeyValue
 }
 
