@@ -8,7 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"regexp"
+	"strconv"
 	"syscall"
 	"text/template"
 )
@@ -53,6 +56,40 @@ func (s *systemd) configPath() (cp string, err error) {
 	return
 }
 
+func (s *systemd) getSystemdVersion() int64 {
+	out, err := exec.Command("/usr/bin/systemctl", "--version").Output()
+	if err != nil {
+		return -1
+	}
+
+	re := regexp.MustCompile(`systemd ([0-9]+)`)
+	matches := re.FindStringSubmatch(string(out))
+	if len(matches) != 2 {
+		return -1
+	}
+
+	v, err := strconv.ParseInt(matches[1], 10, 64)
+	if err != nil {
+		return -1
+	}
+
+	return v
+}
+
+func (s *systemd) hasOutputFileSupport() bool {
+	defaultValue := true
+	version := s.getSystemdVersion()
+	if version == -1 {
+		return defaultValue
+	}
+
+	if version < 236 {
+		return false
+	}
+
+	return defaultValue
+}
+
 func (s *systemd) template() *template.Template {
 	customScript := s.Option.string(optionSystemdScript, "")
 
@@ -86,13 +123,15 @@ func (s *systemd) Install() error {
 
 	var to = &struct {
 		*Config
-		Path         string
-		ReloadSignal string
-		PIDFile      string
-		LogOutput    bool
+		Path                 string
+		HasOutputFileSupport bool
+		ReloadSignal         string
+		PIDFile              string
+		LogOutput            bool
 	}{
 		s.Config,
 		path,
+		s.hasOutputFileSupport(),
 		s.Option.string(optionReloadSignal, ""),
 		s.Option.string(optionPIDFile, ""),
 		s.Option.bool(optionLogOutput, optionLogOutputDefault),
@@ -175,8 +214,10 @@ ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
 {{if .UserName}}User={{.UserName}}{{end}}
 {{if .ReloadSignal}}ExecReload=/bin/kill -{{.ReloadSignal}} "$MAINPID"{{end}}
 {{if .PIDFile}}PIDFile={{.PIDFile|cmd}}{{end}}
-{{if .LogOutput}}StandardOutput=file:/var/log/{{.Name}}.out"
-StandardError=file:/var/log/{{.Name}}.err{{end}}
+{{if and .LogOutput .HasOutputFileSupport -}}
+StandardOutput=file:/var/log/{{.Name}}.out
+StandardError=file:/var/log/{{.Name}}.err
+{{- end}}
 Restart=always
 RestartSec=120
 EnvironmentFile=-/etc/sysconfig/{{.Name}}
