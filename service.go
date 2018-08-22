@@ -88,6 +88,16 @@ const (
 	optionLaunchdConfig = "LaunchdConfig"
 )
 
+// Status represents service status as an byte value
+type Status byte
+
+// Status of service represented as an byte
+const (
+	StatusUnknown Status = iota // Status is unable to be determined due to an error or it was not installed.
+	StatusRunning
+	StatusStopped
+)
+
 // Config provides the setup for a Service. The Name field is required.
 type Config struct {
 	Name        string   // Required name of the service. No spaces suggested.
@@ -132,10 +142,12 @@ var (
 )
 
 var (
-	// ErrNameFieldRequired is returned when Conifg.Name is empty.
+	// ErrNameFieldRequired is returned when Config.Name is empty.
 	ErrNameFieldRequired = errors.New("Config.Name field is required.")
 	// ErrNoServiceSystemDetected is returned when no system was detected.
 	ErrNoServiceSystemDetected = errors.New("No service system detected.")
+	// ErrNotInstalled is returned when the service is not installed
+	ErrNotInstalled = errors.New("the service is not installed")
 )
 
 // New creates a new service based on a service interface and configuration.
@@ -334,6 +346,9 @@ type Service interface {
 	// String displays the name of the service. The display name if present,
 	// otherwise the name.
 	String() string
+
+	// Status returns the current service status.
+	Status() (Status, error)
 }
 
 // ControlAction list valid string texts to use in Control.

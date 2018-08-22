@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"regexp"
 	"strings"
@@ -21,8 +20,8 @@ func isUpstart() bool {
 		return true
 	}
 	if _, err := os.Stat("/sbin/initctl"); err == nil {
-		if out, err := exec.Command("/sbin/initctl", "--version").Output(); err == nil {
-			if strings.Contains(string(out), "initctl (upstart") {
+		if _, out, err := runWithOutput("/sbin/initctl", "--version"); err == nil {
+			if strings.Contains(out, "initctl (upstart") {
 				return true
 			}
 		}
@@ -96,13 +95,13 @@ func (s *upstart) hasSetUIDStanza() bool {
 }
 
 func (s *upstart) getUpstartVersion() []int {
-	out, err := exec.Command("/sbin/initctl", "--version").Output()
+	_, out, err := runWithOutput("/sbin/initctl", "--version")
 	if err != nil {
 		return nil
 	}
 
 	re := regexp.MustCompile(`initctl \(upstart (\d+.\d+.\d+)\)`)
-	matches := re.FindStringSubmatch(string(out))
+	matches := re.FindStringSubmatch(out)
 	if len(matches) != 2 {
 		return nil
 	}
@@ -192,6 +191,22 @@ func (s *upstart) Run() (err error) {
 	})()
 
 	return s.i.Stop(s)
+}
+
+func (s *upstart) Status() (Status, error) {
+	exitCode, out, err := runWithOutput("initctl", "status", s.Name)
+	if exitCode == 0 && err != nil {
+		return StatusUnknown, err
+	}
+
+	switch {
+	case strings.HasPrefix(out, fmt.Sprintf("%s start/running", s.Name)):
+		return StatusRunning, nil
+	case strings.HasPrefix(out, fmt.Sprintf("%s stop/waiting", s.Name)):
+		return StatusStopped, nil
+	default:
+		return StatusUnknown, ErrNotInstalled
+	}
 }
 
 func (s *upstart) Start() error {

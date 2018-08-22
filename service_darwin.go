@@ -11,6 +11,8 @@ import (
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"syscall"
 	"text/template"
 	"time"
@@ -173,6 +175,32 @@ func (s *darwinLaunchdService) Uninstall() error {
 		return err
 	}
 	return os.Remove(confPath)
+}
+
+func (s *darwinLaunchdService) Status() (Status, error) {
+	exitCode, out, err := runWithOutput("launchctl", "list", s.Name)
+	if exitCode == 0 && err != nil {
+		if !strings.Contains(err.Error(), "failed with stderr") {
+			return StatusUnknown, err
+		}
+	}
+
+	re := regexp.MustCompile(`"PID" = ([0-9]+);`)
+	matches := re.FindStringSubmatch(out)
+	if len(matches) == 2 {
+		return StatusRunning, nil
+	}
+
+	confPath, err := s.getServiceFilePath()
+	if err != nil {
+		return StatusUnknown, err
+	}
+
+	if _, err = os.Stat(confPath); err == nil {
+		return StatusStopped, nil
+	}
+
+	return StatusUnknown, ErrNotInstalled
 }
 
 func (s *darwinLaunchdService) Start() error {
