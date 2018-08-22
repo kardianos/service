@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"text/template"
 	"time"
@@ -143,21 +144,20 @@ func (s *sysv) Run() (err error) {
 	return s.i.Stop(s)
 }
 
-func (s *sysv) Status() (Status, string, error) {
+func (s *sysv) Status() (Status, error) {
 	_, out, err := runWithOutput("service", s.Name, "status")
 	if err != nil {
-		return StatusError, out, err
+		return StatusUnknown, err
 	}
 
-	if out == "Running" {
-		return StatusRunning, out, nil
+	switch {
+	case strings.HasPrefix(out, "Running"):
+		return StatusRunning, nil
+	case strings.HasPrefix(out, "Stopped"):
+		return StatusStopped, nil
+	default:
+		return StatusUnknown, ErrNotInstalled
 	}
-
-	if out == "Stopped" {
-		return StatusStopped, out, nil
-	}
-
-	return StatusUnknown, out, nil
 }
 
 func (s *sysv) Start() error {

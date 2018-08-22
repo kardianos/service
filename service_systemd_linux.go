@@ -189,25 +189,22 @@ func (s *systemd) Run() (err error) {
 	return s.i.Stop(s)
 }
 
-func (s *systemd) Status() (Status, string, error) {
+func (s *systemd) Status() (Status, error) {
 	exitCode, out, err := runWithOutput("systemctl", "is-active", s.Name)
 	if exitCode == 0 && err != nil {
-		return StatusError, out, err
+		return StatusUnknown, err
 	}
 
-	if strings.HasPrefix(out, "active") {
-		return StatusRunning, out, nil
+	switch {
+	case strings.HasPrefix(out, "active"):
+		return StatusRunning, nil
+	case strings.HasPrefix(out, "inactive"):
+		return StatusStopped, nil
+	case strings.HasPrefix(out, "failed"):
+		return StatusUnknown, errors.New("service in failed state")
+	default:
+		return StatusUnknown, ErrNotInstalled
 	}
-
-	if strings.HasPrefix(out, "inactive") {
-		return StatusStopped, out, nil
-	}
-
-	if strings.HasPrefix(out, "failed") {
-		return StatusError, out, nil
-	}
-
-	return StatusUnknown, out, nil
 }
 
 func (s *systemd) Start() error {

@@ -177,21 +177,30 @@ func (s *darwinLaunchdService) Uninstall() error {
 	return os.Remove(confPath)
 }
 
-func (s *darwinLaunchdService) Status() (Status, string, error) {
+func (s *darwinLaunchdService) Status() (Status, error) {
 	exitCode, out, err := runWithOutput("launchctl", "list", s.Name)
 	if exitCode == 0 && err != nil {
 		if !strings.Contains(err.Error(), "failed with stderr") {
-			return StatusError, out, err
+			return StatusUnknown, err
 		}
 	}
 
 	re := regexp.MustCompile(`"PID" = ([0-9]+);`)
 	matches := re.FindStringSubmatch(out)
 	if len(matches) == 2 {
-		return StatusRunning, out, nil
+		return StatusRunning, nil
 	}
 
-	return StatusUnknown, out, nil
+	confPath, err := s.getServiceFilePath()
+	if err != nil {
+		return StatusUnknown, err
+	}
+
+	if _, err = os.Stat(confPath); err == nil {
+		return StatusStopped, nil
+	}
+
+	return StatusUnknown, ErrNotInstalled
 }
 
 func (s *darwinLaunchdService) Start() error {

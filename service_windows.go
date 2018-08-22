@@ -275,55 +275,44 @@ func (ws *windowsService) Run() error {
 	return ws.i.Stop(ws)
 }
 
-func (ws *windowsService) Status() (Status, string, error) {
+func (ws *windowsService) Status() (Status, error) {
 	m, err := mgr.Connect()
 	if err != nil {
-		return StatusError, "", err
+		return StatusUnknown, err
 	}
 	defer m.Disconnect()
 
 	s, err := m.OpenService(ws.Name)
 	if err != nil {
-		if err.Error() != "The specified service does not exist as an installed service." {
-			return StatusError, "", err
+		if err.Error() == "The specified service does not exist as an installed service." {
+			return StatusUnknown, ErrNotInstalled
 		}
-		return StatusUnknown, err.Error(), nil
+		return StatusUnknown, err
 	}
 
 	status, err := s.Query()
 	if err != nil {
-		return StatusError, "", err
+		return StatusUnknown, err
 	}
 
-	if status.State == svc.StartPending {
-		return StatusStarting, "", nil
+	switch status.State {
+	case svc.StartPending:
+		fallthrough
+	case svc.Running:
+		return StatusRunning, nil
+	case svc.PausePending:
+		fallthrough
+	case svc.Paused:
+		fallthrough
+	case svc.ContinuePending:
+		fallthrough
+	case svc.StopPending:
+		fallthrough
+	case svc.Stopped:
+		return StatusStopped, nil
+	default:
+		return StatusUnknown, fmt.Errorf("unknown status %s", status)
 	}
-
-	if status.State == svc.Running {
-		return StatusRunning, "", nil
-	}
-
-	if status.State == svc.PausePending {
-		return StatusPausing, "", nil
-	}
-
-	if status.State == svc.Paused {
-		return StatusPaused, "", nil
-	}
-
-	if status.State == svc.ContinuePending {
-		return StatusContinuing, "", nil
-	}
-
-	if status.State == svc.StopPending {
-		return StatusStopping, "", nil
-	}
-
-	if status.State == svc.Stopped {
-		return StatusStopped, "", nil
-	}
-
-	return StatusUnknown, "", nil
 }
 
 func (ws *windowsService) Start() error {

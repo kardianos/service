@@ -193,21 +193,20 @@ func (s *upstart) Run() (err error) {
 	return s.i.Stop(s)
 }
 
-func (s *upstart) Status() (Status, string, error) {
+func (s *upstart) Status() (Status, error) {
 	exitCode, out, err := runWithOutput("initctl", "status", s.Name)
 	if exitCode == 0 && err != nil {
-		return StatusError, out, err
+		return StatusUnknown, err
 	}
 
-	if strings.HasPrefix(out, fmt.Sprintf("%s start/running", s.Name)) {
-		return StatusRunning, out, nil
+	switch {
+	case strings.HasPrefix(out, fmt.Sprintf("%s start/running", s.Name)):
+		return StatusRunning, nil
+	case strings.HasPrefix(out, fmt.Sprintf("%s stop/waiting", s.Name)):
+		return StatusStopped, nil
+	default:
+		return StatusUnknown, ErrNotInstalled
 	}
-
-	if strings.HasPrefix(out, fmt.Sprintf("%s stop/waiting", s.Name)) {
-		return StatusStopped, out, nil
-	}
-
-	return StatusUnknown, out, nil
 }
 
 func (s *upstart) Start() error {

@@ -88,20 +88,13 @@ const (
 	optionLaunchdConfig = "LaunchdConfig"
 )
 
-// Status represents service status as an interger value
-type Status int
+// Status represents service status as an byte value
+type Status byte
 
-// Status of service represented as an integer
+// Status of service represented as an byte
 const (
-	StatusNotImplemented Status = iota
-	StatusUnknown
-	StatusError
-	StatusStarting
+	StatusUnknown Status = iota // Status is unable to be determined due to an error or it was not installed.
 	StatusRunning
-	StatusPausing
-	StatusPaused
-	StatusContinuing
-	StatusStopping
 	StatusStopped
 )
 
@@ -153,6 +146,8 @@ var (
 	ErrNameFieldRequired = errors.New("Config.Name field is required.")
 	// ErrNoServiceSystemDetected is returned when no system was detected.
 	ErrNoServiceSystemDetected = errors.New("No service system detected.")
+	// ErrNotInstalled is returned when the service is not installed
+	ErrNotInstalled = errors.New("the service is not installed")
 )
 
 // New creates a new service based on a service interface and configuration.
@@ -353,7 +348,7 @@ type Service interface {
 	String() string
 
 	// Status returns the current service status.
-	Status() (Status, string, error)
+	Status() (Status, error)
 }
 
 // ControlAction list valid string texts to use in Control.
