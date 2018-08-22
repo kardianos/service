@@ -149,7 +149,7 @@ var (
 )
 
 var (
-	// ErrNameFieldRequired is returned when Conifg.Name is empty.
+	// ErrNameFieldRequired is returned when Config.Name is empty.
 	ErrNameFieldRequired = errors.New("Config.Name field is required.")
 	// ErrNoServiceSystemDetected is returned when no system was detected.
 	ErrNoServiceSystemDetected = errors.New("No service system detected.")
