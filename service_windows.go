@@ -311,7 +311,7 @@ func (ws *windowsService) Status() (Status, error) {
 	case svc.Stopped:
 		return StatusStopped, nil
 	default:
-		return StatusUnknown, fmt.Errorf("unknown status %s", status)
+		return StatusUnknown, fmt.Errorf("unknown status %v", status)
 	}
 }
 
