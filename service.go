@@ -133,6 +133,9 @@ type Config struct {
 	//    - ReloadSignal  string () [USR1, ...]     - Signal to send on reaload.
 	//    - PIDFile       string () [/run/prog.pid] - Location of the PID file.
 	//    - LogOutput     bool   (false)            - Redirect StdErr & StdOut to files.
+	//  * Windows
+	//    - StartType     int (2) - win32 CreateService dwStartType option, 2 = SERVICE_AUTO_START
+	//    - ServiceType   int (0) - win32 CreateService dwServiceType, can be used to set e.g. SERVICE_INTERACTIVE_PROCESS, SERVICE_WIN32_OWN_PROCESS etc
 	Option KeyValue
 }
 
