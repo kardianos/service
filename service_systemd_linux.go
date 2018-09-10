@@ -24,16 +24,16 @@ func isSystemd() bool {
 }
 
 type systemd struct {
-	i          Interface
-	systemName string
+	i        Interface
+	platform string
 	*Config
 }
 
-func newSystemdService(i Interface, systemName string, c *Config) (Service, error) {
+func newSystemdService(i Interface, platform string, c *Config) (Service, error) {
 	s := &systemd{
-		i:          i,
-		systemName: systemName,
-		Config:     c,
+		i:        i,
+		platform: platform,
+		Config:   c,
 	}
 
 	return s, nil
@@ -46,8 +46,8 @@ func (s *systemd) String() string {
 	return s.Name
 }
 
-func (s *systemd) SystemName() string {
-	return s.systemName
+func (s *systemd) Platform() string {
+	return s.platform
 }
 
 // Systemd services should be supported, but are not currently.

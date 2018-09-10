@@ -16,16 +16,16 @@ import (
 )
 
 type sysv struct {
-	i          Interface
-	systemName string
+	i        Interface
+	platform string
 	*Config
 }
 
-func newSystemVService(i Interface, systemName string, c *Config) (Service, error) {
+func newSystemVService(i Interface, platform string, c *Config) (Service, error) {
 	s := &sysv{
-		i:          i,
-		systemName: systemName,
-		Config:     c,
+		i:        i,
+		platform: platform,
+		Config:   c,
 	}
 
 	return s, nil
@@ -38,8 +38,8 @@ func (s *sysv) String() string {
 	return s.Name
 }
 
-func (s *sysv) SystemName() string {
-	return s.systemName
+func (s *sysv) Platform() string {
+	return s.platform
 }
 
 var errNoUserServiceSystemV = errors.New("User services are not supported on SystemV.")

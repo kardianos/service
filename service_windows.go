@@ -144,7 +144,7 @@ func (ws *windowsService) String() string {
 	return ws.Name
 }
 
-func (ws *windowsService) SystemName() string {
+func (ws *windowsService) Platform() string {
 	return version
 }
 

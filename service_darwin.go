@@ -77,7 +77,7 @@ func (s *darwinLaunchdService) String() string {
 	return s.Name
 }
 
-func (s *darwinLaunchdService) SystemName() string {
+func (s *darwinLaunchdService) Platform() string {
 	return version
 }
 

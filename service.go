@@ -347,9 +347,9 @@ type Service interface {
 	// otherwise the name.
 	String() string
 
-	// SystemName displays the name of the system that manages the service.
+	// Platform displays the name of the system that manages the service.
 	// In most cases this will be the same as Platform().
-	SystemName() string
+	Platform() string
 
 	// Status returns the current service status.
 	Status() (Status, error)
