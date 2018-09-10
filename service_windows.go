@@ -144,6 +144,10 @@ func (ws *windowsService) String() string {
 	return ws.Name
 }
 
+func (ws *windowsService) SystemName() string {
+	return version
+}
+
 func (ws *windowsService) setError(err error) {
 	ws.errSync.Lock()
 	defer ws.errSync.Unlock()

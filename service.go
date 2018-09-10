@@ -347,6 +347,9 @@ type Service interface {
 	// otherwise the name.
 	String() string
 
+	// SystemName displays the name of the system that will be used to manage the service.
+	SystemName() string
+
 	// Status returns the current service status.
 	Status() (Status, error)
 }
