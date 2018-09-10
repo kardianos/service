@@ -348,7 +348,7 @@ type Service interface {
 	String() string
 
 	// Platform displays the name of the system that manages the service.
-	// In most cases this will be the same as Platform().
+	// In most cases this will be the same as service.Platform().
 	Platform() string
 
 	// Status returns the current service status.
