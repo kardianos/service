@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/kardianos/osext"
 	"github.com/kardianos/service"
 )
 
@@ -105,7 +104,7 @@ func (p *program) Stop(s service.Service) error {
 }
 
 func getConfigPath() (string, error) {
-	fullexecpath, err := osext.Executable()
+	fullexecpath, err := os.Executable()
 	if err != nil {
 		return "", err
 	}
