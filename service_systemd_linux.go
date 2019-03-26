@@ -228,6 +228,9 @@ func (s *systemd) Restart() error {
 const systemdScript = `[Unit]
 Description={{.Description}}
 ConditionFileIsExecutable={{.Path|cmdEscape}}
+{{range .Dependencies}}
+{{.}}
+{{end}}
 
 [Service]
 StartLimitInterval=5

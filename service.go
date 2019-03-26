@@ -111,7 +111,13 @@ type Config struct {
 	Executable string
 
 	// Array of service dependencies.
-	// Not yet implemented on Linux or OS X.
+	// Not yet fully implemented on Linux or OS X:
+	//  1. Support linux-systemd dependencies, just put each full line as the
+	//     element of the string array, such as
+	//     "After=network.target syslog.target"
+	//     "Requires=syslog.target"
+	//     Note, such lines will be directly appended into the [Unit] of
+	//     the generated service config file, will not check their correctness.
 	Dependencies []string
 
 	// The following fields are not supported on Windows.

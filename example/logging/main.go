@@ -67,6 +67,9 @@ func main() {
 		Name:        "GoServiceExampleLogging",
 		DisplayName: "Go Service Example for Logging",
 		Description: "This is an example Go service that outputs log messages.",
+		Dependencies: []string{
+			"Requires=network.target",
+			"After=network-online.target syslog.target"},
 	}
 
 	prg := &program{}
