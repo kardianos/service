@@ -149,6 +149,8 @@ func (s *systemd) Install() error {
 		HasOutputFileSupport bool
 		ReloadSignal         string
 		PIDFile              string
+		Restart              string
+		SuccessExitStatus    string
 		LogOutput            bool
 	}{
 		s.Config,
@@ -156,6 +158,8 @@ func (s *systemd) Install() error {
 		s.hasOutputFileSupport(),
 		s.Option.string(optionReloadSignal, ""),
 		s.Option.string(optionPIDFile, ""),
+		s.Option.string(optionRestart, "always"),
+		s.Option.string(optionSuccessExitStatus, ""),
 		s.Option.bool(optionLogOutput, optionLogOutputDefault),
 	}
 
@@ -260,7 +264,8 @@ ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
 StandardOutput=file:/var/log/{{.Name}}.out
 StandardError=file:/var/log/{{.Name}}.err
 {{- end}}
-Restart=always
+{{if .Restart}}Restart={{.Restart}}{{end}}
+{{if .SuccessExitStatus}}SuccessExitStatus={{.SuccessExitStatus}}{{end}}
 RestartSec=120
 EnvironmentFile=-/etc/sysconfig/{{.Name}}
 

@@ -63,6 +63,9 @@ func main() {
 	svcFlag := flag.String("service", "", "Control the system service.")
 	flag.Parse()
 
+	options := make(service.KeyValue)
+	options["Restart"] = "on-success"
+	options["SuccessExitStatus"] = "1 2 8 SIGKILL"
 	svcConfig := &service.Config{
 		Name:        "GoServiceExampleLogging",
 		DisplayName: "Go Service Example for Logging",
@@ -70,6 +73,7 @@ func main() {
 		Dependencies: []string{
 			"Requires=network.target",
 			"After=network-online.target syslog.target"},
+		Option: options,
 	}
 
 	prg := &program{}
