@@ -22,7 +22,7 @@ func isSystemd() bool {
 		return true
 	}
 	if _, err := os.Stat("/proc/1/comm"); err == nil {
-		filerc, err := os.Open("filename")
+		filerc, err := os.Open("/proc/1/comm")
 		if err != nil {
 			return false
 		}
