@@ -5,6 +5,7 @@
 package service
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -19,6 +20,21 @@ import (
 func isSystemd() bool {
 	if _, err := os.Stat("/run/systemd/system"); err == nil {
 		return true
+	}
+	if _, err := os.Stat("/proc/1/comm"); err == nil {
+		filerc, err := os.Open("filename")
+		if err != nil {
+			return false
+		}
+		defer filerc.Close()
+
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(filerc)
+		contents := buf.String()
+
+		if strings.Trim(contents, " \r\n") == "systemd" {
+			return true
+		}
 	}
 	return false
 }
