@@ -63,16 +63,16 @@ func init() {
 
 func isInteractive() (bool, error) {
 	// TODO: This is not true for user services.
-	inDocker, err := isInDocker()
+	inContainer, err := isInContainer()
 	if err != nil {
 		return false, err
 	}
-	return !(os.Getppid() == 1 && !inDocker), nil
+	return os.Getppid() != 1 || inContainer, nil
 }
 
-// isInDocker checks if the service is being executed in docker or lxc
+// isInContainer checks if the service is being executed in docker or lxc
 // container.
-func isInDocker() (bool, error) {
+func isInContainer() (bool, error) {
 	const (
 		cgroupFile = "/proc/1/cgroup" // cgroup file to scan
 		maxlines   = 5                // maximum lines to scan
