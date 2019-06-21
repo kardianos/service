@@ -5,6 +5,7 @@
 package service
 
 import (
+	"bufio"
 	"os"
 	"strings"
 )
@@ -62,7 +63,39 @@ func init() {
 
 func isInteractive() (bool, error) {
 	// TODO: This is not true for user services.
-	return os.Getppid() != 1, nil
+	inDocker, err := isInDocker()
+	if err != nil {
+		return false, err
+	}
+	return !(os.Getppid() == 1 && !inDocker), nil
+}
+
+// isInDocker checks if the service is being executed in docker or lxc
+// container.
+func isInDocker() (bool, error) {
+	const (
+		cgroupFile = "/proc/1/cgroup" // cgroup file to scan
+		maxlines   = 5                // maximum lines to scan
+	)
+	f, err := os.Open(cgroupFile)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	scan := bufio.NewScanner(f)
+
+	lines := 0
+	for scan.Scan() && !(lines > maxlines) {
+		if strings.Contains(scan.Text(), "docker") || strings.Contains(scan.Text(), "lxc") {
+			return true, nil
+		}
+		lines++
+	}
+	if err := scan.Err(); err != nil {
+		return false, err
+	}
+
+	return false, nil
 }
 
 var tf = map[string]interface{}{
