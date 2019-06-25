@@ -308,7 +308,7 @@ type System interface {
 //   8. Service.Run returns.
 //   9. User program should quickly exit.
 type Interface interface {
-	// Start provides a place to initiate the service. The service doesn't not
+	// Start provides a place to initiate the service. The service doesn't
 	// signal a completed start until after this function returns, so the
 	// Start function must not take more then a few seconds at most.
 	Start(s Service) error
