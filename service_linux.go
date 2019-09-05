@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+const cgroupFile = "/proc/1/cgroup"
+
 type linuxSystemService struct {
 	name        string
 	detect      func() bool
@@ -63,7 +65,7 @@ func init() {
 
 func isInteractive() (bool, error) {
 	// TODO: This is not true for user services.
-	inContainer, err := isInContainer()
+	inContainer, err := isInContainer(cgroupFile)
 	if err != nil {
 		return false, err
 	}
@@ -72,12 +74,10 @@ func isInteractive() (bool, error) {
 
 // isInContainer checks if the service is being executed in docker or lxc
 // container.
-func isInContainer() (bool, error) {
-	const (
-		cgroupFile = "/proc/1/cgroup" // cgroup file to scan
-		maxlines   = 5                // maximum lines to scan
-	)
-	f, err := os.Open(cgroupFile)
+func isInContainer(cgroupPath string) (bool, error) {
+	const maxlines = 5 // maximum lines to scan
+
+	f, err := os.Open(cgroupPath)
 	if err != nil {
 		return false, err
 	}
