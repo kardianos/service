@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const cgroupFile = "/proc/1/cgroup"
+var cgroupFile = "/proc/1/cgroup"
 
 type linuxSystemService struct {
 	name        string

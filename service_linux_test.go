@@ -5,41 +5,57 @@
 package service
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"testing"
 )
 
+// createTestCgroupFiles creates mock files for tests
+func createTestCgroupFiles() (*os.File, *os.File, error) {
+	// docker cgroup setup
+	hDockerGrp, err := ioutil.TempFile("", "*")
+	if err != nil {
+		return nil, nil, errors.New("docker tempfile create failed")
+	}
+	_, err = hDockerGrp.Write([]byte(dockerCgroup))
+	if err != nil {
+		return nil, nil, errors.New("docker tempfile write failed")
+	}
+
+	// linux cgroup setup
+	hLinuxGrp, err := ioutil.TempFile("", "*")
+	if err != nil {
+		return nil, nil, errors.New("\"normal\" tempfile  create failed")
+	}
+	_, err = hLinuxGrp.Write([]byte(linuxCgroup))
+	if err != nil {
+		return nil, nil, errors.New("\"normal\" tempfile write failed")
+	}
+
+	return hDockerGrp, hLinuxGrp, nil
+}
+
+// removeTestFile closes and removes the provided file
+func removeTestFile(hFile *os.File) {
+	hFile.Close()
+	os.Remove(hFile.Name())
+}
+
 func Test_isInContainer(t *testing.T) {
 
 	// setup
-	hDockerGrp, err := ioutil.TempFile("", "*")
+	hDockerGrp, hLinuxGrp, err := createTestCgroupFiles()
 	if err != nil {
-		t.Fatal("docker tempfile create failed")
+		t.Fatal(err)
 	}
 	defer func() {
-		_ = hDockerGrp.Close()
-		_ = os.Remove(hDockerGrp.Name())
-	}()
-	_, err = hDockerGrp.Write([]byte(dockerCgroup))
-	if err != nil {
-		t.Fatal("docker tempfile write failed")
-	}
-
-	hNormalGrp, err := ioutil.TempFile("", "*")
-	if err != nil {
-		t.Fatal("\"normal\" tempfile  create failed")
-	}
-	defer func() {
-		_ = hNormalGrp.Close()
-		_ = os.Remove(hNormalGrp.Name())
+		// tear down
+		removeTestFile(hDockerGrp)
+		removeTestFile(hLinuxGrp)
 	}()
 
-	_, err = hDockerGrp.Write([]byte(dockerCgroup))
-	if err != nil {
-		t.Fatal("\"normal\" tempfile write failed")
-	}
-
+	// TEST
 	type args struct {
 		cgroupPath string
 	}
@@ -50,7 +66,7 @@ func Test_isInContainer(t *testing.T) {
 		wantErr bool
 	}{
 		{"docker", args{hDockerGrp.Name()}, true, false},
-		{"normal", args{hNormalGrp.Name()}, false, false},
+		{"linux", args{hLinuxGrp.Name()}, false, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -61,6 +77,67 @@ func Test_isInContainer(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("isInContainer() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_isInteractive(t *testing.T) {
+
+	// setup
+	hDockerGrp, hLinuxGrp, err := createTestCgroupFiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		// tear down
+		removeTestFile(hDockerGrp)
+		removeTestFile(hLinuxGrp)
+	}()
+
+	// stack emulation for before() and after() for storing global values
+	strStack := make(chan string, 4)
+
+	// TEST
+	tests := []struct {
+		name    string
+		before  func()
+		after   func()
+		want    bool
+		wantErr bool
+	}{
+		{"docker",
+			func() {
+				strStack <- cgroupFile
+				cgroupFile = hDockerGrp.Name()
+			},
+			func() {
+				cgroupFile = <-strStack
+			},
+			true, false,
+		},
+		{"linux",
+			func() {
+				strStack <- cgroupFile
+				cgroupFile = hLinuxGrp.Name()
+			},
+			func() {
+				cgroupFile = <-strStack
+			},
+			true, false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.before()
+			got, err := isInteractive()
+			tt.after()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("isInteractive() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("isInteractive() = %v, want %v", got, tt.want)
 			}
 		})
 	}
