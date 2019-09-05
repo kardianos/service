@@ -6,6 +6,7 @@ package service
 
 import (
 	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -17,12 +18,11 @@ func Test_isInContainer(t *testing.T) {
 		t.Fatal("docker tempfile create failed")
 	}
 	defer func() {
-		_=hDockerGrp.Close()
-		_=os.Remove(hDockerGrp.Name())
-
-	}
-	_,err:=hDockerGrp.Write([]byte(dockerCgroup))
-	if err!=nil{
+		_ = hDockerGrp.Close()
+		_ = os.Remove(hDockerGrp.Name())
+	}()
+	_, err = hDockerGrp.Write([]byte(dockerCgroup))
+	if err != nil {
 		t.Fatal("docker tempfile write failed")
 	}
 
@@ -31,12 +31,12 @@ func Test_isInContainer(t *testing.T) {
 		t.Fatal("\"normal\" tempfile  create failed")
 	}
 	defer func() {
-		_=hNormalGrp.Close()
-		_=os.Remove(hNormalGrp.Name())
+		_ = hNormalGrp.Close()
+		_ = os.Remove(hNormalGrp.Name())
+	}()
 
-	}
-	_,err:=hDockerGrp.Write([]byte(dockerCgroup))
-	if err!=nil{
+	_, err = hDockerGrp.Write([]byte(dockerCgroup))
+	if err != nil {
 		t.Fatal("\"normal\" tempfile write failed")
 	}
 
