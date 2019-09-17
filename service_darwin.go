@@ -160,16 +160,16 @@ func (s *darwinLaunchdService) Install() error {
 
 		KeepAlive, RunAtLoad bool
 		SessionCreate        bool
-		StdOut bool
-		StdErr bool
+		StandardOut bool
+		StandardError bool
 		
 	}{
 		Config:        s.Config,
 		Path:          path,
 		KeepAlive:     s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
 		RunAtLoad:     s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
-		StdOut:        s.Option.bool(StdOut, optionStdOutDefault),
-		StdErr:        s.Option.bool(StdErr, optionStdErrDefault),
+		StandardOut:        s.Option.bool(StandardOut, optionStandardOutDefault),
+		StandardError:        s.Option.bool(StandardError, optionStandardErrorDefault),
 		SessionCreate: s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
 	}
 
@@ -189,7 +189,7 @@ func (s *darwinLaunchdService) Uninstall() error {
 func (s *darwinLaunchdService) Status() (Status, error) {
 	exitCode, out, err := runWithOutput("launchctl", "list", s.Name)
 	if exitCode == 0 && err != nil {
-		if !strings.Contains(err.Error(), "failed with stderr") {
+		if !strings.Contains(err.Error(), "failed with StandardError") {
 			return StatusUnknown, err
 		}
 	}
@@ -291,11 +291,11 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
     <key>Disabled</key>
     <false/>
     
-    {{if .StdOut}}
+    {{if .StandardOut}}
       <key>StandardOutPath</key>
       <string>/usr/local/var/log/{{html .Name}}.out.log</string>
     {{end}}
-    {{if .StdErr}}
+    {{if .StandardError}}
       <key>StandardErrorPath</key>
       <string>/usr/local/var/log/{{html .Name}}.err.log</string>
     {{end}}
