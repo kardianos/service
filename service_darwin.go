@@ -168,8 +168,6 @@ func (s *darwinLaunchdService) Install() error {
 		Path:          path,
 		KeepAlive:     s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
 		RunAtLoad:     s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
-		StandardOut:        s.Option.bool(StandardOut, optionStandardOutDefault),
-		StandardError:        s.Option.bool(StandardError, optionStandardErrorDefault),
 		SessionCreate: s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
 	}
 
@@ -291,14 +289,10 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
     <key>Disabled</key>
     <false/>
     
-    {{if .StandardOut}}
-      <key>StandardOutPath</key>
-      <string>/usr/local/var/log/{{html .Name}}.out.log</string>
-    {{end}}
-    {{if .StandardError}}
-      <key>StandardErrorPath</key>
-      <string>/usr/local/var/log/{{html .Name}}.err.log</string>
-    {{end}}
+    <key>StandardOutPath</key>
+    <string>/usr/local/var/log/{{html .Name}}.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/usr/local/var/log/{{html .Name}}.err.log</string>
   
   </dict>
 </plist>
