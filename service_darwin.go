@@ -160,11 +160,16 @@ func (s *darwinLaunchdService) Install() error {
 
 		KeepAlive, RunAtLoad bool
 		SessionCreate        bool
+		StdOut bool
+		StdErr bool
+		
 	}{
 		Config:        s.Config,
 		Path:          path,
 		KeepAlive:     s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
 		RunAtLoad:     s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
+		StdOut:        s.Option.bool(StdOut, false),
+		StdErr:        s.Option.bool(StdErr, false),
 		SessionCreate: s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
 	}
 
@@ -261,22 +266,40 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN"
 "http://www.apple.com/DTDs/PropertyList-1.0.dtd" >
 <plist version='1.0'>
-<dict>
-<key>Label</key><string>{{html .Name}}</string>
-<key>ProgramArguments</key>
-<array>
-        <string>{{html .Path}}</string>
-{{range .Config.Arguments}}
-        <string>{{html .}}</string>
-{{end}}
-</array>
-{{if .UserName}}<key>UserName</key><string>{{html .UserName}}</string>{{end}}
-{{if .ChRoot}}<key>RootDirectory</key><string>{{html .ChRoot}}</string>{{end}}
-{{if .WorkingDirectory}}<key>WorkingDirectory</key><string>{{html .WorkingDirectory}}</string>{{end}}
-<key>SessionCreate</key><{{bool .SessionCreate}}/>
-<key>KeepAlive</key><{{bool .KeepAlive}}/>
-<key>RunAtLoad</key><{{bool .RunAtLoad}}/>
-<key>Disabled</key><false/>
-</dict>
+  <dict>
+    <key>Label</key>
+    <string>{{html .Name}}</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>{{html .Path}}</string>
+    {{range .Config.Arguments}}
+      <string>{{html .}}</string>
+    {{end}}
+    </array>
+    {{if .UserName}}<key>UserName</key>
+    <string>{{html .UserName}}</string>{{end}}
+    {{if .ChRoot}}<key>RootDirectory</key>
+    <string>{{html .ChRoot}}</string>{{end}}
+    {{if .WorkingDirectory}}<key>WorkingDirectory</key>
+    <string>{{html .WorkingDirectory}}</string>{{end}}
+    <key>SessionCreate</key>
+    <{{bool .SessionCreate}}/>
+    <key>KeepAlive</key>
+    <{{bool .KeepAlive}}/>
+    <key>RunAtLoad</key>
+    <{{bool .RunAtLoad}}/>
+    <key>Disabled</key>
+    <false/>
+    
+    {{if .StdOut}}
+      <key>StandardOutPath</key>
+      <string>/usr/local/var/log/{{html .Name}}.out.log</string>
+    {{end}}
+    {{if .StdErr}}
+      <key>StandardErrorPath</key>
+      <string>/usr/local/var/log/{{html .Name}}.err.log</string>
+    {{end}}
+  
+  </dict>
 </plist>
 `
