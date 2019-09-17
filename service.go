@@ -71,6 +71,10 @@ const (
 	optionKeepAliveDefault     = true
 	optionRunAtLoad            = "RunAtLoad"
 	optionRunAtLoadDefault     = false
+
+	optionStdOutDefault     = false
+	optionStdErrDefault     = false
+
 	optionUserService          = "UserService"
 	optionUserServiceDefault   = false
 	optionSessionCreate        = "SessionCreate"

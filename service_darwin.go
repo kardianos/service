@@ -168,8 +168,8 @@ func (s *darwinLaunchdService) Install() error {
 		Path:          path,
 		KeepAlive:     s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
 		RunAtLoad:     s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
-		StdOut:        s.Option.bool(StdOut, false),
-		StdErr:        s.Option.bool(StdErr, false),
+		StdOut:        s.Option.bool(StdOut, optionStdOutDefault),
+		StdErr:        s.Option.bool(StdErr, optionStdErrDefault),
 		SessionCreate: s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
 	}
 
