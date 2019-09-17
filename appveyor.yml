@@ -4,7 +4,7 @@ platform:
   - x86
   - x64
 
-clone_folder: c:\gopath\src\github.com\kardianos\service
+clone_folder: c:\gopath\src\github.com\egeneralov\service
 
 environment:
   GOPATH: c:\gopath
