@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -66,15 +67,21 @@ func (s *systemd) Platform() string {
 	return s.platform
 }
 
-// Systemd services should be supported, but are not currently.
-var errNoUserServiceSystemd = errors.New("User services are not supported on systemd.")
-
 func (s *systemd) configPath() (cp string, err error) {
-	if s.Option.bool(optionUserService, optionUserServiceDefault) {
-		err = errNoUserServiceSystemd
+	if !s.Option.bool(optionUserService, optionUserServiceDefault) {
+		cp = "/etc/systemd/system/" + s.Config.Name + ".service"
 		return
 	}
-	cp = "/etc/systemd/system/" + s.Config.Name + ".service"
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	systemdUserDir := filepath.Join(homeDir, ".config/systemd/user")
+	err = os.MkdirAll(systemdUserDir, os.ModePerm)
+	if err != nil {
+		return
+	}
+	cp = filepath.Join(systemdUserDir, s.Config.Name + ".service")
 	return
 }
 
@@ -168,15 +175,30 @@ func (s *systemd) Install() error {
 		return err
 	}
 
-	err = run("systemctl", "enable", s.Name+".service")
+	if s.Option.bool(optionUserService, optionUserServiceDefault) {
+		err = run("systemctl", "enable", "--user", s.Name+".service")
+	} else {
+		err = run("systemctl", "enable", s.Name+".service")
+	}
 	if err != nil {
 		return err
 	}
-	return run("systemctl", "daemon-reload")
+
+	if s.Option.bool(optionUserService, optionUserServiceDefault) {
+		err = run("systemctl", "daemon-reload", "--user")
+	} else {
+		err = run("systemctl", "daemon-reload")
+	}
+	return err
 }
 
 func (s *systemd) Uninstall() error {
-	err := run("systemctl", "disable", s.Name+".service")
+	var err error
+	if s.Option.bool(optionUserService, optionUserServiceDefault) {
+		err = run("systemctl", "disable", "--user", s.Name+".service")
+	} else {
+		err = run("systemctl", "disable", s.Name+".service")
+	}
 	if err != nil {
 		return err
 	}

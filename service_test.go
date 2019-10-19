@@ -40,6 +40,29 @@ func TestRunInterrupt(t *testing.T) {
 	}
 }
 
+// Should always run, without asking for any permission
+func TestUserRunInterrupt(t *testing.T) {
+	p := &program{}
+	options := make(service.KeyValue)
+	options["UserService"] = true
+	sc := &service.Config{
+		Name: "go_user_service_test",
+		Option: options,
+	}
+	s, err := service.New(p, sc)
+	if err != nil {
+		t.Fatalf("New err: %s", err)
+	}
+	err = s.Install()
+	if err != nil {
+		t.Errorf("Install err: %s", err)
+	}
+	err = s.Uninstall()
+	if err != nil {
+		t.Fatalf("Uninstall err: %s", err)
+	}
+}
+
 type program struct {
 	numStopped int
 }
