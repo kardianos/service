@@ -1,4 +1,4 @@
-# service [![GoDoc](https://godoc.org/github.com/egeneralov/service?status.svg)](https://godoc.org/github.com/egeneralov/service)
+# service [![GoDoc](https://godoc.org/github.com/kardianos/service?status.svg)](https://godoc.org/github.com/kardianos/service)
 
 service will install / un-install, start / stop, and run a program as a service (daemon).
 Currently supports Windows XP+, Linux/(systemd | Upstart | SysV), and OSX/Launchd.

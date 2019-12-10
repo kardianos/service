@@ -1,4 +1,4 @@
-module github.com/egeneralov/service
+module github.com/kardianos/service
 
 go 1.10
 

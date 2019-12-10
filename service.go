@@ -18,7 +18,7 @@
 //	import (
 //		"log"
 //
-//		"github.com/egeneralov/service"
+//		"github.com/kardianos/service"
 //	)
 //
 //	var logger service.Logger
@@ -59,7 +59,7 @@
 //			logger.Error(err)
 //		}
 //	}
-package service // import "github.com/egeneralov/service"
+package service // import "github.com/kardianos/service"
 
 import (
 	"errors"
