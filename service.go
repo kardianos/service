@@ -77,6 +77,8 @@ const (
 	optionSessionCreateDefault = false
 	optionLogOutput            = "LogOutput"
 	optionLogOutputDefault     = false
+	optionPrefix               = "Prefix"
+	optionPrefixDefault        = "application"
 
 	optionRunWait      = "RunWait"
 	optionReloadSignal = "ReloadSignal"
