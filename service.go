@@ -223,7 +223,7 @@ func (kv KeyValue) float64(name string, defaultValue float64) float64 {
 	return defaultValue
 }
 
-// funcSingle returns the value of the given name, assuming the value is a float64.
+// funcSingle returns the value of the given name, assuming the value is a func().
 // If the value isn't found or is not of the type, the defaultValue is returned.
 func (kv KeyValue) funcSingle(name string, defaultValue func()) func() {
 	if v, found := kv[name]; found {
