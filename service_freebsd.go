@@ -152,7 +152,7 @@ func (s *freebsdService) Status() (Status, error) {
 		return StatusStopped, ErrNotInstalled
 	}
 
-	status, _, err := runCommand(cp, false, "status")
+	status, _, err := runCommand("service", false, s.Name, "status")
 	if status == 1 {
 		return StatusStopped, nil
 	} else if err != nil {
@@ -161,25 +161,16 @@ func (s *freebsdService) Status() (Status, error) {
 	return StatusRunning, nil
 }
 
-func (s *freebsdService) rc(cmd string) error {
-	cp, err := s.configPath()
-	if err != nil {
-		return err
-	}
-
-	return run(cp, cmd)
-}
-
 func (s *freebsdService) Start() error {
-	return s.rc("start")
+	return run("service", s.Name, "start")
 }
 
 func (s *freebsdService) Stop() error {
-	return s.rc("stop")
+	return run("service", s.Name, "stop")
 }
 
 func (s *freebsdService) Restart() error {
-	return s.rc("restart")
+	return run("service", s.Name, "restart")
 }
 
 func (s *freebsdService) Run() error {
