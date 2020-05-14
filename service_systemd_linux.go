@@ -226,6 +226,8 @@ func (s *systemd) Status() (Status, error) {
 		return StatusRunning, nil
 	case strings.HasPrefix(out, "inactive"):
 		return StatusStopped, nil
+	case strings.HasPrefix(out, "activating"):
+		return StatusRunning, nil
 	case strings.HasPrefix(out, "failed"):
 		return StatusUnknown, errors.New("service in failed state")
 	default:
