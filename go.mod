@@ -1,4 +1,4 @@
-module github.com/kardianos/service
+module github.com/tanium/service
 
 go 1.10
 
