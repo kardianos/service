@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardianos/service"
+	"github.com/tanium/service"
 )
 
 func TestRunInterrupt(t *testing.T) {

@@ -5,6 +5,8 @@
 // Package service provides a simple way to create a system service.
 // Currently supports Windows, Linux/(systemd | Upstart | SysV), and OSX/Launchd.
 //
+// This is forked from http://github.com/kardianos/service.
+//
 // Windows controls services by setting up callbacks that is non-trivial. This
 // is very different then other systems. This package provides the same API
 // despite the substantial differences.
@@ -18,7 +20,7 @@
 //	import (
 //		"log"
 //
-//		"github.com/kardianos/service"
+//		"github.com/tanium/service"
 //	)
 //
 //	var logger service.Logger
@@ -59,7 +61,7 @@
 //			logger.Error(err)
 //		}
 //	}
-package service // import "github.com/kardianos/service"
+package service // import "github.com/tanium/service"
 
 import (
 	"errors"

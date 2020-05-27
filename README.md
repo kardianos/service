@@ -1,4 +1,6 @@
-# service [![GoDoc](https://godoc.org/github.com/kardianos/service?status.svg)](https://godoc.org/github.com/kardianos/service)
+# service [![GoDoc](https://godoc.org/github.com/tanium/service?status.svg)](https://godoc.org/github.com/tanium/service)
+
+**NOTE** This is forked from github.com/kardianos/service
 
 service will install / un-install, start / stop, and run a program as a service (daemon).
 Currently supports Windows XP+, Linux/(systemd | Upstart | SysV), and OSX/Launchd.

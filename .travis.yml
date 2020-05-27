@@ -1,5 +1,5 @@
 language: go
-go_import_path: github.com/kardianos/service
+go_import_path: github.com/tanium/service
 sudo: required
 
 go:
