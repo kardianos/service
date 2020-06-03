@@ -102,6 +102,9 @@ func (p *program) Stop(s service.Service) error {
 	}
 	return nil
 }
+func (p *program) Shutdown(s service.Service) error {
+	return nil
+}
 
 func getConfigPath() (string, error) {
 	fullexecpath, err := os.Executable()

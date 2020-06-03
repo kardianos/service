@@ -27,6 +27,9 @@ func (p *program) Stop(s service.Service) error {
 	// Stop should not block. Return with a few seconds.
 	return nil
 }
+func (p *program) Shutdown(s service.Service) error {
+	return nil
+}
 
 func main() {
 	svcConfig := &service.Config{

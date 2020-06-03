@@ -53,6 +53,10 @@ func (p *program) Stop(s service.Service) error {
 	return nil
 }
 
+func (p *program) Shutdown(s service.Service) error {
+	return nil
+}
+
 // Service setup.
 //   Define service config.
 //   Create the service.

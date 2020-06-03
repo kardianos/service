@@ -55,3 +55,7 @@ func (p *program) Stop(s service.Service) error {
 	p.numStopped++
 	return nil
 }
+
+func (p *program) Shutdown(s service.Service) error {
+	return nil
+}

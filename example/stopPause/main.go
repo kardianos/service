@@ -31,6 +31,10 @@ func (p *program) Stop(s service.Service) error {
 	return nil
 }
 
+func (p *program) Shutdown(s service.Service) error {
+	return nil
+}
+
 func main() {
 	svcConfig := &service.Config{
 		Name:        "GoServiceExampleStopPause",
