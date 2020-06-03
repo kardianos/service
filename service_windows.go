@@ -178,7 +178,14 @@ loop:
 			changes <- c.CurrentStatus
 		case svc.Stop, svc.Shutdown:
 			changes <- svc.Status{State: svc.StopPending}
-			if err := ws.i.Stop(ws); err != nil {
+			var err error
+			if c.Cmd == svc.Stop {
+				err = ws.i.Stop(ws)
+			} else {
+				err = ws.i.Shutdown(ws)
+			}
+
+			if err != nil {
 				ws.setError(err)
 				return true, 2
 			}
