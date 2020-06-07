@@ -3,8 +3,9 @@ go_import_path: github.com/kardianos/service
 sudo: required
 
 go:
-  - 1.6
-  - tip
+  - 1.12.x
+  - 1.14.x
+  - master
 
 before_install:
   - go get github.com/mattn/goveralls

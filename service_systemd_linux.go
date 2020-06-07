@@ -5,10 +5,15 @@
 package service
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 	"syscall"
 	"text/template"
 )
@@ -17,18 +22,35 @@ func isSystemd() bool {
 	if _, err := os.Stat("/run/systemd/system"); err == nil {
 		return true
 	}
+	if _, err := os.Stat("/proc/1/comm"); err == nil {
+		filerc, err := os.Open("/proc/1/comm")
+		if err != nil {
+			return false
+		}
+		defer filerc.Close()
+
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(filerc)
+		contents := buf.String()
+
+		if strings.Trim(contents, " \r\n") == "systemd" {
+			return true
+		}
+	}
 	return false
 }
 
 type systemd struct {
-	i Interface
+	i        Interface
+	platform string
 	*Config
 }
 
-func newSystemdService(i Interface, c *Config) (Service, error) {
+func newSystemdService(i Interface, platform string, c *Config) (Service, error) {
 	s := &systemd{
-		i:      i,
-		Config: c,
+		i:        i,
+		platform: platform,
+		Config:   c,
 	}
 
 	return s, nil
@@ -41,19 +63,70 @@ func (s *systemd) String() string {
 	return s.Name
 }
 
-// Systemd services should be supported, but are not currently.
-var errNoUserServiceSystemd = errors.New("User services are not supported on systemd.")
+func (s *systemd) Platform() string {
+	return s.platform
+}
 
 func (s *systemd) configPath() (cp string, err error) {
-	if s.Option.bool(optionUserService, optionUserServiceDefault) {
-		err = errNoUserServiceSystemd
+	if !s.Option.bool(optionUserService, optionUserServiceDefault) {
+		cp = "/etc/systemd/system/" + s.Config.Name + ".service"
 		return
 	}
-	cp = "/etc/systemd/system/" + s.Config.Name + ".service"
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	systemdUserDir := filepath.Join(homeDir, ".config/systemd/user")
+	err = os.MkdirAll(systemdUserDir, os.ModePerm)
+	if err != nil {
+		return
+	}
+	cp = filepath.Join(systemdUserDir, s.Config.Name + ".service")
 	return
 }
+
+func (s *systemd) getSystemdVersion() int64 {
+	_, out, err := runWithOutput("systemctl", "--version")
+	if err != nil {
+		return -1
+	}
+
+	re := regexp.MustCompile(`systemd ([0-9]+)`)
+	matches := re.FindStringSubmatch(out)
+	if len(matches) != 2 {
+		return -1
+	}
+
+	v, err := strconv.ParseInt(matches[1], 10, 64)
+	if err != nil {
+		return -1
+	}
+
+	return v
+}
+
+func (s *systemd) hasOutputFileSupport() bool {
+	defaultValue := true
+	version := s.getSystemdVersion()
+	if version == -1 {
+		return defaultValue
+	}
+
+	if version < 236 {
+		return false
+	}
+
+	return defaultValue
+}
+
 func (s *systemd) template() *template.Template {
-	return template.Must(template.New("").Funcs(tf).Parse(systemdScript))
+	customScript := s.Option.string(optionSystemdScript, "")
+
+	if customScript != "" {
+		return template.Must(template.New("").Funcs(tf).Parse(customScript))
+	} else {
+		return template.Must(template.New("").Funcs(tf).Parse(systemdScript))
+	}
 }
 
 func (s *systemd) Install() error {
@@ -66,7 +139,7 @@ func (s *systemd) Install() error {
 		return fmt.Errorf("Init already exists: %s", confPath)
 	}
 
-	f, err := os.Create(confPath)
+	f, err := os.OpenFile(confPath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return err
 	}
@@ -79,16 +152,24 @@ func (s *systemd) Install() error {
 
 	var to = &struct {
 		*Config
-		Path         string
-		ReloadSignal string
-		PIDFile      string
-		LimitNOFILE  int
+		Path                 string
+		HasOutputFileSupport bool
+		ReloadSignal         string
+		PIDFile              string
+		LimitNOFILE          int
+		Restart              string
+		SuccessExitStatus    string
+		LogOutput            bool
 	}{
 		s.Config,
 		path,
+		s.hasOutputFileSupport(),
 		s.Option.string(optionReloadSignal, ""),
 		s.Option.string(optionPIDFile, ""),
 		s.Option.int(optionLimitNOFILE, optionLimitNOFILEDefault),
+		s.Option.string(optionRestart, "always"),
+		s.Option.string(optionSuccessExitStatus, ""),
+		s.Option.bool(optionLogOutput, optionLogOutputDefault),
 	}
 
 	err = s.template().Execute(f, to)
@@ -96,15 +177,30 @@ func (s *systemd) Install() error {
 		return err
 	}
 
-	err = run("systemctl", "enable", s.Name+".service")
+	if s.Option.bool(optionUserService, optionUserServiceDefault) {
+		err = run("systemctl", "enable", "--user", s.Name+".service")
+	} else {
+		err = run("systemctl", "enable", s.Name+".service")
+	}
 	if err != nil {
 		return err
 	}
-	return run("systemctl", "daemon-reload")
+
+	if s.Option.bool(optionUserService, optionUserServiceDefault) {
+		err = run("systemctl", "daemon-reload", "--user")
+	} else {
+		err = run("systemctl", "daemon-reload")
+	}
+	return err
 }
 
 func (s *systemd) Uninstall() error {
-	err := run("systemctl", "disable", s.Name+".service")
+	var err error
+	if s.Option.bool(optionUserService, optionUserServiceDefault) {
+		err = run("systemctl", "disable", "--user", s.Name+".service")
+	} else {
+		err = run("systemctl", "disable", s.Name+".service")
+	}
 	if err != nil {
 		return err
 	}
@@ -143,6 +239,26 @@ func (s *systemd) Run() (err error) {
 	return s.i.Stop(s)
 }
 
+func (s *systemd) Status() (Status, error) {
+	exitCode, out, err := runWithOutput("systemctl", "is-active", s.Name)
+	if exitCode == 0 && err != nil {
+		return StatusUnknown, err
+	}
+
+	switch {
+	case strings.HasPrefix(out, "active"):
+		return StatusRunning, nil
+	case strings.HasPrefix(out, "inactive"):
+		return StatusStopped, nil
+	case strings.HasPrefix(out, "activating"):
+		return StatusRunning, nil
+	case strings.HasPrefix(out, "failed"):
+		return StatusUnknown, errors.New("service in failed state")
+	default:
+		return StatusUnknown, ErrNotInstalled
+	}
+}
+
 func (s *systemd) Start() error {
 	return run("systemctl", "start", s.Name+".service")
 }
@@ -158,6 +274,8 @@ func (s *systemd) Restart() error {
 const systemdScript = `[Unit]
 Description={{.Description}}
 ConditionFileIsExecutable={{.Path|cmdEscape}}
+{{range $i, $dep := .Dependencies}} 
+{{$dep}} {{end}}
 
 [Service]
 StartLimitInterval=5
@@ -168,8 +286,13 @@ ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
 {{if .UserName}}User={{.UserName}}{{end}}
 {{if .ReloadSignal}}ExecReload=/bin/kill -{{.ReloadSignal}} "$MAINPID"{{end}}
 {{if .PIDFile}}PIDFile={{.PIDFile|cmd}}{{end}}
+{{if and .LogOutput .HasOutputFileSupport -}}
+StandardOutput=file:/var/log/{{.Name}}.out
+StandardError=file:/var/log/{{.Name}}.err
+{{- end}}
 {{if gt .LimitNOFILE -1 }}LimitNOFILE={{.LimitNOFILE}}{{end}}
-Restart=always
+{{if .Restart}}Restart={{.Restart}}{{end}}
+{{if .SuccessExitStatus}}SuccessExitStatus={{.SuccessExitStatus}}{{end}}
 RestartSec=120
 EnvironmentFile=-/etc/sysconfig/{{.Name}}
 

@@ -5,6 +5,7 @@
 package service_test
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -37,6 +38,34 @@ func TestRunInterrupt(t *testing.T) {
 
 	if err = s.Run(); err != nil {
 		t.Fatalf("Run() err: %s", err)
+	}
+}
+
+const testInstallEnv = "TEST_USER_INSTALL"
+
+// Should always run, without asking for any permission
+func TestUserRunInterrupt(t *testing.T) {
+	if os.Getenv(testInstallEnv) != "1" {
+		t.Skipf("env %q is not set to 1", testInstallEnv)
+	}
+	p := &program{}
+	options := make(service.KeyValue)
+	options["UserService"] = true
+	sc := &service.Config{
+		Name:   "go_user_service_test",
+		Option: options,
+	}
+	s, err := service.New(p, sc)
+	if err != nil {
+		t.Fatalf("New err: %s", err)
+	}
+	err = s.Install()
+	if err != nil {
+		t.Errorf("Install err: %s", err)
+	}
+	err = s.Uninstall()
+	if err != nil {
+		t.Fatalf("Uninstall err: %s", err)
 	}
 }
 

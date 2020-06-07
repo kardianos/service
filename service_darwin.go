@@ -11,6 +11,8 @@ import (
 	"os/signal"
 	"os/user"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"syscall"
 	"text/template"
 	"time"
@@ -75,6 +77,10 @@ func (s *darwinLaunchdService) String() string {
 	return s.Name
 }
 
+func (s *darwinLaunchdService) Platform() string {
+	return version
+}
+
 func (s *darwinLaunchdService) getHomeDir() (string, error) {
 	u, err := user.Current()
 	if err == nil {
@@ -98,6 +104,25 @@ func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
 		return homeDir + "/Library/LaunchAgents/" + s.Name + ".plist", nil
 	}
 	return "/Library/LaunchDaemons/" + s.Name + ".plist", nil
+}
+
+func (s *darwinLaunchdService) template() *template.Template {
+	functions := template.FuncMap{
+		"bool": func(v bool) string {
+			if v {
+				return "true"
+			}
+			return "false"
+		},
+	}
+
+	customConfig := s.Option.string(optionLaunchdConfig, "")
+
+	if customConfig != "" {
+		return template.Must(template.New("").Funcs(functions).Parse(customConfig))
+	} else {
+		return template.Must(template.New("").Funcs(functions).Parse(launchdConfig))
+	}
 }
 
 func (s *darwinLaunchdService) Install() error {
@@ -135,6 +160,9 @@ func (s *darwinLaunchdService) Install() error {
 
 		KeepAlive, RunAtLoad bool
 		SessionCreate        bool
+		StandardOut bool
+		StandardError bool
+		
 	}{
 		Config:        s.Config,
 		Path:          path,
@@ -143,16 +171,7 @@ func (s *darwinLaunchdService) Install() error {
 		SessionCreate: s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
 	}
 
-	functions := template.FuncMap{
-		"bool": func(v bool) string {
-			if v {
-				return "true"
-			}
-			return "false"
-		},
-	}
-	t := template.Must(template.New("launchdConfig").Funcs(functions).Parse(launchdConfig))
-	return t.Execute(f, to)
+	return s.template().Execute(f, to)
 }
 
 func (s *darwinLaunchdService) Uninstall() error {
@@ -163,6 +182,32 @@ func (s *darwinLaunchdService) Uninstall() error {
 		return err
 	}
 	return os.Remove(confPath)
+}
+
+func (s *darwinLaunchdService) Status() (Status, error) {
+	exitCode, out, err := runWithOutput("launchctl", "list", s.Name)
+	if exitCode == 0 && err != nil {
+		if !strings.Contains(err.Error(), "failed with StandardError") {
+			return StatusUnknown, err
+		}
+	}
+
+	re := regexp.MustCompile(`"PID" = ([0-9]+);`)
+	matches := re.FindStringSubmatch(out)
+	if len(matches) == 2 {
+		return StatusRunning, nil
+	}
+
+	confPath, err := s.getServiceFilePath()
+	if err != nil {
+		return StatusUnknown, err
+	}
+
+	if _, err = os.Stat(confPath); err == nil {
+		return StatusStopped, nil
+	}
+
+	return StatusUnknown, ErrNotInstalled
 }
 
 func (s *darwinLaunchdService) Start() error {
@@ -219,22 +264,36 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN"
 "http://www.apple.com/DTDs/PropertyList-1.0.dtd" >
 <plist version='1.0'>
-<dict>
-<key>Label</key><string>{{html .Name}}</string>
-<key>ProgramArguments</key>
-<array>
-        <string>{{html .Path}}</string>
-{{range .Config.Arguments}}
-        <string>{{html .}}</string>
-{{end}}
-</array>
-{{if .UserName}}<key>UserName</key><string>{{html .UserName}}</string>{{end}}
-{{if .ChRoot}}<key>RootDirectory</key><string>{{html .ChRoot}}</string>{{end}}
-{{if .WorkingDirectory}}<key>WorkingDirectory</key><string>{{html .WorkingDirectory}}</string>{{end}}
-<key>SessionCreate</key><{{bool .SessionCreate}}/>
-<key>KeepAlive</key><{{bool .KeepAlive}}/>
-<key>RunAtLoad</key><{{bool .RunAtLoad}}/>
-<key>Disabled</key><false/>
-</dict>
+  <dict>
+    <key>Label</key>
+    <string>{{html .Name}}</string>
+    <key>ProgramArguments</key>
+    <array>
+      <string>{{html .Path}}</string>
+    {{range .Config.Arguments}}
+      <string>{{html .}}</string>
+    {{end}}
+    </array>
+    {{if .UserName}}<key>UserName</key>
+    <string>{{html .UserName}}</string>{{end}}
+    {{if .ChRoot}}<key>RootDirectory</key>
+    <string>{{html .ChRoot}}</string>{{end}}
+    {{if .WorkingDirectory}}<key>WorkingDirectory</key>
+    <string>{{html .WorkingDirectory}}</string>{{end}}
+    <key>SessionCreate</key>
+    <{{bool .SessionCreate}}/>
+    <key>KeepAlive</key>
+    <{{bool .KeepAlive}}/>
+    <key>RunAtLoad</key>
+    <{{bool .RunAtLoad}}/>
+    <key>Disabled</key>
+    <false/>
+    
+    <key>StandardOutPath</key>
+    <string>/usr/local/var/log/{{html .Name}}.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/usr/local/var/log/{{html .Name}}.err.log</string>
+  
+  </dict>
 </plist>
 `

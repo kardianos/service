@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -144,6 +145,10 @@ func (ws *windowsService) String() string {
 	return ws.Name
 }
 
+func (ws *windowsService) Platform() string {
+	return version
+}
+
 func (ws *windowsService) setError(err error) {
 	ws.errSync.Lock()
 	defer ws.errSync.Unlock()
@@ -216,8 +221,10 @@ func (ws *windowsService) Install() error {
 	defer s.Close()
 	err = eventlog.InstallAsEventCreate(ws.Name, eventlog.Error|eventlog.Warning|eventlog.Info)
 	if err != nil {
-		s.Delete()
-		return fmt.Errorf("InstallAsEventCreate() failed: %s", err)
+		if !strings.Contains(err.Error(), "exists") {
+			s.Delete()
+			return fmt.Errorf("SetupEventLogSource() failed: %s", err)
+		}
 	}
 	return nil
 }
@@ -268,11 +275,52 @@ func (ws *windowsService) Run() error {
 
 	sigChan := make(chan os.Signal)
 
-	signal.Notify(sigChan, os.Interrupt, os.Kill)
+	signal.Notify(sigChan, os.Interrupt)
 
 	<-sigChan
 
 	return ws.i.Stop(ws)
+}
+
+func (ws *windowsService) Status() (Status, error) {
+	m, err := mgr.Connect()
+	if err != nil {
+		return StatusUnknown, err
+	}
+	defer m.Disconnect()
+
+	s, err := m.OpenService(ws.Name)
+	if err != nil {
+		if err.Error() == "The specified service does not exist as an installed service." {
+			return StatusUnknown, ErrNotInstalled
+		}
+		return StatusUnknown, err
+	}
+	defer s.Close()
+
+	status, err := s.Query()
+	if err != nil {
+		return StatusUnknown, err
+	}
+
+	switch status.State {
+	case svc.StartPending:
+		fallthrough
+	case svc.Running:
+		return StatusRunning, nil
+	case svc.PausePending:
+		fallthrough
+	case svc.Paused:
+		fallthrough
+	case svc.ContinuePending:
+		fallthrough
+	case svc.StopPending:
+		fallthrough
+	case svc.Stopped:
+		return StatusStopped, nil
+	default:
+		return StatusUnknown, fmt.Errorf("unknown status %v", status)
+	}
 }
 
 func (ws *windowsService) Start() error {
