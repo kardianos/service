@@ -83,6 +83,8 @@ const (
 	optionRunWait      = "RunWait"
 	optionReloadSignal = "ReloadSignal"
 	optionPIDFile      = "PIDFile"
+	optionLimitNOFILE        = "LimitNOFILE"
+	optionLimitNOFILEDefault = -1 // -1 = don't set in configuration
 	optionRestart      = "Restart"
 
 	optionSuccessExitStatus = "SuccessExitStatus"
@@ -147,6 +149,9 @@ type Config struct {
 	//    - Restart       string (always)           - How shall service be restarted.
 	//    - SuccessExitStatus string ()             - The list of exit status that shall be considered as successful,
 	//                                                in addition to the default ones.
+	//  * Linux (systemd)
+	//    - LimitNOFILE	 int - Maximum open files (ulimit -n) (https://serverfault.com/questions/628610/increasing-nproc-for-processes-launched-by-systemd-on-centos-7)
+
 	Option KeyValue
 }
 

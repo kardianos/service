@@ -156,6 +156,7 @@ func (s *systemd) Install() error {
 		HasOutputFileSupport bool
 		ReloadSignal         string
 		PIDFile              string
+		LimitNOFILE          int
 		Restart              string
 		SuccessExitStatus    string
 		LogOutput            bool
@@ -165,6 +166,7 @@ func (s *systemd) Install() error {
 		s.hasOutputFileSupport(),
 		s.Option.string(optionReloadSignal, ""),
 		s.Option.string(optionPIDFile, ""),
+		s.Option.int(optionLimitNOFILE, optionLimitNOFILEDefault),
 		s.Option.string(optionRestart, "always"),
 		s.Option.string(optionSuccessExitStatus, ""),
 		s.Option.bool(optionLogOutput, optionLogOutputDefault),
@@ -288,6 +290,7 @@ ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
 StandardOutput=file:/var/log/{{.Name}}.out
 StandardError=file:/var/log/{{.Name}}.err
 {{- end}}
+{{if gt .LimitNOFILE -1 }}LimitNOFILE={{.LimitNOFILE}}{{end}}
 {{if .Restart}}Restart={{.Restart}}{{end}}
 {{if .SuccessExitStatus}}SuccessExitStatus={{.SuccessExitStatus}}{{end}}
 RestartSec=120
