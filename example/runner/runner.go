@@ -94,7 +94,7 @@ func (p *program) run() {
 func (p *program) Stop(s service.Service) error {
 	close(p.exit)
 	logger.Info("Stopping ", p.DisplayName)
-	if p.cmd.ProcessState.Exited() == false {
+	if p.cmd.Process != nil {
 		p.cmd.Process.Kill()
 	}
 	if service.Interactive() {
