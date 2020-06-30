@@ -327,7 +327,7 @@ type Shutdowner interface {
 	Interface
 	// Shutdown provides a place to clean up program execution when the system is being shutdown.
 	// It is essentially the same as Stop but for the case where machine is being shutdown/restarted
-	// instead of just normally stopping the service.
+	// instead of just normally stopping the service. Stop won't be called when Shutdown is.
 	Shutdown(s Service) error
 }
 
