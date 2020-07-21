@@ -241,9 +241,9 @@ func (kv KeyValue) funcSingle(name string, defaultValue func()) func() {
 	return defaultValue
 }
 
-// customHanlder returns the value of the given name, assuming the value is a func([]interface{}).
+// customHandler returns the value of the given name, assuming the value is a func([]interface{}).
 // If the value isn't found or is not of the type, nil is returned.
-func (kv KeyValue) customHanlder(name string) func([]interface{}) {
+func (kv KeyValue) customHandler(name string) func([]interface{}) {
 	if v, found := kv[name]; found {
 		if castValue, is := v.(func([]interface{})); is {
 			return castValue

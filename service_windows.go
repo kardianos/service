@@ -190,7 +190,7 @@ loop:
 			args := make([]interface{}, 2)
 			args[0] = c.EventType
 			args[1] = sd.SessionID
-			handler := ws.Config.Option.customHanlder(optionSessionChange)
+			handler := ws.Config.Option.customHandler(optionSessionChange)
 			if handler != nil {
 				handler(args)
 			}
