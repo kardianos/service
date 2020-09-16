@@ -164,6 +164,13 @@ func (ws *windowsService) Execute(args []string, r <-chan svc.ChangeRequest, cha
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
 
+	if len(args) > 1 {
+		// this limits the port range to the 1 the GRPC server specifies since this is how ports are passed into
+		// services during startup call see https://github.com/hashicorp/go-plugin/blob/master/server.go#L506-L507
+		os.Setenv("PLUGIN_MIN_PORT", args[1])
+		os.Setenv("PLUGIN_MAX_PORT", args[1])
+	}
+
 	if err := ws.i.Start(ws); err != nil {
 		ws.setError(err)
 		return true, 1
