@@ -152,7 +152,7 @@ type Config struct {
 	//  * Linux (systemd)
 	//    - LimitNOFILE	 int - Maximum open files (ulimit -n) (https://serverfault.com/questions/628610/increasing-nproc-for-processes-launched-by-systemd-on-centos-7)
 	//  * Windows
-	//    - DelayedAutoStart  bool (false) - Is service should be started after all Automatic services
+	//    - DelayedAutoStart  bool (false) - after booting start this service after some delay
 
 	Option KeyValue
 }
