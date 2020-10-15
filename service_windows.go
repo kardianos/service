@@ -214,6 +214,7 @@ func (ws *windowsService) Install() error {
 		ServiceStartName: ws.UserName,
 		Password:         ws.Option.string("Password", ""),
 		Dependencies:     ws.Dependencies,
+		DelayedAutoStart: ws.Option.bool("DelayedAutoStart", false),
 	}, ws.Arguments...)
 	if err != nil {
 		return err
