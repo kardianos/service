@@ -80,12 +80,12 @@ const (
 	optionPrefix               = "Prefix"
 	optionPrefixDefault        = "application"
 
-	optionRunWait      = "RunWait"
-	optionReloadSignal = "ReloadSignal"
-	optionPIDFile      = "PIDFile"
+	optionRunWait            = "RunWait"
+	optionReloadSignal       = "ReloadSignal"
+	optionPIDFile            = "PIDFile"
 	optionLimitNOFILE        = "LimitNOFILE"
 	optionLimitNOFILEDefault = -1 // -1 = don't set in configuration
-	optionRestart      = "Restart"
+	optionRestart            = "Restart"
 
 	optionSuccessExitStatus = "SuccessExitStatus"
 
@@ -93,6 +93,8 @@ const (
 	optionSysvScript    = "SysvScript"
 	optionUpstartScript = "UpstartScript"
 	optionLaunchdConfig = "LaunchdConfig"
+
+	optionSessionChange = "SessionChange"
 )
 
 // Status represents service status as an byte value
@@ -237,6 +239,17 @@ func (kv KeyValue) funcSingle(name string, defaultValue func()) func() {
 		}
 	}
 	return defaultValue
+}
+
+// customHandler returns the value of the given name, assuming the value is a func([]interface{}).
+// If the value isn't found or is not of the type, nil is returned.
+func (kv KeyValue) customHandler(name string) func([]interface{}) {
+	if v, found := kv[name]; found {
+		if castValue, is := v.(func([]interface{})); is {
+			return castValue
+		}
+	}
+	return nil
 }
 
 // Platform returns a description of the system service.

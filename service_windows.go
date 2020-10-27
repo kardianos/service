@@ -12,7 +12,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unsafe"
 
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/eventlog"
@@ -161,7 +163,7 @@ func (ws *windowsService) getError() error {
 }
 
 func (ws *windowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (bool, uint32) {
-	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
+	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptSessionChange
 	changes <- svc.Status{State: svc.StartPending}
 
 	if err := ws.i.Start(ws); err != nil {
@@ -183,6 +185,15 @@ loop:
 				return true, 2
 			}
 			break loop
+		case svc.SessionChange:
+			sd := (*windows.WTSSESSION_NOTIFICATION)(unsafe.Pointer(c.EventData))
+			args := make([]interface{}, 2)
+			args[0] = c.EventType
+			args[1] = sd.SessionID
+			handler := ws.Config.Option.customHandler(optionSessionChange)
+			if handler != nil {
+				handler(args)
+			}
 		default:
 			continue loop
 		}
