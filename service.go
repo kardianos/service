@@ -328,6 +328,16 @@ type Interface interface {
 	Stop(s Service) error
 }
 
+// Shutdowner represents a service interface for a program that differentiates between "stop" and
+// "shutdown". A shutdown is triggered when the whole box (not just the service) is stopped.
+type Shutdowner interface {
+	Interface
+	// Shutdown provides a place to clean up program execution when the system is being shutdown.
+	// It is essentially the same as Stop but for the case where machine is being shutdown/restarted
+	// instead of just normally stopping the service. Stop won't be called when Shutdown is.
+	Shutdown(s Service) error
+}
+
 // TODO: Add Configure to Service interface.
 
 // Service represents a service that can be run or controlled.
