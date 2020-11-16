@@ -80,12 +80,12 @@ const (
 	optionPrefix               = "Prefix"
 	optionPrefixDefault        = "application"
 
-	optionRunWait      = "RunWait"
-	optionReloadSignal = "ReloadSignal"
-	optionPIDFile      = "PIDFile"
+	optionRunWait            = "RunWait"
+	optionReloadSignal       = "ReloadSignal"
+	optionPIDFile            = "PIDFile"
 	optionLimitNOFILE        = "LimitNOFILE"
 	optionLimitNOFILEDefault = -1 // -1 = don't set in configuration
-	optionRestart      = "Restart"
+	optionRestart            = "Restart"
 
 	optionSuccessExitStatus = "SuccessExitStatus"
 
@@ -151,6 +151,8 @@ type Config struct {
 	//                                                in addition to the default ones.
 	//  * Linux (systemd)
 	//    - LimitNOFILE	 int - Maximum open files (ulimit -n) (https://serverfault.com/questions/628610/increasing-nproc-for-processes-launched-by-systemd-on-centos-7)
+	//  * Windows
+	//    - DelayedAutoStart  bool (false) - after booting start this service after some delay
 
 	Option KeyValue
 }
