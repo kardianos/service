@@ -51,7 +51,7 @@ func getPidOfSvcMaster() int {
 	cmd.Stdout = &out
 	pid := 0
 	if err := cmd.Run(); err == nil {
-		matches := pat.FindAllStringSubmatch(out.String(),-1)
+		matches := pat.FindAllStringSubmatch(out.String(), -1)
 		for _, match := range matches {
 			pid, _ = strconv.Atoi(match[1])
 			break
@@ -125,7 +125,7 @@ func (s *aixService) Install() error {
 	if err != nil {
 		return err
 	}
-	err = run("mkssys", "-s", s.Name, "-p", path, "-u", "0", "-R", "-Q", "-S", "-n", "15", "-f", "9", "-d", "-w", "30" )
+	err = run("mkssys", "-s", s.Name, "-p", path, "-u", "0", "-R", "-Q", "-S", "-n", "15", "-f", "9", "-d", "-w", "30")
 	if err != nil {
 		return err
 	}
