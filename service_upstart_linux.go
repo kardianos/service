@@ -56,6 +56,10 @@ func (s *upstart) Platform() string {
 	return s.platform
 }
 
+func (s *upstart) Args() []string {
+	return s.Config.Arguments
+}
+
 // Upstart has some support for user services in graphical sessions.
 // Due to the mix of actual support for user services over versions, just don't bother.
 // Upstart will be replaced by systemd in most cases anyway.

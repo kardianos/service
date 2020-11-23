@@ -24,7 +24,7 @@ const version = "windows-service"
 type windowsService struct {
 	i Interface
 	*Config
-
+	startArgs    []string
 	errSync      sync.Mutex
 	stopStartErr error
 }
@@ -149,6 +149,10 @@ func (ws *windowsService) Platform() string {
 	return version
 }
 
+func (ws *windowsService) Args() []string {
+	return ws.startArgs
+}
+
 func (ws *windowsService) setError(err error) {
 	ws.errSync.Lock()
 	defer ws.errSync.Unlock()
@@ -163,7 +167,7 @@ func (ws *windowsService) getError() error {
 func (ws *windowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (bool, uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
-
+	ws.startArgs = args
 	if err := ws.i.Start(ws); err != nil {
 		ws.setError(err)
 		return true, 1

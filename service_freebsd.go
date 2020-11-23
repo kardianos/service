@@ -68,6 +68,10 @@ func (s *freebsdService) Platform() string {
 	return version
 }
 
+func (s *freebsdService) Args() []string {
+	return s.Config.Arguments
+}
+
 func (s *freebsdService) template() *template.Template {
 	functions := template.FuncMap{
 		"bool": func(v bool) string {

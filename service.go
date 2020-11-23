@@ -384,6 +384,9 @@ type Service interface {
 
 	// Status returns the current service status.
 	Status() (Status, error)
+
+	// Any runtime args
+	Args() []string
 }
 
 // ControlAction list valid string texts to use in Control.

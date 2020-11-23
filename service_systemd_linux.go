@@ -67,6 +67,10 @@ func (s *systemd) Platform() string {
 	return s.platform
 }
 
+func (s *systemd) Args() []string {
+	return s.Config.Arguments
+}
+
 func (s *systemd) configPath() (cp string, err error) {
 	if !s.isUserService() {
 		cp = "/etc/systemd/system/" + s.Config.Name + ".service"

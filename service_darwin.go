@@ -81,6 +81,10 @@ func (s *darwinLaunchdService) Platform() string {
 	return version
 }
 
+func (s *darwinLaunchdService) Args() []string {
+	return s.Config.Arguments
+}
+
 func (s *darwinLaunchdService) getHomeDir() (string, error) {
 	u, err := user.Current()
 	if err == nil {
