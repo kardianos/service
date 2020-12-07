@@ -18,7 +18,7 @@
 //	import (
 //		"log"
 //
-//		"github.com/kardianos/service"
+//		"github.com/k0sproject/service"
 //	)
 //
 //	var logger service.Logger
@@ -59,7 +59,7 @@
 //			logger.Error(err)
 //		}
 //	}
-package service // import "github.com/kardianos/service"
+package service // import "github.com/k0sproject/service"
 
 import (
 	"errors"
@@ -93,6 +93,7 @@ const (
 	optionSysvScript    = "SysvScript"
 	optionUpstartScript = "UpstartScript"
 	optionLaunchdConfig = "LaunchdConfig"
+	optionOpenRCScript  = "OpenRCScript"
 )
 
 // Status represents service status as an byte value
