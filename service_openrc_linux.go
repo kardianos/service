@@ -128,7 +128,7 @@ func (s *openrc) Uninstall() error {
 	if err != nil {
 		return err
 	}
-	if err := os.Remove(cconfPath); err != nil {
+	if err := os.Remove(confPath); err != nil {
 		return err
 	}
 	return s.runAction("delete")
