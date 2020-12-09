@@ -102,6 +102,11 @@ func (s *openrc) Install() error {
 	}
 	defer f.Close()
 
+	err = os.Chmod(confPath, 0755)
+	if err != nil {
+		return err
+	}
+
 	path, err := s.execPath()
 	if err != nil {
 		return err
