@@ -54,15 +54,6 @@ func init() {
 			new: newUpstartService,
 		},
 		linuxSystemService{
-			name:   "unix-systemv",
-			detect: func() bool { return true },
-			interactive: func() bool {
-				is, _ := isInteractive()
-				return is
-			},
-			new: newSystemVService,
-		},
-		linuxSystemService{
 			name:   "linux-openrc",
 			detect: isOpenRC,
 			interactive: func() bool {
@@ -70,6 +61,15 @@ func init() {
 				return is
 			},
 			new: newOpenRCService,
+		},
+		linuxSystemService{
+			name:   "unix-systemv",
+			detect: func() bool { return true },
+			interactive: func() bool {
+				is, _ := isInteractive()
+				return is
+			},
+			new: newSystemVService,
 		},
 	)
 }
