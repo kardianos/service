@@ -62,6 +62,15 @@ func init() {
 			},
 			new: newSystemVService,
 		},
+		linuxSystemService{
+			name:   "linux-openrc",
+			detect: isOpenRC,
+			interactive: func() bool {
+				is, _ := isInteractive()
+				return is
+			},
+			new: newOpenRCService,
+		},
 	)
 }
 
