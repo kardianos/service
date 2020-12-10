@@ -8,7 +8,7 @@ package main
 import (
 	"log"
 
-	"github.com/k0sproject/service"
+	service "github.com/k0sproject/kardianos-service"
 )
 
 var logger service.Logger

@@ -14,7 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/k0sproject/service"
+	service "github.com/k0sproject/kardianos-service"
 )
 
 // Config is the runner app config structure.

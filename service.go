@@ -18,7 +18,7 @@
 //	import (
 //		"log"
 //
-//		"github.com/k0sproject/service"
+//		"github.com/k0sproject/kardianos-service"
 //	)
 //
 //	var logger service.Logger
@@ -59,7 +59,7 @@
 //			logger.Error(err)
 //		}
 //	}
-package service // import "github.com/k0sproject/service"
+package service // import "github.com/k0sproject/kardianos-service"
 
 import (
 	"errors"
