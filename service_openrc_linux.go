@@ -166,7 +166,7 @@ func (s *openrc) Run() (err error) {
 }
 
 func (s *openrc) Status() (Status, error) {
-	_, out, err := runWithOutput("service", s.Name, "status")
+	_, out, err := runWithOutput("rc-service", s.Name, "status")
 	if err != nil {
 		return StatusUnknown, err
 	}
@@ -182,11 +182,11 @@ func (s *openrc) Status() (Status, error) {
 }
 
 func (s *openrc) Start() error {
-	return run("service", s.Name, "start")
+	return run("rc-service", s.Name, "start")
 }
 
 func (s *openrc) Stop() error {
-	return run("service", s.Name, "stop")
+	return run("rc-service", s.Name, "stop")
 }
 
 func (s *openrc) Restart() error {
