@@ -75,7 +75,7 @@ func newOpenRCService(i Interface, platform string, c *Config) (Service, error) 
 	return s, nil
 }
 
-var errNoUserServiceOpenRC = errors.New("User services are not supported on OpenRC.")
+var errNoUserServiceOpenRC = errors.New("user services are not supported on OpenRC")
 
 func (s *openrc) configPath() (cp string, err error) {
 	if s.Option.bool(optionUserService, optionUserServiceDefault) {
@@ -202,49 +202,24 @@ func (s *openrc) runAction(action string) error {
 	return s.run(action, s.Name)
 }
 
-/*
-func (s *openrc) getOpenRCVersion() int64 {
-	_, out, err := runWithOutput("systemctl", "--version")
-	if err != nil {
-		return -1
-	}
-
-	re := regexp.MustCompile(`systemd ([0-9]+)`)
-	matches := re.FindStringSubmatch(out)
-	if len(matches) != 2 {
-		return -1
-	}
-
-	v, err := strconv.ParseInt(matches[1], 10, 64)
-	if err != nil {
-		return -1
-	}
-
-	return v
-} */
-
 func (s *openrc) run(action string, args ...string) error {
 	return run("rc-update", append([]string{action}, args...)...)
 }
 
 const openRCScript = `#!/sbin/openrc-run
 supervisor=supervise-daemon
-name={{.DisplayName}}
-description={{.Description}}
-command={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
-command_args={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
+name="{{.DisplayName}}"
+description="{{.Description}}"
+command={{.Path|cmdEscape}}
+command_args={{range .Arguments}}{{.}}{{end}}
 
+name=$(basename $(readlink -f $command))
+supervise_daemon_args="--stdout /var/log/${name}.log --stderr /var/log/${name}.err"
+
+{{ if .Dependencies }}
 depend() {
-#  (Dependency information)
-{{range $i, $dep := .Dependencies}} 
-{{$dep}} {{end}}
+{{- range $i, $dep := .Dependencies}} 
+{{"\t"}}{{$dep}}{{end}}
 }
-  
-start() {
-#  (Commands necessary to start the service)
-}
-  
-stop() {
-#  (Commands necessary to stop the service)
-}
+{{- end}}
 `
