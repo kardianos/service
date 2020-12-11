@@ -93,6 +93,7 @@ const (
 	optionSysvScript    = "SysvScript"
 	optionUpstartScript = "UpstartScript"
 	optionLaunchdConfig = "LaunchdConfig"
+	optionOpenRCScript  = "OpenRCScript"
 )
 
 // Status represents service status as an byte value

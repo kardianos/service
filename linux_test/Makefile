@@ -1,8 +1,9 @@
 
-all: sysv systemd upstart clean
+all: sysv systemd upstart openrc clean
 
+# compile `go test` binary statically
 test:
-	@go test -c ..
+	@CGO_ENABLED=0 go test -installsuffix netgo -a -c ..
 
 clean:
 	-rm service.test
@@ -33,3 +34,12 @@ upstart: test
 	@-docker rm $(shell docker ps -l -q)
 	@-docker rmi -f service.test.upstart
 	@-rm upstart/service.test
+
+openrc: test
+	@echo openrc
+	@cp service.test openrc/
+	@docker build -q --tag="service.test.openrc" openrc
+	@-docker run service.test.openrc
+	@-docker rm $(shell docker ps -l -q)
+	@-docker rmi -f service.test.openrc
+	@-rm openrc/service.test
