@@ -220,6 +220,12 @@ func (ws *windowsService) Install() error {
 		s.Close()
 		return fmt.Errorf("service %s already exists", ws.Name)
 	}
+
+	serviceType := windows.SERVICE_WIN32_OWN_PROCESS
+	if ws.Option.bool("Interactive") {
+		serviceType = serviceType | windows.SERVICE_INTERACTIVE_PROCESS
+	}
+
 	s, err = m.CreateService(ws.Name, exepath, mgr.Config{
 		DisplayName:      ws.DisplayName,
 		Description:      ws.Description,
@@ -228,6 +234,7 @@ func (ws *windowsService) Install() error {
 		Password:         ws.Option.string("Password", ""),
 		Dependencies:     ws.Dependencies,
 		DelayedAutoStart: ws.Option.bool("DelayedAutoStart", false),
+		ServiceType:      serviceType,
 	}, ws.Arguments...)
 	if err != nil {
 		return err
