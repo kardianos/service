@@ -61,7 +61,7 @@ func (s *upstart) Platform() string {
 // Upstart will be replaced by systemd in most cases anyway.
 var errNoUserServiceUpstart = errors.New("User services are not supported on Upstart.")
 
-func (s *upstart) ConfigPath() string {
+func (s *upstart) configpath() string {
 	path, _ := s.configPath()
 	return path
 }

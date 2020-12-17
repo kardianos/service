@@ -114,7 +114,7 @@ func (s *aixService) template() *template.Template {
 	}
 }
 
-func (s *aixService) ConfigPath() string {
+func (s *aixService) configpath() string {
 	path, _ := s.configPath()
 	return path
 }

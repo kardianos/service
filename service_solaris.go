@@ -98,7 +98,7 @@ func (s *solarisService) template() *template.Template {
 	}
 }
 
-func (s *solarisService) ConfigPath() string {
+func (s *solarisService) configpath() string {
 	path, _ := s.configPath()
 	return path
 }

@@ -389,15 +389,15 @@ type Service interface {
 
 //ConfigInfo is an optional interface which allows for certain information to be obtained.
 type ConfigInfo interface {
-	configPath() string
+	configpath() string
 }
 
 //ConfigPath returns location of the service file where applicable
 func ConfigPath(s Service) string {
 	if configinfo, ok := s.(ConfigInfo); ok {
-		return configinfo.configPath()
+		return configinfo.configpath()
 	}
-	return "not implemented"
+	return "ConfigPath() not implemented"
 }
 
 // ControlAction list valid string texts to use in Control.

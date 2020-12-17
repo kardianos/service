@@ -87,7 +87,7 @@ func (s *freebsdService) template() *template.Template {
 	}
 }
 
-func (s *freebsdService) ConfigPath() string {
+func (s *freebsdService) configpath() string {
 	path, _ := s.configPath()
 	return path
 }

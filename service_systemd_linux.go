@@ -67,7 +67,7 @@ func (s *systemd) Platform() string {
 	return s.platform
 }
 
-func (s *systemd) ConfigPath() string {
+func (s *systemd) configpath() string {
 	path, _ := s.configPath()
 	return path
 }
