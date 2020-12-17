@@ -77,6 +77,11 @@ func newOpenRCService(i Interface, platform string, c *Config) (Service, error) 
 
 var errNoUserServiceOpenRC = errors.New("user services are not supported on OpenRC")
 
+func (s *openrc) ConfigPath() string {
+	path, _ := s.configPath()
+	return path
+}
+
 func (s *openrc) configPath() (cp string, err error) {
 	if s.Option.bool(optionUserService, optionUserServiceDefault) {
 		err = errNoUserServiceOpenRC

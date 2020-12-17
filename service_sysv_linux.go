@@ -44,6 +44,11 @@ func (s *sysv) Platform() string {
 
 var errNoUserServiceSystemV = errors.New("User services are not supported on SystemV.")
 
+func (s *sysv) ConfigPath() string {
+	path, _ := s.configPath()
+	return path
+}
+
 func (s *sysv) configPath() (cp string, err error) {
 	if s.Option.bool(optionUserService, optionUserServiceDefault) {
 		err = errNoUserServiceSystemV

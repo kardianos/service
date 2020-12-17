@@ -98,6 +98,11 @@ func (s *solarisService) template() *template.Template {
 	}
 }
 
+func (s *solarisService) ConfigPath() string {
+	path, _ := s.configPath()
+	return path
+}
+
 func (s *solarisService) configPath() (string, error) {
 	return "/lib/svc/manifest/" + s.Prefix + "/" + s.Config.Name + ".xml", nil
 }

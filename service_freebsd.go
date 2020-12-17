@@ -87,6 +87,11 @@ func (s *freebsdService) template() *template.Template {
 	}
 }
 
+func (s *freebsdService) ConfigPath() string {
+	path, _ := s.configPath()
+	return path
+}
+
 func (s *freebsdService) configPath() (cp string, err error) {
 	cp = "/usr/local/etc/rc.d/" + s.Config.Name
 	return

@@ -114,6 +114,11 @@ func (s *aixService) template() *template.Template {
 	}
 }
 
+func (s *aixService) ConfigPath() string {
+	path, _ := s.configPath()
+	return path
+}
+
 func (s *aixService) configPath() (cp string, err error) {
 	cp = "/etc/rc.d/init.d/" + s.Config.Name
 	return
