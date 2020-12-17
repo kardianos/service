@@ -46,7 +46,7 @@ func (s *sysv) Platform() string {
 
 var errNoUserServiceSystemV = errors.New("User services are not supported on SystemV.")
 
-func (s *sysv) configpath() (string, error) {
+func (s *sysv) ConfigPath() (string, error) {
 	return s.configPath()
 }
 

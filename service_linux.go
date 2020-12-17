@@ -35,7 +35,7 @@ func (sc linuxSystemService) Interactive() bool {
 func (sc linuxSystemService) New(i Interface, c *Config) (Service, error) {
 	return sc.new(i, sc.String(), c)
 }
-func (sc linuxSystemService) configpath() (string, error) {
+func (sc linuxSystemService) ConfigPath() (string, error) {
 	return "", fmt.Errorf("not implemented")
 }
 
