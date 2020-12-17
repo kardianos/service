@@ -72,7 +72,7 @@ type darwinLaunchdService struct {
 
 var _ ConfigInfoer = &darwinLaunchdService{}
 
-func (s *darwinLaunchdService) configpath() (string, error) {
+func (s *darwinLaunchdService) ConfigPath() (string, error) {
 	return s.getServiceFilePath()
 }
 
