@@ -21,6 +21,8 @@ type sysv struct {
 	*Config
 }
 
+var _ ConfigInfoer = &sysv{}
+
 func newSystemVService(i Interface, platform string, c *Config) (Service, error) {
 	s := &sysv{
 		i:        i,
@@ -44,9 +46,8 @@ func (s *sysv) Platform() string {
 
 var errNoUserServiceSystemV = errors.New("User services are not supported on SystemV.")
 
-func (s *sysv) configpath() string {
-	path, _ := s.configPath()
-	return path
+func (s *sysv) configpath() (string, error) {
+	return s.configPath()
 }
 
 func (s *sysv) configPath() (cp string, err error) {

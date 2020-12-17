@@ -57,6 +57,8 @@ type freebsdService struct {
 	*Config
 }
 
+var _ ConfigInfoer = &freebsdService{}
+
 func (s *freebsdService) String() string {
 	if len(s.DisplayName) > 0 {
 		return s.DisplayName

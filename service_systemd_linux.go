@@ -46,6 +46,8 @@ type systemd struct {
 	*Config
 }
 
+var _ ConfigInfoer = &systemd{}
+
 func newSystemdService(i Interface, platform string, c *Config) (Service, error) {
 	s := &systemd{
 		i:        i,
@@ -67,9 +69,8 @@ func (s *systemd) Platform() string {
 	return s.platform
 }
 
-func (s *systemd) configpath() string {
-	path, _ := s.configPath()
-	return path
+func (s *systemd) configpath() (string, error) {
+	return s.configPath()
 }
 
 func (s *systemd) configPath() (cp string, err error) {

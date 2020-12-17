@@ -45,6 +45,8 @@ type openrc struct {
 	*Config
 }
 
+var _ ConfigInfoer = &openrc{}
+
 func (s *openrc) String() string {
 	if len(s.DisplayName) > 0 {
 		return s.DisplayName
@@ -77,9 +79,8 @@ func newOpenRCService(i Interface, platform string, c *Config) (Service, error) 
 
 var errNoUserServiceOpenRC = errors.New("user services are not supported on OpenRC")
 
-func (s *openrc) configpath() string {
-	path, _ := s.configPath()
-	return path
+func (s *openrc) configpath() (string, error) {
+	return s.configPath()
 }
 
 func (s *openrc) configPath() (cp string, err error) {

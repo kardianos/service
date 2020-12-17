@@ -26,6 +26,8 @@ const version = "aix-ssrc"
 
 type aixSystem struct{}
 
+var _ ConfigInfoer = &aixService{}
+
 func (aixSystem) String() string {
 	return version
 }

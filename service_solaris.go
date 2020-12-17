@@ -68,6 +68,8 @@ type solarisService struct {
 	Prefix string
 }
 
+var _ ConfigInfoer = &solarisService{}
+
 func (s *solarisService) String() string {
 	if len(s.DisplayName) > 0 {
 		return s.DisplayName
