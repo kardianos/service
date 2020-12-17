@@ -50,8 +50,9 @@ func TestConfigPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New err: %s", err)
 	}
-	configPath := service.ConfigPath(s)
-	if configPath == "" || configPath == "ConfigPath() not implemented" {
+
+	_, err = service.ConfigPath(s)
+	if err != nil {
 		t.Fatal("Failed to fetch or not implemented")
 	}
 }

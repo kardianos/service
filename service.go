@@ -387,17 +387,17 @@ type Service interface {
 	Status() (Status, error)
 }
 
-//ConfigInfo is an optional interface which allows for certain information to be obtained.
-type ConfigInfo interface {
-	configpath() string
+// ConfigInfoer is an optional interface which allows for certain information to be obtained.
+type ConfigInfoer interface {
+	configpath() (string, error)
 }
 
 //ConfigPath returns location of the service file where applicable
-func ConfigPath(s Service) string {
-	if configinfo, ok := s.(ConfigInfo); ok {
+func ConfigPath(s Service) (string, error) {
+	if configinfo, ok := s.(ConfigInfoer); ok {
 		return configinfo.configpath()
 	}
-	return "ConfigPath() not implemented"
+	return "", fmt.Errorf("ConfigInfoer not implemented")
 }
 
 // ControlAction list valid string texts to use in Control.
