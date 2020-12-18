@@ -100,12 +100,7 @@ func (s *solarisService) template() *template.Template {
 	}
 }
 
-func (s *solarisService) configpath() string {
-	path, _ := s.configPath()
-	return path
-}
-
-func (s *solarisService) configPath() (string, error) {
+func (s *solarisService) ConfigPath() (string, error) {
 	return "/lib/svc/manifest/" + s.Prefix + "/" + s.Config.Name + ".xml", nil
 }
 
@@ -115,7 +110,7 @@ func (s *solarisService) getFMRI() string {
 
 func (s *solarisService) Install() error {
 	// write start script
-	confPath, err := s.configPath()
+	confPath, err := s.ConfigPath()
 	if err != nil {
 		return err
 	}
@@ -168,7 +163,7 @@ func (s *solarisService) Install() error {
 func (s *solarisService) Uninstall() error {
 	s.Stop()
 
-	confPath, err := s.configPath()
+	confPath, err := s.ConfigPath()
 	if err != nil {
 		return err
 	}

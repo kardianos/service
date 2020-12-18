@@ -69,11 +69,7 @@ func (s *systemd) Platform() string {
 	return s.platform
 }
 
-func (s *systemd) ConfigPath() (string, error) {
-	return s.configPath()
-}
-
-func (s *systemd) configPath() (cp string, err error) {
+func (s *systemd) ConfigPath() (cp string, err error) {
 	if !s.isUserService() {
 		cp = "/etc/systemd/system/" + s.Config.Name + ".service"
 		return
@@ -140,7 +136,7 @@ func (s *systemd) isUserService() bool {
 }
 
 func (s *systemd) Install() error {
-	confPath, err := s.configPath()
+	confPath, err := s.ConfigPath()
 	if err != nil {
 		return err
 	}
@@ -200,7 +196,7 @@ func (s *systemd) Uninstall() error {
 	if err != nil {
 		return err
 	}
-	cp, err := s.configPath()
+	cp, err := s.ConfigPath()
 	if err != nil {
 		return err
 	}

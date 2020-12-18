@@ -89,12 +89,7 @@ func (s *freebsdService) template() *template.Template {
 	}
 }
 
-func (s *freebsdService) configpath() string {
-	path, _ := s.configPath()
-	return path
-}
-
-func (s *freebsdService) configPath() (cp string, err error) {
+func (s *freebsdService) ConfigPath() (cp string, err error) {
 	cp = "/usr/local/etc/rc.d/" + s.Config.Name
 	return
 }
@@ -106,7 +101,7 @@ func (s *freebsdService) Install() error {
 	}
 
 	// write start script
-	confPath, err := s.configPath()
+	confPath, err := s.ConfigPath()
 	if err != nil {
 		return err
 	}
@@ -142,7 +137,7 @@ func (s *freebsdService) Install() error {
 }
 
 func (s *freebsdService) Uninstall() error {
-	cp, err := s.configPath()
+	cp, err := s.ConfigPath()
 	if err != nil {
 		return err
 	}
@@ -150,7 +145,7 @@ func (s *freebsdService) Uninstall() error {
 }
 
 func (s *freebsdService) Status() (Status, error) {
-	cp, err := s.configPath()
+	cp, err := s.ConfigPath()
 	if err != nil {
 		return StatusUnknown, err
 	}
