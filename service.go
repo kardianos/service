@@ -218,6 +218,8 @@ func New(i Interface, c *Config) (Service, error) {
 //
 //   - DelayedAutoStart  bool (false)                - After booting, start this service after some delay.
 //
+//   - PreshutdownTimeout int (0)                    - Extend the preshutdown timeout of the service (in milliseconds).
+//
 //   - Password  string ()                           - Password to use when interfacing with the system service manager.
 //
 //   - Interactive       bool (false)                - The service can interact with the desktop. (more information https://docs.microsoft.com/en-us/windows/win32/services/interactive-services)
