@@ -13,6 +13,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
@@ -179,7 +180,7 @@ func (ws *windowsService) getError() error {
 }
 
 func (ws *windowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (bool, uint32) {
-	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
+	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPreShutdown
 	changes <- svc.Status{State: svc.StartPending}
 
 	if err := ws.i.Start(ws); err != nil {
@@ -194,8 +195,36 @@ loop:
 		switch c.Cmd {
 		case svc.Interrogate:
 			changes <- c.CurrentStatus
+		case svc.PreShutdown:
+			checkpoint := uint32(1)
+			changes <- svc.Status{State: svc.StopPending, WaitHint: 3000, CheckPoint: checkpoint}
+
+			errCh := make(chan error)
+			go func() {
+				if wsShutdown, ok := ws.i.(Shutdowner); ok {
+					errCh <- wsShutdown.Shutdown(ws)
+				} else {
+					errCh <- ws.i.Stop(ws)
+				}
+			}()
+
+			for {
+				select {
+				case err := <-errCh:
+					if err != nil {
+						ws.setError(err)
+						return true, 2
+					}
+					break loop
+
+				default:
+					time.Sleep(1 * time.Second)
+					checkpoint++
+					changes <- svc.Status{State: svc.StopPending, WaitHint: 3000, CheckPoint: checkpoint}
+				}
+			}
+
 		case svc.Stop:
-			changes <- svc.Status{State: svc.StopPending}
 			if err := ws.i.Stop(ws); err != nil {
 				ws.setError(err)
 				return true, 2
@@ -347,6 +376,15 @@ func (ws *windowsService) Install() error {
 			return fmt.Errorf("SetupEventLogSource() failed: %s", err)
 		}
 	}
+
+	// try to extend preshutdown time
+	if timeout := ws.Option.int("PreshutdownTimeout", 0); timeout > 0 {
+		err = windows.ChangeServiceConfig2(s.Handle, windows.SERVICE_CONFIG_PRESHUTDOWN_INFO, (*byte)(unsafe.Pointer(&timeout)))
+		if err != nil {
+			return fmt.Errorf("setting PreshutdownTimeout failed: %s", err)
+		}
+	}
+
 	return nil
 }
 
