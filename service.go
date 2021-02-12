@@ -153,7 +153,11 @@ type Config struct {
 	//  * Linux (systemd)
 	//    - LimitNOFILE	 int - Maximum open files (ulimit -n) (https://serverfault.com/questions/628610/increasing-nproc-for-processes-launched-by-systemd-on-centos-7)
 	//  * Windows
-	//    - DelayedAutoStart  bool (false) - after booting start this service after some delay
+	//    - DelayedAutoStart        bool (false)          - after booting start this service after some delay
+	//    - StartType               string ("automatic")  - start service. Constants: ServiceStartDisabled, ServiceStartManual, ServiceStartDisabled
+	//    - OnFailure               string ("noaction" )  - action to perform on service failure. Constants: OnFailureRestart, OnFailureReboot, OnFailureNoAction
+	//    - OnFailureDelayDuration  string ( "1s" )       - delay before restarting the service, time.Duration string.
+	//    - OnFailureResetPeriod    int ( 10 )            - reset period for errors, seconds.
 
 	Option KeyValue
 }

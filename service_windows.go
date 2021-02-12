@@ -19,7 +19,21 @@ import (
 	"golang.org/x/sys/windows/svc/mgr"
 )
 
-const version = "windows-service"
+const (
+	version = "windows-service"
+
+	StartType             = "StartType"
+	ServiceStartManual    = "manual"
+	ServiceStartDisabled  = "disabled"
+	ServiceStartAutomatic = "automatic"
+
+	OnFailure              = "OnFailure"
+	OnFailureRestart       = "restart"
+	OnFailureReboot        = "reboot"
+	OnFailureNoAction      = "noaction"
+	OnFailureDelayDuration = "OnFailureDelayDuration"
+	OnFailureResetPeriod   = "OnFailureResetPeriod"
+)
 
 type windowsService struct {
 	i Interface
@@ -220,10 +234,19 @@ func (ws *windowsService) Install() error {
 		s.Close()
 		return fmt.Errorf("service %s already exists", ws.Name)
 	}
+	var startType int32
+	switch ws.Option.string(StartType, ServiceStartAutomatic) {
+	case ServiceStartAutomatic:
+		startType = mgr.StartAutomatic
+	case ServiceStartManual:
+		startType = mgr.StartManual
+	case ServiceStartDisabled:
+		startType = mgr.StartDisabled
+	}
 	s, err = m.CreateService(ws.Name, exepath, mgr.Config{
 		DisplayName:      ws.DisplayName,
 		Description:      ws.Description,
-		StartType:        mgr.StartAutomatic,
+		StartType:        uint32(startType),
 		ServiceStartName: ws.UserName,
 		Password:         ws.Option.string("Password", ""),
 		Dependencies:     ws.Dependencies,
@@ -231,6 +254,29 @@ func (ws *windowsService) Install() error {
 	}, ws.Arguments...)
 	if err != nil {
 		return err
+	}
+	if onFailure := ws.Option.string(OnFailure, ""); onFailure != "" {
+		var delay = 1 * time.Second
+		if d, err := time.ParseDuration(ws.Option.string(OnFailureDelayDuration, "1s")); err == nil {
+			delay = d
+		}
+		var actionType int
+		switch onFailure {
+		case OnFailureReboot:
+			actionType = mgr.ComputerReboot
+		case OnFailureRestart:
+			actionType = mgr.ServiceRestart
+		default:
+			actionType = mgr.NoAction
+		}
+		if err := s.SetRecoveryActions([]mgr.RecoveryAction{
+			{
+				Type:  actionType,
+				Delay: delay,
+			},
+		}, uint32(ws.Option.int(OnFailureResetPeriod, 10))); err != nil {
+			return err
+		}
 	}
 	defer s.Close()
 	err = eventlog.InstallAsEventCreate(ws.Name, eventlog.Error|eventlog.Warning|eventlog.Info)
