@@ -240,7 +240,7 @@ func (s *systemd) Status() (Status, error) {
 		return StatusRunning, nil
 	case strings.HasPrefix(out, "inactive"):
 		// inactive can also mean its not installed, check unit files
-		exitCode, out, err := runWithOutput("systemctl", "list-unit-files", "-t", "service", s.Name)
+		exitCode, out, err := runWithOutput("systemctl", "list-unit-files", "-t", "service", s.Name + ".service")
 		if exitCode == 0 && err != nil {
 			return StatusUnknown, err
 		}
