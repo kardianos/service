@@ -190,6 +190,7 @@ func New(i Interface, c *Config) (Service, error) {
 //  * Windows
 //    - DelayedAutoStart  bool (false)          - After booting, start this service after some delay.
 //    - Password  string ()                     - Password to use when interfacing with the system service manager.
+//    - Interactive       bool (false)          - The service can interact with the desktop. (more information https://docs.microsoft.com/en-us/windows/win32/services/interactive-services)
 type KeyValue map[string]interface{}
 
 // bool returns the value of the given name, assuming the value is a boolean.
