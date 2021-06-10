@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/eventlog"
@@ -245,7 +246,7 @@ func (ws *windowsService) Install() error {
 	}
 
 	serviceType := windows.SERVICE_WIN32_OWN_PROCESS
-	if ws.Option.bool("Interactive") {
+	if ws.Option.bool("Interactive", false) {
 		serviceType = serviceType | windows.SERVICE_INTERACTIVE_PROCESS
 	}
 
@@ -257,7 +258,7 @@ func (ws *windowsService) Install() error {
 		Password:         ws.Option.string("Password", ""),
 		Dependencies:     ws.Dependencies,
 		DelayedAutoStart: ws.Option.bool("DelayedAutoStart", false),
-		ServiceType:      serviceType,
+		ServiceType:      uint32(serviceType),
 	}, ws.Arguments...)
 	if err != nil {
 		return err
