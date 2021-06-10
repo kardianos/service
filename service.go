@@ -188,9 +188,14 @@ func New(i Interface, c *Config) (Service, error) {
 //    - LimitNOFILE   int    (-1)               - Maximum open files (ulimit -n)
 //                                                (https://serverfault.com/questions/628610/increasing-nproc-for-processes-launched-by-systemd-on-centos-7)
 //  * Windows
-//    - DelayedAutoStart  bool (false)          - After booting, start this service after some delay.
-//    - Password  string ()                     - Password to use when interfacing with the system service manager.
-//    - Interactive       bool (false)          - The service can interact with the desktop. (more information https://docs.microsoft.com/en-us/windows/win32/services/interactive-services)
+//    - DelayedAutoStart  bool (false)                - After booting, start this service after some delay.
+//    - Password  string ()                           - Password to use when interfacing with the system service manager.
+//    - Interactive       bool (false)                - The service can interact with the desktop. (more information https://docs.microsoft.com/en-us/windows/win32/services/interactive-services)
+//    - DelayedAutoStart        bool (false)          - after booting start this service after some delay.
+//    - StartType               string ("automatic")  - Start service type. (automatic | manual | disabled)
+//    - OnFailure               string ("restart" )   - Action to perform on service failure. (restart | reboot | noaction)
+//    - OnFailureDelayDuration  string ( "1s" )       - Delay before restarting the service, time.Duration string.
+//    - OnFailureResetPeriod    int ( 10 )            - Reset period for errors, seconds.
 type KeyValue map[string]interface{}
 
 // bool returns the value of the given name, assuming the value is a boolean.
