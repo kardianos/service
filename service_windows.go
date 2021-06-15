@@ -34,6 +34,8 @@ const (
 	OnFailureNoAction      = "noaction"
 	OnFailureDelayDuration = "OnFailureDelayDuration"
 	OnFailureResetPeriod   = "OnFailureResetPeriod"
+
+	errnoServiceDoesNotExist syscall.Errno = 1060
 )
 
 type windowsService struct {
@@ -361,7 +363,7 @@ func (ws *windowsService) Status() (Status, error) {
 
 	s, err := m.OpenService(ws.Name)
 	if err != nil {
-		if err.Error() == "The specified service does not exist as an installed service." {
+		if errno, ok := err.(syscall.Errno); ok && errno == errnoServiceDoesNotExist {
 			return StatusUnknown, ErrNotInstalled
 		}
 		return StatusUnknown, err
