@@ -95,6 +95,10 @@ func (s *aixService) Platform() string {
 	return version
 }
 
+func (s *aixService) Args() []string {
+	return s.Config.Arguments
+}
+
 func (s *aixService) template() *template.Template {
 	functions := template.FuncMap{
 		"bool": func(v bool) string {

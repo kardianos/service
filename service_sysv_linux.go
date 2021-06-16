@@ -42,6 +42,10 @@ func (s *sysv) Platform() string {
 	return s.platform
 }
 
+func (s *sysv) Args() []string {
+	return s.Config.Arguments
+}
+
 var errNoUserServiceSystemV = errors.New("User services are not supported on SystemV.")
 
 func (s *sysv) configPath() (cp string, err error) {

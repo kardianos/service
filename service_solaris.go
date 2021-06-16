@@ -79,6 +79,10 @@ func (s *solarisService) Platform() string {
 	return version
 }
 
+func (s *solarisService) Args() []string {
+	return s.Config.Arguments
+}
+
 func (s *solarisService) template() *template.Template {
 	functions := template.FuncMap{
 		"bool": func(v bool) string {
