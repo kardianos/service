@@ -69,7 +69,9 @@ func (s *systemd) Platform() string {
 
 func (s *systemd) configPath() (cp string, err error) {
 	if !s.isUserService() {
-		cp = "/etc/systemd/system/" + s.unitName()
+		// /usr/lib/systemd/system is the lowest priority directory in the
+		// unit search path
+		cp = "/usr/lib/systemd/system/" + s.unitName()
 		return
 	}
 	homeDir, err := os.UserHomeDir()
