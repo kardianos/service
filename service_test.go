@@ -41,6 +41,22 @@ func TestRunInterrupt(t *testing.T) {
 	}
 }
 
+func TestConfigPath(t *testing.T) {
+	p := &program{}
+	sc := &service.Config{
+		Name: "go_service_test",
+	}
+	s, err := service.New(p, sc)
+	if err != nil {
+		t.Fatalf("New err: %s", err)
+	}
+
+	_, err = s.(service.ConfigInfoer).ConfigPath()
+	if err != nil {
+		t.Fatal("Failed to fetch or not implemented")
+	}
+}
+
 const testInstallEnv = "TEST_USER_INSTALL"
 
 // Should always run, without asking for any permission

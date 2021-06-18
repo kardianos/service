@@ -46,6 +46,8 @@ type systemd struct {
 	*Config
 }
 
+var _ ConfigInfoer = &systemd{}
+
 func newSystemdService(i Interface, platform string, c *Config) (Service, error) {
 	s := &systemd{
 		i:        i,
@@ -67,7 +69,7 @@ func (s *systemd) Platform() string {
 	return s.platform
 }
 
-func (s *systemd) configPath() (cp string, err error) {
+func (s *systemd) ConfigPath() (cp string, err error) {
 	if !s.isUserService() {
 		cp = "/etc/systemd/system/" + s.unitName()
 		return
@@ -138,7 +140,7 @@ func (s *systemd) isUserService() bool {
 }
 
 func (s *systemd) Install() error {
-	confPath, err := s.configPath()
+	confPath, err := s.ConfigPath()
 	if err != nil {
 		return err
 	}
@@ -198,7 +200,7 @@ func (s *systemd) Uninstall() error {
 	if err != nil {
 		return err
 	}
-	cp, err := s.configPath()
+	cp, err := s.ConfigPath()
 	if err != nil {
 		return err
 	}

@@ -3,7 +3,7 @@ all: sysv systemd upstart openrc clean
 
 # compile `go test` binary statically
 test:
-	@CGO_ENABLED=0 go test -installsuffix netgo -a -c ..
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go test -installsuffix netgo -a -c ..
 
 clean:
 	-rm service.test

@@ -398,6 +398,11 @@ type Service interface {
 	Status() (Status, error)
 }
 
+// ConfigInfoer is an optional interface which allows for certain information to be obtained.
+type ConfigInfoer interface {
+	ConfigPath() (string, error)
+}
+
 // ControlAction list valid string texts to use in Control.
 var ControlAction = [5]string{"start", "stop", "restart", "install", "uninstall"}
 

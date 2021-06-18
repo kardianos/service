@@ -35,6 +35,8 @@ type upstart struct {
 	*Config
 }
 
+var _ ConfigInfoer = &upstart{}
+
 func newUpstartService(i Interface, platform string, c *Config) (Service, error) {
 	s := &upstart{
 		i:        i,
@@ -61,7 +63,7 @@ func (s *upstart) Platform() string {
 // Upstart will be replaced by systemd in most cases anyway.
 var errNoUserServiceUpstart = errors.New("User services are not supported on Upstart.")
 
-func (s *upstart) configPath() (cp string, err error) {
+func (s *upstart) ConfigPath() (cp string, err error) {
 	if s.Option.bool(optionUserService, optionUserServiceDefault) {
 		err = errNoUserServiceUpstart
 		return
@@ -126,7 +128,7 @@ func (s *upstart) template() *template.Template {
 }
 
 func (s *upstart) Install() error {
-	confPath, err := s.configPath()
+	confPath, err := s.ConfigPath()
 	if err != nil {
 		return err
 	}
@@ -164,7 +166,7 @@ func (s *upstart) Install() error {
 }
 
 func (s *upstart) Uninstall() error {
-	cp, err := s.configPath()
+	cp, err := s.ConfigPath()
 	if err != nil {
 		return err
 	}

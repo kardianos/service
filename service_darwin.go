@@ -70,6 +70,12 @@ type darwinLaunchdService struct {
 	userService bool
 }
 
+var _ ConfigInfoer = &darwinLaunchdService{}
+
+func (s *darwinLaunchdService) ConfigPath() (string, error) {
+	return s.getServiceFilePath()
+}
+
 func (s *darwinLaunchdService) String() string {
 	if len(s.DisplayName) > 0 {
 		return s.DisplayName
