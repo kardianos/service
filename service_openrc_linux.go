@@ -166,15 +166,14 @@ func (s *openrc) Run() (err error) {
 }
 
 func (s *openrc) Status() (Status, error) {
-	_, out, err := runWithOutput("rc-service", s.Name, "status")
-	if err != nil {
-		return StatusUnknown, err
-	}
+	_, out, _ := runWithOutput("rc-service", s.Name, "status") // a stopped service will return an error here, so we're not checking the error code
 
+	// remove whitespaces at end of string
+	out = strings.TrimSpace(out)
 	switch {
-	case strings.HasPrefix(out, "Running"):
+	case strings.HasSuffix(out, "started"):
 		return StatusRunning, nil
-	case strings.HasPrefix(out, "Stopped"):
+	case strings.HasSuffix(out, "stopped"):
 		return StatusStopped, nil
 	default:
 		return StatusUnknown, ErrNotInstalled
