@@ -217,7 +217,13 @@ func (s *darwinLaunchdService) Start() error {
 	if err != nil {
 		return err
 	}
-	return run(controlCmd, "load", confPath)
+	if err := run(controlCmd, "load", confPath); err != nil {
+		return err
+	}
+	if !s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault) {
+		return run(controlCmd, "start", s.Name)
+	}
+	return nil
 }
 func (s *darwinLaunchdService) Stop() error {
 	confPath, err := s.getServiceFilePath()
