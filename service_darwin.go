@@ -187,28 +187,45 @@ func (s *darwinLaunchdService) Uninstall() error {
 }
 
 func (s *darwinLaunchdService) Status() (Status, error) {
-	exitCode, out, err := runWithOutput(controlCmd, "list", s.Name)
-	if exitCode == 0 && err != nil {
-		if !strings.Contains(err.Error(), "failed with stderr") {
-			return StatusUnknown, err
+	var (
+		// Scan output for a valid PID.
+		re        = regexp.MustCompile(`"PID" = ([0-9]+);`)
+		isRunning = func(out string) bool {
+			matches := re.FindStringSubmatch(out)
+			return len(matches) == 2 // `PID = 1234`
 		}
-	}
+		canIgnore = func(err error) bool {
+			return err == nil ||
+				strings.Contains(err.Error(),
+					"Could not find service")
+		}
+	)
 
-	re := regexp.MustCompile(`"PID" = ([0-9]+);`)
-	matches := re.FindStringSubmatch(out)
-	if len(matches) == 2 {
+	// Get output from `list`.
+	controlArgs := []string{"list", s.Name}
+	_, out, err := runWithOutput(controlCmd, controlArgs...)
+	if !canIgnore(err) {
+		return StatusUnknown, err
+	}
+	if isRunning(out) {
 		return StatusRunning, nil
 	}
 
+	// `list` will always return a "job" entry if the job is "loaded"
+	// (see launchd documentation for keyword semantics)
+	// We'll check if the plist actually exist to determine if it's installed or not.
+	// And since it's not running, we can assume it's stopped (but still installed).
 	confPath, err := s.getServiceFilePath()
 	if err != nil {
 		return StatusUnknown, err
 	}
-
-	if _, err = os.Stat(confPath); err == nil {
+	if _, err := os.Stat(confPath); err == nil {
 		return StatusStopped, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return StatusUnknown, err
 	}
 
+	// Otherwise assume the service is not installed.
 	return StatusUnknown, ErrNotInstalled
 }
 
