@@ -265,10 +265,24 @@ func (s *systemd) Status() (Status, error) {
 }
 
 func (s *systemd) Start() error {
+	status, err := s.Status()
+	if err != nil {
+		return err
+	}
+	if status == StatusRunning {
+		return fmt.Errorf("%s already running", s.Config.Name)
+	}
 	return s.runAction("start")
 }
 
 func (s *systemd) Stop() error {
+	status, err := s.Status()
+	if err != nil {
+		return err
+	}
+	if status == StatusStopped {
+		return fmt.Errorf("%s already stopped", s.Config.Name)
+	}
 	return s.runAction("stop")
 }
 
