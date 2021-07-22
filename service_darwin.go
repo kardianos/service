@@ -98,14 +98,15 @@ func (s *darwinLaunchdService) getHomeDir() (string, error) {
 }
 
 func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
+	serviceFile := s.Name + ".plist"
 	if s.userService {
 		homeDir, err := s.getHomeDir()
 		if err != nil {
 			return "", err
 		}
-		return homeDir + "/Library/LaunchAgents/" + s.Name + ".plist", nil
+		return filepath.Join(homeDir, "/Library/LaunchAgents/", serviceFile), nil
 	}
-	return "/Library/LaunchDaemons/" + s.Name + ".plist", nil
+	return filepath.Join("/Library/LaunchDaemons/", serviceFile), nil
 }
 
 func (s *darwinLaunchdService) template() *template.Template {
