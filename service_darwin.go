@@ -18,9 +18,11 @@ import (
 	"time"
 )
 
-const maxPathSize = 32 * 1024
-
-const version = "darwin-launchd"
+const (
+	maxPathSize = 32 * 1024
+	version     = "darwin-launchd"
+	controlCmd  = "launchctl"
+)
 
 type darwinSystem struct{}
 
@@ -184,7 +186,7 @@ func (s *darwinLaunchdService) Uninstall() error {
 }
 
 func (s *darwinLaunchdService) Status() (Status, error) {
-	exitCode, out, err := runWithOutput("launchctl", "list", s.Name)
+	exitCode, out, err := runWithOutput(controlCmd, "list", s.Name)
 	if exitCode == 0 && err != nil {
 		if !strings.Contains(err.Error(), "failed with stderr") {
 			return StatusUnknown, err
@@ -214,14 +216,14 @@ func (s *darwinLaunchdService) Start() error {
 	if err != nil {
 		return err
 	}
-	return run("launchctl", "load", confPath)
+	return run(controlCmd, "load", confPath)
 }
 func (s *darwinLaunchdService) Stop() error {
 	confPath, err := s.getServiceFilePath()
 	if err != nil {
 		return err
 	}
-	return run("launchctl", "unload", confPath)
+	return run(controlCmd, "unload", confPath)
 }
 func (s *darwinLaunchdService) Restart() error {
 	err := s.Stop()
