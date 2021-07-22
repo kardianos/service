@@ -7,12 +7,13 @@
 package service
 
 import (
-	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log/syslog"
 	"os/exec"
+	"strings"
 	"syscall"
 )
 
@@ -64,76 +65,80 @@ func runWithOutput(command string, arguments ...string) (int, string, error) {
 	return runCommand(command, true, arguments...)
 }
 
-func runCommand(command string, readStdout bool, arguments ...string) (int, string, error) {
-	cmd := exec.Command(command, arguments...)
-
-	var output string
-	var stdout io.ReadCloser
-	var err error
-
+func runCommand(command string, readStdout bool, arguments ...string) (exitStatus int, stdout string, err error) {
+	var (
+		cmd                    = exec.Command(command, arguments...)
+		cmdErr                 = fmt.Errorf("exec `%s` failed", strings.Join(cmd.Args, " "))
+		stdoutPipe, stderrPipe io.ReadCloser
+	)
+	if stderrPipe, err = cmd.StderrPipe(); err != nil {
+		err = fmt.Errorf("%s to connect stderr pipe: %w", cmdErr, err)
+		return
+	}
 	if readStdout {
-		// Connect pipe to read Stdout
-		stdout, err = cmd.StdoutPipe()
-
-		if err != nil {
-			// Failed to connect pipe
-			return 0, "", fmt.Errorf("%q failed to connect stdout pipe: %v", command, err)
+		if stdoutPipe, err = cmd.StdoutPipe(); err != nil {
+			err = fmt.Errorf("%s to connect stdout pipe: %w", cmdErr, err)
+			return
 		}
 	}
 
-	// Connect pipe to read Stderr
-	stderr, err := cmd.StderrPipe()
-
-	if err != nil {
-		// Failed to connect pipe
-		return 0, "", fmt.Errorf("%q failed to connect stderr pipe: %v", command, err)
+	// Execute the command.
+	if err = cmd.Start(); err != nil {
+		err = fmt.Errorf("%s: %w", cmdErr, err)
+		return
 	}
 
-	// Do not use cmd.Run()
-	if err := cmd.Start(); err != nil {
-		// Problem while copying stdin, stdout, or stderr
-		return 0, "", fmt.Errorf("%q failed: %v", command, err)
+	// Process command outputs.
+	var (
+		pipeErr   = fmt.Errorf("%s while attempting to read", cmdErr)
+		stdoutErr = fmt.Errorf("%s from stdout", pipeErr)
+		stderrErr = fmt.Errorf("%s from stderr", pipeErr)
+
+		errBuffer, readErr = ioutil.ReadAll(stderrPipe)
+		stderr             = strings.TrimSuffix(string(errBuffer), "\n")
+
+		haveStdErr = len(stderr) != 0
+	)
+
+	// Always read stderr.
+	if readErr != nil {
+		err = fmt.Errorf("%s: %w", stderrErr, readErr)
+		return
 	}
 
-	// Zero exit status
+	// Maybe read stdout.
+	if readStdout {
+		outBuffer, readErr := ioutil.ReadAll(stdoutPipe)
+		if readErr != nil {
+			err = fmt.Errorf("%s: %w", stdoutErr, readErr)
+			return
+		}
+		stdout = string(outBuffer)
+	}
+
+	// Wait for command to finish.
+	if runErr := cmd.Wait(); runErr != nil {
+		var execErr *exec.ExitError
+		if errors.As(runErr, &execErr) {
+			if status, ok := execErr.Sys().(syscall.WaitStatus); ok {
+				exitStatus = status.ExitStatus()
+			}
+		}
+		err = fmt.Errorf("%w: %s", cmdErr, runErr)
+		if haveStdErr {
+			err = fmt.Errorf("%w with stderr: %s", err, stderr)
+		}
+		return
+	}
+
 	// Darwin: launchctl can fail with a zero exit status,
-	// so check for emtpy stderr
-	if command == "launchctl" {
-		slurp, _ := ioutil.ReadAll(stderr)
-		if len(slurp) > 0 && !bytes.HasSuffix(slurp, []byte("Operation now in progress\n")) {
-			return 0, "", fmt.Errorf("%q failed with stderr: %s", command, slurp)
-		}
+	// so stderr must be inspected.
+	systemIsDarwin := command == "launchctl"
+	if systemIsDarwin &&
+		haveStdErr &&
+		!strings.HasSuffix(stderr, "Operation now in progress") {
+		err = fmt.Errorf("%w with stderr: %s", cmdErr, stderr)
 	}
 
-	if readStdout {
-		out, err := ioutil.ReadAll(stdout)
-		if err != nil {
-			return 0, "", fmt.Errorf("%q failed while attempting to read stdout: %v", command, err)
-		} else if len(out) > 0 {
-			output = string(out)
-		}
-	}
-
-	if err := cmd.Wait(); err != nil {
-		exitStatus, ok := isExitError(err)
-		if ok {
-			// Command didn't exit with a zero exit status.
-			return exitStatus, output, err
-		}
-
-		// An error occurred and there is no exit status.
-		return 0, output, fmt.Errorf("%q failed: %v", command, err)
-	}
-
-	return 0, output, nil
-}
-
-func isExitError(err error) (int, bool) {
-	if exiterr, ok := err.(*exec.ExitError); ok {
-		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			return status.ExitStatus(), true
-		}
-	}
-
-	return 0, false
+	return
 }
