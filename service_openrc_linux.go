@@ -173,17 +173,21 @@ func (s *openrc) Status() (Status, error) {
 	// for more info, see https://man7.org/linux/man-pages/man3/errno.3.html
 	_, out, err := runWithOutput("rc-service", s.Name, "status")
 	if err != nil {
-		exitCode := err.(*exec.ExitError).ExitCode()
-
-		switch {
-		case exitCode == 1:
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			// The program has exited with an exit code != 0
+			exitCode := exiterr.ExitCode()
+			switch {
+			case exitCode == 1:
+				return StatusUnknown, err
+			case exitCode == 2:
+				return StatusUnknown, ErrNotInstalled
+			case exitCode == 3:
+				return StatusStopped, nil
+			default:
+				return StatusUnknown, fmt.Errorf("unknown error: %v - %v", out, err)
+			}
+		} else {
 			return StatusUnknown, err
-		case exitCode == 2:
-			return StatusUnknown, ErrNotInstalled
-		case exitCode == 3:
-			return StatusStopped, nil
-		default:
-			return StatusUnknown, fmt.Errorf("unknown error: %v - %v", out, err)
 		}
 	}
 	return StatusRunning, nil
