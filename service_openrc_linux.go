@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"regexp"
-	"strings"
 	"syscall"
 	"text/template"
 	"time"
@@ -166,19 +165,32 @@ func (s *openrc) Run() (err error) {
 }
 
 func (s *openrc) Status() (Status, error) {
+	// rc-service uses the errno library for its exit codes:
+	// errno 0 = service started
+	// errno 1 = EPERM 1 Operation not permitted
+	// errno 2 = ENOENT 2 No such file or directory
+	// errno 3 = ESRCH 3 No such process
+	// for more info, see https://man7.org/linux/man-pages/man3/errno.3.html
 	_, out, err := runWithOutput("rc-service", s.Name, "status")
 	if err != nil {
-		return StatusUnknown, err
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			// The program has exited with an exit code != 0
+			exitCode := exiterr.ExitCode()
+			switch {
+			case exitCode == 1:
+				return StatusUnknown, err
+			case exitCode == 2:
+				return StatusUnknown, ErrNotInstalled
+			case exitCode == 3:
+				return StatusStopped, nil
+			default:
+				return StatusUnknown, fmt.Errorf("unknown error: %v - %v", out, err)
+			}
+		} else {
+			return StatusUnknown, err
+		}
 	}
-
-	switch {
-	case strings.HasPrefix(out, "Running"):
-		return StatusRunning, nil
-	case strings.HasPrefix(out, "Stopped"):
-		return StatusStopped, nil
-	default:
-		return StatusUnknown, ErrNotInstalled
-	}
+	return StatusRunning, nil
 }
 
 func (s *openrc) Start() error {
