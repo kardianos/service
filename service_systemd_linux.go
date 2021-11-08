@@ -166,8 +166,12 @@ func (s *systemd) Install() error {
 		PIDFile              string
 		LimitNOFILE          int
 		Restart              string
+		RestartSec           int
 		SuccessExitStatus    string
 		LogOutput            bool
+		Type                 string
+		KillMode             string
+		Delegate             bool
 	}{
 		s.Config,
 		path,
@@ -176,8 +180,12 @@ func (s *systemd) Install() error {
 		s.Option.string(optionPIDFile, ""),
 		s.Option.int(optionLimitNOFILE, optionLimitNOFILEDefault),
 		s.Option.string(optionRestart, "always"),
+		s.Option.int(optionRestartSec, optionRestartSecDefault),
 		s.Option.string(optionSuccessExitStatus, ""),
 		s.Option.bool(optionLogOutput, optionLogOutputDefault),
+		s.Option.string(optionType, ""),
+		s.Option.string(optionKillMode, ""),
+		s.Option.bool(optionDelegate, optionDelegateDefault),
 	}
 
 	err = s.template().Execute(f, to)
@@ -293,8 +301,18 @@ ConditionFileIsExecutable={{.Path|cmdEscape}}
 {{$dep}} {{end}}
 
 [Service]
+{{if .Type}}Type={{.Type}}{{end}}
+{{if .KillMode}}Type={{.KillMode}}{{end}}
+{{if .Delegate}}Delegate=yes{{end}}
+EnvironmentFile=-/etc/sysconfig/%N
+EnvironmentFile=-/etc/default/%N
+EnvironmentFile=-/etc/systemd/system/{{.Name}}.service.env
+{{range $i, $envfile := .EnvironmentFiles}}
+EnvironmentFile=-{{$envfile}} {{- end}}
 StartLimitInterval=5
 StartLimitBurst=10
+{{range $i, $pre := .ExecStartPres}}
+ExecStartPre=-{{$pre}} {{- end}}
 ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
 {{if .ChRoot}}RootDirectory={{.ChRoot|cmd}}{{end}}
 {{if .WorkingDirectory}}WorkingDirectory={{.WorkingDirectory|cmdEscape}}{{end}}
@@ -306,10 +324,12 @@ StandardOutput=file:/var/log/{{.Name}}.out
 StandardError=file:/var/log/{{.Name}}.err
 {{- end}}
 {{if gt .LimitNOFILE -1 }}LimitNOFILE={{.LimitNOFILE}}{{end}}
+LimitNPROC=infinity
+LimitCORE=infinity
+TasksMax=infinity
 {{if .Restart}}Restart={{.Restart}}{{end}}
+{{if .RestartSec}}RestartSec={{.RestartSec}}{{end}}
 {{if .SuccessExitStatus}}SuccessExitStatus={{.SuccessExitStatus}}{{end}}
-RestartSec=120
-EnvironmentFile=-/etc/sysconfig/{{.Name}}
 
 [Install]
 WantedBy=multi-user.target
