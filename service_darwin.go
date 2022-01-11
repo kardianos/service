@@ -20,7 +20,10 @@ import (
 
 const maxPathSize = 32 * 1024
 
-const version = "darwin-launchd"
+const (
+	version                   = "darwin-launchd"
+	defaultDarwinLogDirectory = "/usr/local/var/log"
+)
 
 type darwinSystem struct{}
 
@@ -120,9 +123,8 @@ func (s *darwinLaunchdService) template() *template.Template {
 
 	if customConfig != "" {
 		return template.Must(template.New("").Funcs(functions).Parse(customConfig))
-	} else {
-		return template.Must(template.New("").Funcs(functions).Parse(launchdConfig))
 	}
+	return template.Must(template.New("").Funcs(functions).Parse(launchdConfig))
 }
 
 func (s *darwinLaunchdService) Install() error {
@@ -162,12 +164,14 @@ func (s *darwinLaunchdService) Install() error {
 		SessionCreate        bool
 		StandardOut          bool
 		StandardError        bool
+		LogDirectory         string
 	}{
 		Config:        s.Config,
 		Path:          path,
 		KeepAlive:     s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
 		RunAtLoad:     s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
 		SessionCreate: s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
+		LogDirectory:  s.Option.string(optionLogDirectory, defaultDarwinLogDirectory),
 	}
 
 	return s.template().Execute(f, to)
@@ -289,9 +293,9 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
     <false/>
     
     <key>StandardOutPath</key>
-    <string>/usr/local/var/log/{{html .Name}}.out.log</string>
+    <string>{{html .LogDirectory}}/{{html .Name}}.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/usr/local/var/log/{{html .Name}}.err.log</string>
+    <string>{{html .LogDirectory}}/{{html .Name}}.err.log</string>
   
   </dict>
 </plist>
