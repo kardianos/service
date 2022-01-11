@@ -275,6 +275,13 @@ func (s *systemd) Restart() error {
 	return s.runAction("restart")
 }
 
+func (s *systemd) runWithOutput(command string, arguments ...string) (int, string, error) {
+	if s.isUserService() {
+		arguments = append(arguments, "--user")
+	}
+	return runWithOutput(command, arguments...)
+}
+
 func (s *systemd) run(action string, args ...string) error {
 	if s.isUserService() {
 		return run("systemctl", append([]string{action, "--user"}, args...)...)
