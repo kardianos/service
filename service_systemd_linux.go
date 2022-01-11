@@ -128,9 +128,8 @@ func (s *systemd) template() *template.Template {
 
 	if customScript != "" {
 		return template.Must(template.New("").Funcs(tf).Parse(customScript))
-	} else {
-		return template.Must(template.New("").Funcs(tf).Parse(systemdScript))
 	}
+	return template.Must(template.New("").Funcs(tf).Parse(systemdScript))
 }
 
 func (s *systemd) isUserService() bool {
@@ -168,6 +167,7 @@ func (s *systemd) Install() error {
 		Restart              string
 		SuccessExitStatus    string
 		LogOutput            bool
+		LogDirectory         string
 	}{
 		s.Config,
 		path,
@@ -178,6 +178,7 @@ func (s *systemd) Install() error {
 		s.Option.string(optionRestart, "always"),
 		s.Option.string(optionSuccessExitStatus, ""),
 		s.Option.bool(optionLogOutput, optionLogOutputDefault),
+		s.Option.string(optionLogDirectory, defaultLogDirectory),
 	}
 
 	err = s.template().Execute(f, to)
@@ -309,8 +310,8 @@ ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
 {{if .ReloadSignal}}ExecReload=/bin/kill -{{.ReloadSignal}} "$MAINPID"{{end}}
 {{if .PIDFile}}PIDFile={{.PIDFile|cmd}}{{end}}
 {{if and .LogOutput .HasOutputFileSupport -}}
-StandardOutput=file:/var/log/{{.Name}}.out
-StandardError=file:/var/log/{{.Name}}.err
+StandardOutput=file:{{.LogDirectory}}/{{.Name}}.out
+StandardError=file:{{.LogDirectory}}/{{.Name}}.err
 {{- end}}
 {{if gt .LimitNOFILE -1 }}LimitNOFILE={{.LimitNOFILE}}{{end}}
 {{if .Restart}}Restart={{.Restart}}{{end}}
