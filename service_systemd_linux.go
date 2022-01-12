@@ -311,6 +311,10 @@ StandardError=file:/var/log/{{.Name}}.err
 RestartSec=120
 EnvironmentFile=-/etc/sysconfig/{{.Name}}
 
+{{range $k, $v := .EnvVars -}}
+Environment={{$k}}={{$v}}
+{{end -}}
+
 [Install]
 WantedBy=multi-user.target
 `
