@@ -222,6 +222,25 @@ loop:
 	return false, 0
 }
 
+func (ws *windowsService) setEnvironmentVariablesInRegistry() error {
+	k, _, err := registry.CreateKey(registry.CURRENT_USER, `HKLM\SYSTEM\CurrentControlSet\Services\`+ws.Name, registry.QUERY_VALUE|registry.SET_VALUE)
+	if err != nil {
+		return fmt.Errorf("failed creating env var registry key, err = %v", err)
+	}
+	envStrings := make([]string, 0, len(ws.EnvVars))
+	for k, v := range ws.EnvVars {
+		envStrings = append(envStrings, k+"="+v)
+	}
+
+	if err := k.SetStringsValue("Environment", envStrings); err != nil {
+		return fmt.Errorf("failed setting env var registry key, err = %v", err)
+	}
+	if err := k.Close(); err != nil {
+		return fmt.Errorf("failed closing env var registry key, err = %v", err)
+	}
+	return nil
+}
+
 func (ws *windowsService) Install() error {
 	exepath, err := ws.execPath()
 	if err != nil {
@@ -233,6 +252,11 @@ func (ws *windowsService) Install() error {
 		return err
 	}
 	defer m.Disconnect()
+
+	if err := ws.setEnvironmentVariablesInRegistry(); err != nil {
+		return err
+	}
+
 	s, err := m.OpenService(ws.Name)
 	if err == nil {
 		s.Close()
