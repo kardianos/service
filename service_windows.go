@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Microsoft/go-winio"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 	"golang.org/x/sys/windows/svc"
@@ -243,6 +244,39 @@ func (ws *windowsService) setEnvironmentVariablesInRegistry() error {
 	return nil
 }
 
+func (ws *windowsService) setSecurityAccess() error {
+	sid, err := winio.LookupSidByName(ws.UserName)
+	if err != nil {
+		return fmt.Errorf("failed getting the SID of user %q = %v", ws.UserName, err)
+	}
+	securityDesc, err := winio.SddlToSecurityDescriptor(
+		fmt.Sprintf(
+			"D:(A;;CCLCSWRPWPDTLOCRRC;;;SY)"+
+				"(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;BA)"+
+				"(A;;CCLCSWLOCRRC;;;IU)"+
+				"(A;;CCLCSWLOCRRC;;;SU)"+
+				"(A;;RPWPCR;;;%s)"+
+				"S:(AU;FA;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;WD)", sid))
+
+	if err != nil {
+		return fmt.Errorf("failed parsing SID of user %q, sid = %q = %v", ws.UserName, sid, err)
+	}
+
+	k, _, err := registry.CreateKey(
+		registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Services\`+ws.Name+`\Security`,
+		registry.QUERY_VALUE|registry.SET_VALUE|registry.CREATE_SUB_KEY)
+	if err != nil {
+		return fmt.Errorf("failed creating security registry key, err = %v", err)
+	}
+	if err := k.SetBinaryValue("Security", securityDesc); err != nil {
+		return fmt.Errorf("failed setting security registry key, err = %v", err)
+	}
+	if err := k.Close(); err != nil {
+		return fmt.Errorf("failed closing security registry key, err = %v", err)
+	}
+	return nil
+}
+
 func (ws *windowsService) Install() error {
 	exepath, err := ws.execPath()
 	if err != nil {
@@ -255,6 +289,11 @@ func (ws *windowsService) Install() error {
 	}
 	defer m.Disconnect()
 
+	if ws.UserName != "" {
+		if err := ws.setSecurityAccess(); err != nil {
+			return err
+		}
+	}
 	if err := ws.setEnvironmentVariablesInRegistry(); err != nil {
 		return err
 	}
