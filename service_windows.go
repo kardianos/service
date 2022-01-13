@@ -222,6 +222,24 @@ loop:
 	return false, 0
 }
 
+func lowPrivMgr() (*mgr.Mgr, error) {
+	h, err := windows.OpenSCManager(nil, nil, windows.SC_MANAGER_CONNECT|windows.SC_MANAGER_ENUMERATE_SERVICE)
+	if err != nil {
+		return nil, err
+	}
+	return &mgr.Mgr{Handle: h}, nil
+}
+
+func lowPrivSvc(m *mgr.Mgr, name string) (*mgr.Service, error) {
+	h, err := windows.OpenService(
+		m.Handle, syscall.StringToUTF16Ptr(name),
+		windows.SERVICE_QUERY_CONFIG|windows.SERVICE_QUERY_STATUS|windows.SERVICE_START|windows.SERVICE_STOP)
+	if err != nil {
+		return nil, err
+	}
+	return &mgr.Service{Handle: h, Name: name}, nil
+}
+
 func (ws *windowsService) setEnvironmentVariablesInRegistry() error {
 	k, _, err := registry.CreateKey(
 		registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Services\`+ws.Name,
@@ -382,13 +400,13 @@ func (ws *windowsService) Run() error {
 }
 
 func (ws *windowsService) Status() (Status, error) {
-	m, err := mgr.Connect()
+	m, err := lowPrivMgr()
 	if err != nil {
 		return StatusUnknown, err
 	}
 	defer m.Disconnect()
 
-	s, err := m.OpenService(ws.Name)
+	s, err := lowPrivSvc(m, ws.Name)
 	if err != nil {
 		if errno, ok := err.(syscall.Errno); ok && errno == errnoServiceDoesNotExist {
 			return StatusUnknown, ErrNotInstalled
@@ -423,13 +441,13 @@ func (ws *windowsService) Status() (Status, error) {
 }
 
 func (ws *windowsService) Start() error {
-	m, err := mgr.Connect()
+	m, err := lowPrivMgr()
 	if err != nil {
 		return err
 	}
 	defer m.Disconnect()
 
-	s, err := m.OpenService(ws.Name)
+	s, err := lowPrivSvc(m, ws.Name)
 	if err != nil {
 		return err
 	}
@@ -438,13 +456,13 @@ func (ws *windowsService) Start() error {
 }
 
 func (ws *windowsService) Stop() error {
-	m, err := mgr.Connect()
+	m, err := lowPrivMgr()
 	if err != nil {
 		return err
 	}
 	defer m.Disconnect()
 
-	s, err := m.OpenService(ws.Name)
+	s, err := lowPrivSvc(m, ws.Name)
 	if err != nil {
 		return err
 	}
@@ -454,13 +472,13 @@ func (ws *windowsService) Stop() error {
 }
 
 func (ws *windowsService) Restart() error {
-	m, err := mgr.Connect()
+	m, err := lowPrivMgr()
 	if err != nil {
 		return err
 	}
 	defer m.Disconnect()
 
-	s, err := m.OpenService(ws.Name)
+	s, err := lowPrivSvc(m, ws.Name)
 	if err != nil {
 		return err
 	}
