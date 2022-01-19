@@ -6,7 +6,7 @@
 // Currently supports Windows, Linux/(systemd | Upstart | SysV | OpenRC), and OSX/Launchd.
 //
 // Windows controls services by setting up callbacks that is non-trivial. This
-// is very different then other systems. This package provides the same API
+// is very different than other systems. This package provides the same API
 // despite the substantial differences.
 // It also can be used to detect how a program is called, from an interactive
 // terminal or from a service manager.
@@ -331,11 +331,11 @@ type System interface {
 type Interface interface {
 	// Start provides a place to initiate the service. The service doesn't
 	// signal a completed start until after this function returns, so the
-	// Start function must not take more then a few seconds at most.
+	// Start function must not take more than a few seconds at most.
 	Start(s Service) error
 
 	// Stop provides a place to clean up program execution before it is terminated.
-	// It should not take more then a few seconds to execute.
+	// It should not take more than a few seconds to execute.
 	// Stop should not call os.Exit directly in the function.
 	Stop(s Service) error
 }
@@ -377,7 +377,7 @@ type Service interface {
 	Uninstall() error
 
 	// Opens and returns a system logger. If the user program is running
-	// interactively rather then as a service, the returned logger will write to
+	// interactively rather than as a service, the returned logger will write to
 	// os.Stderr. If errs is non-nil errors will be sent on errs as well as
 	// returned from Logger's functions.
 	Logger(errs chan<- error) (Logger, error)
