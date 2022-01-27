@@ -234,7 +234,8 @@ func (s *systemd) Run() (err error) {
 }
 
 func (s *systemd) Status() (Status, error) {
-	exitCode, out, err := runWithOutput("systemctl", "is-active", s.unitName())
+	unitFile := s.unitName()
+	exitCode, out, err := runWithOutput("systemctl", "is-active", unitFile)
 	if exitCode == 0 && err != nil {
 		return StatusUnknown, err
 	}
@@ -244,7 +245,7 @@ func (s *systemd) Status() (Status, error) {
 		return StatusRunning, nil
 	case strings.HasPrefix(out, "inactive"):
 		// inactive can also mean its not installed, check unit files
-		exitCode, out, err := runWithOutput("systemctl", "list-unit-files", "-t", "service", s.unitName())
+		exitCode, out, err := runWithOutput("systemctl", "list-unit-files", "-t", "service", unitFile)
 		if exitCode == 0 && err != nil {
 			return StatusUnknown, err
 		}
@@ -264,10 +265,24 @@ func (s *systemd) Status() (Status, error) {
 }
 
 func (s *systemd) Start() error {
+	status, err := s.Status()
+	if err != nil {
+		return err
+	}
+	if status == StatusRunning {
+		return fmt.Errorf("%s already running", s.Config.Name)
+	}
 	return s.runAction("start")
 }
 
 func (s *systemd) Stop() error {
+	status, err := s.Status()
+	if err != nil {
+		return err
+	}
+	if status == StatusStopped {
+		return fmt.Errorf("%s already stopped", s.Config.Name)
+	}
 	return s.runAction("stop")
 }
 
