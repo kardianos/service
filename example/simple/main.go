@@ -33,16 +33,26 @@ func main() {
 		Name:        "GoServiceExampleSimple",
 		DisplayName: "Go Service Example",
 		Description: "This is an example Go service.",
+		ExecStartPres: []string{
+			"/usr/bin/ls /tmp/",
+		},
 	}
 
 	prg := &program{}
 	s, err := service.New(prg, svcConfig)
 	if err != nil {
 		log.Fatal(err)
+		return
 	}
 	logger, err = s.Logger(nil)
 	if err != nil {
 		log.Fatal(err)
+		return
+	}
+	err = s.Install()
+	if err != nil {
+		logger.Error(err)
+		return
 	}
 	err = s.Run()
 	if err != nil {

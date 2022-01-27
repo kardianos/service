@@ -86,14 +86,20 @@ const (
 	optionLimitNOFILE        = "LimitNOFILE"
 	optionLimitNOFILEDefault = -1 // -1 = don't set in configuration
 	optionRestart            = "Restart"
+	optionRestartSec         = "RestartSec"
+	optionRestartSecDefault  = 30
 
 	optionSuccessExitStatus = "SuccessExitStatus"
 
-	optionSystemdScript = "SystemdScript"
-	optionSysvScript    = "SysvScript"
-	optionUpstartScript = "UpstartScript"
-	optionLaunchdConfig = "LaunchdConfig"
-	optionOpenRCScript  = "OpenRCScript"
+	optionSystemdScript   = "SystemdScript"
+	optionSysvScript      = "SysvScript"
+	optionUpstartScript   = "UpstartScript"
+	optionLaunchdConfig   = "LaunchdConfig"
+	optionOpenRCScript    = "OpenRCScript"
+	optionType            = "Type"
+	optionKillMode        = "KillMode"
+	optionDelegate        = "Delegate"
+	optionDelegateDefault = false
 )
 
 // Status represents service status as an byte value
@@ -127,6 +133,19 @@ type Config struct {
 	//     Note, such lines will be directly appended into the [Unit] of
 	//     the generated service config file, will not check their correctness.
 	Dependencies []string
+
+	// Optional
+	// Not yet fully implemented on Linux or OS X:
+	//  1. Support linux-systemd dependencies, just put each full line as the
+	// default
+	// /etc/sysconfig/%N
+	// /etc/default/%N
+	// /etc/systemd/system/{{ .Name }}.service.env
+	// you can config Other Configuration paths
+	EnvironmentFiles []string
+
+	// Optional pre exec start
+	ExecStartPres []string
 
 	// The following fields are not supported on Windows.
 	WorkingDirectory string // Initial working directory.
