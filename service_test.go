@@ -5,6 +5,7 @@
 package service_test
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -22,22 +23,27 @@ func TestRunInterrupt(t *testing.T) {
 		t.Fatalf("New err: %s", err)
 	}
 
+	retChan := make(chan error)
+	go func() {
+		if err = s.Run(); err != nil {
+			retChan <- fmt.Errorf("Run() err: %w", err)
+		}
+	}()
 	go func() {
 		<-time.After(1 * time.Second)
 		interruptProcess(t)
-	}()
 
-	go func() {
 		for i := 0; i < 25 && p.numStopped == 0; i++ {
 			<-time.After(200 * time.Millisecond)
 		}
 		if p.numStopped == 0 {
-			t.Fatal("Run() hasn't been stopped")
+			retChan <- fmt.Errorf("Run() hasn't been stopped")
 		}
+		retChan <- nil
 	}()
 
-	if err = s.Run(); err != nil {
-		t.Fatalf("Run() err: %s", err)
+	if err = <-retChan; err != nil {
+		t.Fatal(err)
 	}
 }
 
