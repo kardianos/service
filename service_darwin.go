@@ -27,12 +27,15 @@ type darwinSystem struct{}
 func (darwinSystem) String() string {
 	return version
 }
+
 func (darwinSystem) Detect() bool {
 	return true
 }
+
 func (darwinSystem) Interactive() bool {
 	return interactive
 }
+
 func (darwinSystem) New(i Interface, c *Config) (Service, error) {
 	s := &darwinLaunchdService{
 		i:      i,
@@ -106,6 +109,18 @@ func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
 	return "/Library/LaunchDaemons/" + s.Name + ".plist", nil
 }
 
+func (s *darwinLaunchdService) getLogPath(logType string) (string, error) {
+	if s.userService {
+		homeDir, err := s.getHomeDir()
+		if err != nil {
+			return "", err
+		}
+
+		return fmt.Sprintf("%s/.%s.%s.log", homeDir, s.Name, logType), nil
+	}
+	return fmt.Sprintf("%s/%s.%s.log", "/var/log", s.Name, logType), nil
+}
+
 func (s *darwinLaunchdService) template() *template.Template {
 	functions := template.FuncMap{
 		"bool": func(v bool) string {
@@ -154,20 +169,25 @@ func (s *darwinLaunchdService) Install() error {
 		return err
 	}
 
+	stdOutPath, _ := s.getLogPath("out")
+	stdErrPath, _ := s.getLogPath("err")
+
 	var to = &struct {
 		*Config
 		Path string
 
 		KeepAlive, RunAtLoad bool
 		SessionCreate        bool
-		StandardOut          bool
-		StandardError        bool
+		StandardOutPath      string
+		StandardErrorPath    string
 	}{
-		Config:        s.Config,
-		Path:          path,
-		KeepAlive:     s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
-		RunAtLoad:     s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
-		SessionCreate: s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
+		Config:            s.Config,
+		Path:              path,
+		KeepAlive:         s.Option.bool(optionKeepAlive, optionKeepAliveDefault),
+		RunAtLoad:         s.Option.bool(optionRunAtLoad, optionRunAtLoadDefault),
+		SessionCreate:     s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
+		StandardOutPath:   stdOutPath,
+		StandardErrorPath: stdErrPath,
 	}
 
 	return s.template().Execute(f, to)
@@ -216,6 +236,7 @@ func (s *darwinLaunchdService) Start() error {
 	}
 	return run("launchctl", "load", confPath)
 }
+
 func (s *darwinLaunchdService) Stop() error {
 	confPath, err := s.getServiceFilePath()
 	if err != nil {
@@ -223,6 +244,7 @@ func (s *darwinLaunchdService) Stop() error {
 	}
 	return run("launchctl", "unload", confPath)
 }
+
 func (s *darwinLaunchdService) Restart() error {
 	err := s.Stop()
 	if err != nil {
@@ -233,9 +255,7 @@ func (s *darwinLaunchdService) Restart() error {
 }
 
 func (s *darwinLaunchdService) Run() error {
-	var err error
-
-	err = s.i.Start(s)
+	err := s.i.Start(s)
 	if err != nil {
 		return err
 	}
@@ -255,6 +275,7 @@ func (s *darwinLaunchdService) Logger(errs chan<- error) (Logger, error) {
 	}
 	return s.SystemLogger(errs)
 }
+
 func (s *darwinLaunchdService) SystemLogger(errs chan<- error) (Logger, error) {
 	return newSysLogger(s.Name, errs)
 }
@@ -287,12 +308,11 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
     <{{bool .RunAtLoad}}/>
     <key>Disabled</key>
     <false/>
-    
-    <key>StandardOutPath</key>
-    <string>/usr/local/var/log/{{html .Name}}.out.log</string>
-    <key>StandardErrorPath</key>
-    <string>/usr/local/var/log/{{html .Name}}.err.log</string>
-  
+
+    {{if .StandardOutPath}}<key>StandardOutPath</key>
+    <string>{{html .StandardOutPath}}</string>{{end}}
+    {{if .StandardErrorPath}}<key>StandardErrorPath</key>
+    <string>{{html .StandardErrorPath}}</string>{{end}}
   </dict>
 </plist>
 `
