@@ -285,6 +285,13 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
 "http://www.apple.com/DTDs/PropertyList-1.0.dtd" >
 <plist version='1.0'>
   <dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+	{{range $k, $v := .EnvVars -}}
+	<key>{{html $k}}</key>
+	<string>{{html $v}}</string>
+	{{end -}}
+	</dict>
     <key>Label</key>
     <string>{{html .Name}}</string>
     <key>ProgramArguments</key>
