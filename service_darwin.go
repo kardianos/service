@@ -20,7 +20,10 @@ import (
 
 const maxPathSize = 32 * 1024
 
-const version = "darwin-launchd"
+const (
+	version                   = "darwin-launchd"
+	defaultDarwinLogDirectory = "/var/log"
+)
 
 type darwinSystem struct{}
 
@@ -109,16 +112,26 @@ func (s *darwinLaunchdService) getServiceFilePath() (string, error) {
 	return "/Library/LaunchDaemons/" + s.Name + ".plist", nil
 }
 
-func (s *darwinLaunchdService) getLogPath(logType string) (string, error) {
-	if s.userService {
-		homeDir, err := s.getHomeDir()
-		if err != nil {
-			return "", err
-		}
-
-		return fmt.Sprintf("%s/.%s.%s.log", homeDir, s.Name, logType), nil
+func (s *darwinLaunchdService) logDir() (string, error) {
+	if customDir := s.Option.string(optionLogDirectory, ""); customDir != "" {
+		return customDir, nil
 	}
-	return fmt.Sprintf("%s/%s.%s.log", "/var/log", s.Name, logType), nil
+	if !s.userService {
+		return defaultDarwinLogDirectory, nil
+	}
+	return s.getHomeDir()
+}
+
+func (s *darwinLaunchdService) getLogPaths() (string, string, error) {
+	logDir, err := s.logDir()
+	if err != nil {
+		return "", "", err
+	}
+	return s.getLogPath(logDir, "out"), s.getLogPath(logDir, "err"), nil
+}
+
+func (s *darwinLaunchdService) getLogPath(logDir, logType string) string {
+	return fmt.Sprintf("%s/%s.%s.log", logDir, s.Name, logType)
 }
 
 func (s *darwinLaunchdService) template() *template.Template {
@@ -135,9 +148,8 @@ func (s *darwinLaunchdService) template() *template.Template {
 
 	if customConfig != "" {
 		return template.Must(template.New("").Funcs(functions).Parse(customConfig))
-	} else {
-		return template.Must(template.New("").Funcs(functions).Parse(launchdConfig))
 	}
+	return template.Must(template.New("").Funcs(functions).Parse(launchdConfig))
 }
 
 func (s *darwinLaunchdService) Install() error {
@@ -169,9 +181,7 @@ func (s *darwinLaunchdService) Install() error {
 		return err
 	}
 
-	stdOutPath, _ := s.getLogPath("out")
-	stdErrPath, _ := s.getLogPath("err")
-
+	stdOutPath, stdErrPath, _ := s.getLogPaths()
 	var to = &struct {
 		*Config
 		Path string
