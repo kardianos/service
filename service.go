@@ -79,6 +79,8 @@ const (
 	optionLogOutputDefault     = false
 	optionPrefix               = "Prefix"
 	optionPrefixDefault        = "application"
+	optionExitTimeOut          = "ExitTimeOut"
+	optionExitTimeOutDefault   = 0
 
 	optionRunWait            = "RunWait"
 	optionReloadSignal       = "ReloadSignal"
