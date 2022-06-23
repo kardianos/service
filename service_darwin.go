@@ -7,6 +7,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"os/user"
@@ -176,6 +177,10 @@ func (s *darwinLaunchdService) Install() error {
 	}
 	defer f.Close()
 
+	return s.render(f)
+}
+
+func (s *darwinLaunchdService) render(wr io.Writer) error {
 	path, err := s.execPath()
 	if err != nil {
 		return err
@@ -190,6 +195,7 @@ func (s *darwinLaunchdService) Install() error {
 		SessionCreate        bool
 		StandardOutPath      string
 		StandardErrorPath    string
+		ExitTimeOut          int
 	}{
 		Config:            s.Config,
 		Path:              path,
@@ -198,9 +204,10 @@ func (s *darwinLaunchdService) Install() error {
 		SessionCreate:     s.Option.bool(optionSessionCreate, optionSessionCreateDefault),
 		StandardOutPath:   stdOutPath,
 		StandardErrorPath: stdErrPath,
+		ExitTimeOut:       s.Option.int(optionExitTimeOut, optionExitTimeOutDefault),
 	}
 
-	return s.template().Execute(f, to)
+	return s.template().Execute(wr, to)
 }
 
 func (s *darwinLaunchdService) Uninstall() error {
@@ -315,6 +322,8 @@ var launchdConfig = `<?xml version='1.0' encoding='UTF-8'?>
     <string>{{html .UserName}}</string>{{end}}
     {{if .ChRoot}}<key>RootDirectory</key>
     <string>{{html .ChRoot}}</string>{{end}}
+    {{if .ExitTimeOut}}<key>ExitTimeOut</key>
+    <integer>{{.ExitTimeOut}}</integer>{{end}}
     {{if .WorkingDirectory}}<key>WorkingDirectory</key>
     <string>{{html .WorkingDirectory}}</string>{{end}}
     <key>SessionCreate</key>
