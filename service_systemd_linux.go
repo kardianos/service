@@ -23,7 +23,7 @@ func isSystemd() bool {
 	if _, err := os.Stat("/run/systemd/system"); err == nil {
 		return true
 	}
-	if _, err = exec.LookPath("systemctl"); err != nil {
+	if _, err := exec.LookPath("systemctl"); err != nil {
 		return false
 	}
 	if _, err := os.Stat("/proc/1/comm"); err == nil {
