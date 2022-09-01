@@ -86,6 +86,7 @@ const (
 	optionLimitNOFILE        = "LimitNOFILE"
 	optionLimitNOFILEDefault = -1 // -1 = don't set in configuration
 	optionRestart            = "Restart"
+	optionRestartSec         = "RestartSec"
 
 	optionSuccessExitStatus = "SuccessExitStatus"
 
