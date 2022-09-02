@@ -165,6 +165,8 @@ func (s *systemd) Install() error {
 		PIDFile              string
 		LimitNOFILE          int
 		Restart              string
+		StartLimitInterval   int
+		StartLimitBurst      int
 		RestartSec           int
 		SuccessExitStatus    string
 		LogOutput            bool
@@ -177,6 +179,8 @@ func (s *systemd) Install() error {
 		s.Option.string(optionPIDFile, ""),
 		s.Option.int(optionLimitNOFILE, optionLimitNOFILEDefault),
 		s.Option.string(optionRestart, "always"),
+		s.Option.int(optionStartLimitInterval, 60),
+		s.Option.int(optionStartLimitBurst, 5),
 		s.Option.int(optionRestartSec, 120),
 		s.Option.string(optionSuccessExitStatus, ""),
 		s.Option.bool(optionLogOutput, optionLogOutputDefault),

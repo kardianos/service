@@ -87,8 +87,9 @@ const (
 	optionLimitNOFILEDefault = -1 // -1 = don't set in configuration
 	optionRestart            = "Restart"
 	optionRestartSec         = "RestartSec"
-
-	optionSuccessExitStatus = "SuccessExitStatus"
+	optionStartLimitInterval = "StartLimitInterval"
+	optionStartLimitBurst    = "StartLimitBurst"
+	optionSuccessExitStatus  = "SuccessExitStatus"
 
 	optionSystemdScript = "SystemdScript"
 	optionSysvScript    = "SysvScript"
