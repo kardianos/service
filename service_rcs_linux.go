@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"regexp"
 	"strings"
@@ -25,6 +26,9 @@ type rcs struct {
 
 func isRCS() bool {
 	if _, err := os.Stat("/etc/init.d/rcS"); err != nil {
+		return false
+	}
+	if _, err := exec.LookPath("service"); err == nil {
 		return false
 	}
 	if _, err := os.Stat("/etc/inittab"); err == nil {
