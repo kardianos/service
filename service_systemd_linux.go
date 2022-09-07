@@ -165,6 +165,9 @@ func (s *systemd) Install() error {
 		PIDFile              string
 		LimitNOFILE          int
 		Restart              string
+		StartLimitInterval   int
+		StartLimitBurst      int
+		RestartSec           int
 		SuccessExitStatus    string
 		LogOutput            bool
 		LogDirectory         string
@@ -176,6 +179,9 @@ func (s *systemd) Install() error {
 		s.Option.string(optionPIDFile, ""),
 		s.Option.int(optionLimitNOFILE, optionLimitNOFILEDefault),
 		s.Option.string(optionRestart, "always"),
+		s.Option.int(optionStartLimitInterval, 60),
+		s.Option.int(optionStartLimitBurst, 5),
+		s.Option.int(optionRestartSec, 120),
 		s.Option.string(optionSuccessExitStatus, ""),
 		s.Option.bool(optionLogOutput, optionLogOutputDefault),
 		s.Option.string(optionLogDirectory, defaultLogDirectory),
@@ -301,8 +307,10 @@ ConditionFileIsExecutable={{.Path|cmdEscape}}
 {{$dep}} {{end}}
 
 [Service]
-StartLimitInterval=5
-StartLimitBurst=10
+# StartLimitInterval=60
+{{if .StartLimitInterval}}StartLimitInterval={{.StartLimitInterval}}{{end}}
+# StartLimitBurst=5
+{{if .StartLimitBurst}}StartLimitBurst={{.StartLimitBurst}}{{end}}
 ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
 {{if .ChRoot}}RootDirectory={{.ChRoot|cmd}}{{end}}
 {{if .WorkingDirectory}}WorkingDirectory={{.WorkingDirectory|cmdEscape}}{{end}}
@@ -316,7 +324,8 @@ StandardError=file:{{.LogDirectory}}/{{.Name}}.err
 {{if gt .LimitNOFILE -1 }}LimitNOFILE={{.LimitNOFILE}}{{end}}
 {{if .Restart}}Restart={{.Restart}}{{end}}
 {{if .SuccessExitStatus}}SuccessExitStatus={{.SuccessExitStatus}}{{end}}
-RestartSec=120
+# RestartSec=120
+{{if .RestartSec}}RestartSec={{.RestartSec}}{{end}}
 EnvironmentFile=-/etc/sysconfig/{{.Name}}
 
 {{range $k, $v := .EnvVars -}}
