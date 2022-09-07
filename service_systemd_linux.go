@@ -307,8 +307,10 @@ ConditionFileIsExecutable={{.Path|cmdEscape}}
 {{$dep}} {{end}}
 
 [Service]
-StartLimitInterval=60
-StartLimitBurst=5
+# StartLimitInterval=60
+{{if .StartLimitInterval}}StartLimitInterval={{.StartLimitInterval}}{{end}}
+# StartLimitBurst=5
+{{if .StartLimitBurst}}StartLimitBurst={{.StartLimitBurst}}{{end}}
 ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
 {{if .ChRoot}}RootDirectory={{.ChRoot|cmd}}{{end}}
 {{if .WorkingDirectory}}WorkingDirectory={{.WorkingDirectory|cmdEscape}}{{end}}
