@@ -47,7 +47,7 @@ func (r *runit) template() *template.Template {
 }
 
 func newRunitService(i Interface, platform string, c *Config) (Service, error) {
-	s := &openrc{
+	s := &runit{
 		i:        i,
 		platform: platform,
 		Config:   c,
@@ -55,11 +55,11 @@ func newRunitService(i Interface, platform string, c *Config) (Service, error) {
 	return s, nil
 }
 
-var errNoUserServiceRunit = errors.New("user services are not supported on Runit")
+var errNoUserServiceRunit = errors.New("user services are not supported on runit")
 
 func (r *runit) configPath() (cp string, err error) {
 	if r.Option.bool(optionUserService, optionUserServiceDefault) {
-		err = errNoUserServiceOpenRC
+		err = errNoUserServiceRunit
 		return
 	}
 	cp = "/etc/sv/" + r.Config.Name
@@ -76,7 +76,17 @@ func (r *runit) Install() error {
 		return fmt.Errorf("Init already exists: %s", confPath)
 	}
 
-	if err := os.Mkdir(confPath, 0755); err != nil {
+	if err := os.MkdirAll(confPath, 0755); err != nil {
+		return err
+	}
+
+	logpath := path.Join(confPath, "log")
+
+	if err := os.MkdirAll(logpath, 0755); err != nil {
+		return err
+	}
+
+	if err := os.Symlink(path.Join(logpath, "run"), "/usr/bin/vlogger"); err != nil {
 		return err
 	}
 
@@ -205,5 +215,6 @@ func (r *runit) runAction(action string) error {
 }
 
 const runitScript = `#!/bin/sh
+
 exec {{.Path}} 2>&1
 `
