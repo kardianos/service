@@ -72,14 +72,14 @@ func init() {
 			new: newSystemVService,
 		},
 		linuxSystemService{
-			name: "linux-runit",
+			name:   "linux-runit",
 			detect: isRunit,
 			interactive: func() bool {
 				is, _ := isInteractive()
 				return is
-			}
-			new: newRunitService
-		}
+			},
+			new: newRunitService,
+		},
 	)
 }
 
