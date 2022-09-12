@@ -215,6 +215,6 @@ func (r *runit) runAction(action string) error {
 }
 
 const runitScript = `#!/bin/sh
-
-exec {{.Path}} 2>&1
+[ -r conf ] && . ./conf
+exec {{.Path}} ${OPTS}
 `
