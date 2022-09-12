@@ -1,5 +1,5 @@
 
-all: sysv systemd upstart openrc clean
+all: sysv systemd upstart openrc runit clean
 
 # compile `go test` binary statically
 test:
@@ -43,3 +43,12 @@ openrc: test
 	@-docker rm $(shell docker ps -l -q)
 	@-docker rmi -f service.test.openrc
 	@-rm openrc/service.test
+
+runit: test
+	@echo runit
+	@cp service.test runit/
+	@docker build -q --tag="service.test.runit" runit
+	@-docker run service.test.runit
+	@-docker rm $(shell docker ps -l -q)
+	@-docker rmi -f service.test.runit
+	@-rm runit/service.test
