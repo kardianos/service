@@ -232,8 +232,6 @@ supervise_daemon_args="--stdout {{.LogDirectory}}/${name}.log --stderr {{.LogDir
 
 {{range $k, $v := .EnvVars -}}
 export {{$k}}={{$v}}
-{{$k}}={{$v}}
-Environment={{$k}}={{$v}}
 {{end -}}
 
 {{- if .Dependencies }}

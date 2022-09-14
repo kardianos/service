@@ -1,4 +1,4 @@
-module github.com/optim-aizawa/service
+module github.com/kardianos/service
 
 go 1.12
 

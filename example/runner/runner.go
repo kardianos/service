@@ -14,7 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/optim-aizawa/service"
+	"github.com/kardianos/service"
 )
 
 // Config is the runner app config structure.

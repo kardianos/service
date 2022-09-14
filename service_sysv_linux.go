@@ -209,7 +209,6 @@ stderr_log="{{.LogDirectory}}/$name.err"
 
 {{range $k, $v := .EnvVars -}}
 export {{$k}}={{$v}}
-{{$k}}={{$v}}
 {{end -}}
 
 [ -e /etc/sysconfig/$name ] && . /etc/sysconfig/$name
