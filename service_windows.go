@@ -241,6 +241,10 @@ func lowPrivSvc(m *mgr.Mgr, name string) (*mgr.Service, error) {
 }
 
 func (ws *windowsService) setEnvironmentVariablesInRegistry() error {
+	if len(ws.EnvVars) == 0 {
+		return nil
+	}
+
 	k, _, err := registry.CreateKey(
 		registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Services\`+ws.Name,
 		registry.QUERY_VALUE|registry.SET_VALUE|registry.CREATE_SUB_KEY)
