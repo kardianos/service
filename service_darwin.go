@@ -314,12 +314,18 @@ var launchdConfig = `<?xml version="1.0" encoding="UTF-8"?>
 		{{- end}}
 	{{- end}}
 	</array>
-    {{if .UserName}}<key>UserName</key>
-    <string>{{html .UserName}}</string>{{end}}
-    {{if .ChRoot}}<key>RootDirectory</key>
-    <string>{{html .ChRoot}}</string>{{end}}
-    {{if .WorkingDirectory}}<key>WorkingDirectory</key>
-    <string>{{html .WorkingDirectory}}</string>{{end}}
+	{{- if .UserName}}
+	<key>UserName</key>
+	<string>{{html .UserName}}</string>
+	{{- end}}
+	{{- if .ChRoot}}
+	<key>RootDirectory</key>
+	<string>{{html .ChRoot}}</string>
+	{{- end}}
+	{{- if .WorkingDirectory}}
+	<key>WorkingDirectory</key>
+	<string>{{html .WorkingDirectory}}</string>
+	{{- end}}
     <key>SessionCreate</key>
     <{{bool .SessionCreate}}/>
     <key>KeepAlive</key>
@@ -328,11 +334,14 @@ var launchdConfig = `<?xml version="1.0" encoding="UTF-8"?>
     <{{bool .RunAtLoad}}/>
     <key>Disabled</key>
     <false/>
-
-    {{if .StandardOutPath}}<key>StandardOutPath</key>
-    <string>{{html .StandardOutPath}}</string>{{end}}
-    {{if .StandardErrorPath}}<key>StandardErrorPath</key>
-    <string>{{html .StandardErrorPath}}</string>{{end}}
+	{{- if .StandardOutPath}}
+	<key>StandardOutPath</key>
+	<string>{{html .StandardOutPath}}</string>
+	{{- end}}
+	{{- if .StandardErrorPath}}
+	<key>StandardErrorPath</key>
+	<string>{{html .StandardErrorPath}}</string>
+	{{- end}}
 </dict>
 </plist>
 `
