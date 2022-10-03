@@ -303,8 +303,8 @@ var launchdConfig = `<?xml version="1.0" encoding="UTF-8"?>
 		{{- end}}
 	</dict>
 	{{- end}}
-    <key>Label</key>
-    <string>{{html .Name}}</string>
+	<key>Label</key>
+	<string>{{html .Name}}</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>{{html .Path}}</string>
@@ -326,14 +326,14 @@ var launchdConfig = `<?xml version="1.0" encoding="UTF-8"?>
 	<key>WorkingDirectory</key>
 	<string>{{html .WorkingDirectory}}</string>
 	{{- end}}
-    <key>SessionCreate</key>
-    <{{bool .SessionCreate}}/>
-    <key>KeepAlive</key>
-    <{{bool .KeepAlive}}/>
-    <key>RunAtLoad</key>
-    <{{bool .RunAtLoad}}/>
-    <key>Disabled</key>
-    <false/>
+	<key>SessionCreate</key>
+	<{{bool .SessionCreate}}/>
+	<key>KeepAlive</key>
+	<{{bool .KeepAlive}}/>
+	<key>RunAtLoad</key>
+	<{{bool .RunAtLoad}}/>
+	<key>Disabled</key>
+	<false/>
 	{{- if .StandardOutPath}}
 	<key>StandardOutPath</key>
 	<string>{{html .StandardOutPath}}</string>
