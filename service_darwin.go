@@ -293,6 +293,7 @@ func (s *darwinLaunchdService) SystemLogger(errs chan<- error) (Logger, error) {
 var launchdConfig = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<dict>
 	<key>EnvironmentVariables</key>
 	<dict>
 	{{range $k, $v := .EnvVars -}}
@@ -328,6 +329,6 @@ var launchdConfig = `<?xml version="1.0" encoding="UTF-8"?>
     <string>{{html .StandardOutPath}}</string>{{end}}
     {{if .StandardErrorPath}}<key>StandardErrorPath</key>
     <string>{{html .StandardErrorPath}}</string>{{end}}
-  </dict>
+</dict>
 </plist>
 `
