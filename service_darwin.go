@@ -305,13 +305,15 @@ var launchdConfig = `<?xml version="1.0" encoding="UTF-8"?>
 	{{- end}}
     <key>Label</key>
     <string>{{html .Name}}</string>
-    <key>ProgramArguments</key>
-    <array>
-      <string>{{html .Path}}</string>
-    {{range .Config.Arguments}}
-      <string>{{html .}}</string>
-    {{end}}
-    </array>
+	<key>ProgramArguments</key>
+	<array>
+		<string>{{html .Path}}</string>
+		{{- if .Config.Arguments}}
+		{{- range .Config.Arguments}}
+		<string>{{html .}}</string>
+		{{- end}}
+	{{- end}}
+	</array>
     {{if .UserName}}<key>UserName</key>
     <string>{{html .UserName}}</string>{{end}}
     {{if .ChRoot}}<key>RootDirectory</key>
