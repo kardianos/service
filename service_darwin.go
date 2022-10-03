@@ -294,6 +294,8 @@ var launchdConfig = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>Disabled</key>
+	<false/>
 	{{- if .EnvVars}}
 	<key>EnvironmentVariables</key>
 	<dict>
@@ -303,6 +305,8 @@ var launchdConfig = `<?xml version="1.0" encoding="UTF-8"?>
 		{{- end}}
 	</dict>
 	{{- end}}
+	<key>KeepAlive</key>
+	<{{bool .KeepAlive}}/>
 	<key>Label</key>
 	<string>{{html .Name}}</string>
 	<key>ProgramArguments</key>
@@ -314,33 +318,29 @@ var launchdConfig = `<?xml version="1.0" encoding="UTF-8"?>
 		{{- end}}
 	{{- end}}
 	</array>
-	{{- if .UserName}}
-	<key>UserName</key>
-	<string>{{html .UserName}}</string>
-	{{- end}}
 	{{- if .ChRoot}}
 	<key>RootDirectory</key>
 	<string>{{html .ChRoot}}</string>
 	{{- end}}
-	{{- if .WorkingDirectory}}
-	<key>WorkingDirectory</key>
-	<string>{{html .WorkingDirectory}}</string>
-	{{- end}}
-	<key>SessionCreate</key>
-	<{{bool .SessionCreate}}/>
-	<key>KeepAlive</key>
-	<{{bool .KeepAlive}}/>
 	<key>RunAtLoad</key>
 	<{{bool .RunAtLoad}}/>
-	<key>Disabled</key>
-	<false/>
+	<key>SessionCreate</key>
+	<{{bool .SessionCreate}}/>
+	{{- if .StandardErrorPath}}
+	<key>StandardErrorPath</key>
+	<string>{{html .StandardErrorPath}}</string>
+	{{- end}}
 	{{- if .StandardOutPath}}
 	<key>StandardOutPath</key>
 	<string>{{html .StandardOutPath}}</string>
 	{{- end}}
-	{{- if .StandardErrorPath}}
-	<key>StandardErrorPath</key>
-	<string>{{html .StandardErrorPath}}</string>
+	{{- if .UserName}}
+	<key>UserName</key>
+	<string>{{html .UserName}}</string>
+	{{- end}}
+	{{- if .WorkingDirectory}}
+	<key>WorkingDirectory</key>
+	<string>{{html .WorkingDirectory}}</string>
 	{{- end}}
 </dict>
 </plist>
