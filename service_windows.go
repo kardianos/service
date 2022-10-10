@@ -149,11 +149,11 @@ func (l WindowsLogger) NInfof(eventID uint32, format string, a ...interface{}) e
 var interactive = false
 
 func init() {
-	var err error
-	interactive, err = svc.IsAnInteractiveSession()
+	isService, err := svc.IsWindowsService()
 	if err != nil {
 		panic(err)
 	}
+	interactive = !isService
 }
 
 func (ws *windowsService) String() string {
