@@ -259,7 +259,6 @@ func (ws *windowsService) setEnvironmentVariablesInRegistry() error {
 	if err := k.SetStringsValue("Environment", envStrings); err != nil {
 		return fmt.Errorf("failed setting env var registry key, err = %v", err)
 	}
-
 	if err := k.Close(); err != nil {
 		return fmt.Errorf("failed closing env var registry key, err = %v", err)
 	}
