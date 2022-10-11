@@ -230,6 +230,10 @@ command_args="{{range .Arguments}}{{.}} {{end}}"
 name=$(basename $(readlink -f $command))
 supervise_daemon_args="--stdout {{.LogDirectory}}/${name}.log --stderr {{.LogDirectory}}/${name}.err"
 
+{{range $k, $v := .EnvVars -}}
+export {{$k}}={{$v}}
+{{end -}}
+
 {{- if .Dependencies }}
 depend() {
 {{- range $i, $dep := .Dependencies}} 

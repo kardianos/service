@@ -207,6 +207,10 @@ pid_file="/var/run/$name.pid"
 stdout_log="{{.LogDirectory}}/$name.log"
 stderr_log="{{.LogDirectory}}/$name.err"
 
+{{range $k, $v := .EnvVars -}}
+export {{$k}}={{$v}}
+{{end -}}
+
 [ -e /etc/sysconfig/$name ] && . /etc/sysconfig/$name
 
 get_pid() {

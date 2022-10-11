@@ -149,11 +149,11 @@ func (l WindowsLogger) NInfof(eventID uint32, format string, a ...interface{}) e
 var interactive = false
 
 func init() {
-	var err error
-	interactive, err = svc.IsAnInteractiveSession()
+	isService, err := svc.IsWindowsService()
 	if err != nil {
 		panic(err)
 	}
+	interactive = !isService
 }
 
 func (ws *windowsService) String() string {
@@ -241,6 +241,10 @@ func lowPrivSvc(m *mgr.Mgr, name string) (*mgr.Service, error) {
 }
 
 func (ws *windowsService) setEnvironmentVariablesInRegistry() error {
+	if len(ws.EnvVars) == 0 {
+		return nil
+	}
+
 	k, _, err := registry.CreateKey(
 		registry.LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Services\`+ws.Name,
 		registry.QUERY_VALUE|registry.SET_VALUE|registry.CREATE_SUB_KEY)
