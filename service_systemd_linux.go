@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"regexp"
@@ -21,6 +22,9 @@ import (
 func isSystemd() bool {
 	if _, err := os.Stat("/run/systemd/system"); err == nil {
 		return true
+	}
+	if _, err := exec.LookPath("systemctl"); err != nil {
+		return false
 	}
 	if _, err := os.Stat("/proc/1/comm"); err == nil {
 		filerc, err := os.Open("/proc/1/comm")

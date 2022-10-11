@@ -91,6 +91,7 @@ const (
 
 	optionSystemdScript = "SystemdScript"
 	optionSysvScript    = "SysvScript"
+	optionRCSScript     = "RCSScript"
 	optionUpstartScript = "UpstartScript"
 	optionLaunchdConfig = "LaunchdConfig"
 	optionOpenRCScript  = "OpenRCScript"
