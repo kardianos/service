@@ -21,6 +21,8 @@ type linuxSystemService struct {
 	new         func(i Interface, platform string, c *Config) (Service, error)
 }
 
+var _ ConfigInfoer = &linuxSystemService{}
+
 func (sc linuxSystemService) String() string {
 	return sc.name
 }
@@ -32,6 +34,9 @@ func (sc linuxSystemService) Interactive() bool {
 }
 func (sc linuxSystemService) New(i Interface, c *Config) (Service, error) {
 	return sc.new(i, sc.String(), c)
+}
+func (sc linuxSystemService) ConfigPath() (string, error) {
+	return "", fmt.Errorf("not implemented")
 }
 
 func init() {

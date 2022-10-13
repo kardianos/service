@@ -26,6 +26,8 @@ const version = "aix-ssrc"
 
 type aixSystem struct{}
 
+var _ ConfigInfoer = &aixService{}
+
 func (aixSystem) String() string {
 	return version
 }
@@ -111,7 +113,7 @@ func (s *aixService) template() *template.Template {
 	}
 }
 
-func (s *aixService) configPath() (cp string, err error) {
+func (s *aixService) ConfigPath() (cp string, err error) {
 	cp = "/etc/rc.d/init.d/" + s.Config.Name
 	return
 }
@@ -128,7 +130,7 @@ func (s *aixService) Install() error {
 	}
 
 	// write start script
-	confPath, err := s.configPath()
+	confPath, err := s.ConfigPath()
 	if err != nil {
 		return err
 	}
@@ -183,7 +185,7 @@ func (s *aixService) Uninstall() error {
 		return err
 	}
 
-	confPath, err := s.configPath()
+	confPath, err := s.ConfigPath()
 	if err != nil {
 		return err
 	}
@@ -212,7 +214,7 @@ func (s *aixService) Status() (Status, error) {
 		}
 	}
 
-	confPath, err := s.configPath()
+	confPath, err := s.ConfigPath()
 	if err != nil {
 		return StatusUnknown, err
 	}

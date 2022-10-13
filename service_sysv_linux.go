@@ -21,6 +21,8 @@ type sysv struct {
 	*Config
 }
 
+var _ ConfigInfoer = &sysv{}
+
 func newSystemVService(i Interface, platform string, c *Config) (Service, error) {
 	s := &sysv{
 		i:        i,
@@ -44,7 +46,7 @@ func (s *sysv) Platform() string {
 
 var errNoUserServiceSystemV = errors.New("User services are not supported on SystemV.")
 
-func (s *sysv) configPath() (cp string, err error) {
+func (s *sysv) ConfigPath() (cp string, err error) {
 	if s.Option.bool(optionUserService, optionUserServiceDefault) {
 		err = errNoUserServiceSystemV
 		return
@@ -63,7 +65,7 @@ func (s *sysv) template() *template.Template {
 }
 
 func (s *sysv) Install() error {
-	confPath, err := s.configPath()
+	confPath, err := s.ConfigPath()
 	if err != nil {
 		return err
 	}
@@ -116,7 +118,7 @@ func (s *sysv) Install() error {
 }
 
 func (s *sysv) Uninstall() error {
-	cp, err := s.configPath()
+	cp, err := s.ConfigPath()
 	if err != nil {
 		return err
 	}
