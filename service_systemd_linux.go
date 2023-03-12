@@ -19,6 +19,8 @@ import (
 	"text/template"
 )
 
+const defaultEnvDir = "/etc/sysconfig"
+
 func isSystemd() bool {
 	if _, err := os.Stat("/run/systemd/system"); err == nil {
 		return true
@@ -87,6 +89,25 @@ func (s *systemd) configPath() (cp string, err error) {
 	}
 	cp = filepath.Join(systemdUserDir, s.unitName())
 	return
+}
+
+func (s *systemd) envFilePath() (ep string) {
+	dirs := []string{"/etc/default", "/etc/sysconfig"}
+	// first lookup for existing file for backward compatibility
+	for _, dir := range dirs {
+		ep = filepath.Join(dir, s.Name)
+		if _, err := os.Stat(ep); err == nil {
+			return
+		}
+	}
+	// if not exists, lookup system default
+	for _, v := range dirs {
+		if _, err := os.Stat(v); err == nil {
+			ep = filepath.Join(v, s.Name)
+			return
+		}
+	}
+	return filepath.Join(defaultEnvDir, s.Name)
 }
 
 func (s *systemd) unitName() string {
@@ -172,6 +193,7 @@ func (s *systemd) Install() error {
 		SuccessExitStatus    string
 		LogOutput            bool
 		LogDirectory         string
+		EnvFile              string
 	}{
 		s.Config,
 		path,
@@ -183,6 +205,7 @@ func (s *systemd) Install() error {
 		s.Option.string(optionSuccessExitStatus, ""),
 		s.Option.bool(optionLogOutput, optionLogOutputDefault),
 		s.Option.string(optionLogDirectory, defaultLogDirectory),
+		s.envFilePath(),
 	}
 
 	err = s.template().Execute(f, to)
@@ -321,7 +344,7 @@ StandardError=file:{{.LogDirectory}}/{{.Name}}.err
 {{if .Restart}}Restart={{.Restart}}{{end}}
 {{if .SuccessExitStatus}}SuccessExitStatus={{.SuccessExitStatus}}{{end}}
 RestartSec=120
-EnvironmentFile=-/etc/sysconfig/{{.Name}}
+EnvironmentFile=-{{.EnvFile}}
 
 {{range $k, $v := .EnvVars -}}
 Environment={{$k}}={{$v}}
