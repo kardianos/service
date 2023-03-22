@@ -72,6 +72,15 @@ func init() {
 			new: newRCSService,
 		},
 		linuxSystemService{
+			name:   "linux-procd",
+			detect: isProcd,
+			interactive: func() bool {
+				is, _ := isInteractive()
+				return is
+			},
+			new: newProcdService,
+		},
+		linuxSystemService{
 			name:   "unix-systemv",
 			detect: func() bool { return true },
 			interactive: func() bool {
