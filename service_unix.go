@@ -69,6 +69,7 @@ func runWithOutput(command string, arguments ...string) (int, string, error) {
 
 func runCommand(command string, readStdout bool, arguments ...string) (int, string, error) {
 	cmd := exec.Command(command, arguments...)
+	defer cmd.Wait()
 
 	var output string
 	var stdout io.ReadCloser
