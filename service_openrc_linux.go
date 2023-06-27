@@ -166,12 +166,18 @@ func (s *openrc) Run() (err error) {
 }
 
 func (s *openrc) Status() (Status, error) {
-	// rc-service uses the errno library for its exit codes:
-	// errno 0 = service started
-	// errno 1 = EPERM 1 Operation not permitted
-	// errno 2 = ENOENT 2 No such file or directory
-	// errno 3 = ESRCH 3 No such process
-	// for more info, see https://man7.org/linux/man-pages/man3/errno.3.html
+	// On OpenRC, rc-service returns the following exit codes:
+	// 0 - service status successful
+	// 1 - service status failed, can be various reasons (not installed, etc)
+	// 3 - service is stopped
+	// see https://github.com/OpenRC/openrc/blob/master/src/rc-service/rc-service.c#L153-L157
+
+	// To be able to detect whether a service is installed or not, we need to try to resolve the service
+	err := run("rc-service", "--resolve", s.Name)
+	if err != nil {
+		return StatusUnknown, ErrNotInstalled
+	}
+
 	_, out, err := runWithOutput("rc-service", s.Name, "status")
 	if err != nil {
 		if exiterr, ok := err.(*exec.ExitError); ok {
@@ -180,8 +186,6 @@ func (s *openrc) Status() (Status, error) {
 			switch {
 			case exitCode == 1:
 				return StatusUnknown, err
-			case exitCode == 2:
-				return StatusUnknown, ErrNotInstalled
 			case exitCode == 3:
 				return StatusStopped, nil
 			default:
