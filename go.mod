@@ -1,4 +1,4 @@
-module tomascubeek/kardianos-service
+module github.com/tomascubeek/kardianos-service
 
 
 go 1.12
