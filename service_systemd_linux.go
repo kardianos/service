@@ -168,6 +168,8 @@ func (s *systemd) Install() error {
 		StartLimitInterval   int
 		StartLimitBurst      int
 		RestartSec           int
+		CPUQuota			 string
+		MemoryLimit          string
 		SuccessExitStatus    string
 		LogOutput            bool
 		LogDirectory         string
@@ -182,6 +184,8 @@ func (s *systemd) Install() error {
 		s.Option.int(optionStartLimitInterval, 60),
 		s.Option.int(optionStartLimitBurst, 5),
 		s.Option.int(optionRestartSec, 120),
+		s.Option.string(optionCPUQuota, ""),
+		s.Option.string(optionMemoryLimit, ""),
 		s.Option.string(optionSuccessExitStatus, ""),
 		s.Option.bool(optionLogOutput, optionLogOutputDefault),
 		s.Option.string(optionLogDirectory, defaultLogDirectory),
@@ -311,6 +315,8 @@ ConditionFileIsExecutable={{.Path|cmdEscape}}
 {{if .StartLimitInterval}}StartLimitInterval={{.StartLimitInterval}}{{end}}
 # StartLimitBurst=5
 {{if .StartLimitBurst}}StartLimitBurst={{.StartLimitBurst}}{{end}}
+{{if .CPUQuota}}CPUQuota={{.CPUQuota}}{{end}}
+{{if .MemoryLimit}}MemoryLimit={{.MemoryLimit}}{{end}}
 ExecStart={{.Path|cmdEscape}}{{range .Arguments}} {{.|cmd}}{{end}}
 {{if .ChRoot}}RootDirectory={{.ChRoot|cmd}}{{end}}
 {{if .WorkingDirectory}}WorkingDirectory={{.WorkingDirectory|cmdEscape}}{{end}}
