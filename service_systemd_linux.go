@@ -172,6 +172,9 @@ func (s *systemd) Install() error {
 		SuccessExitStatus    string
 		LogOutput            bool
 		LogDirectory         string
+		KillMode             string
+		KillSignal           string
+		TimeoutStopSec       string
 	}{
 		s.Config,
 		path,
@@ -183,6 +186,9 @@ func (s *systemd) Install() error {
 		s.Option.string(optionSuccessExitStatus, ""),
 		s.Option.bool(optionLogOutput, optionLogOutputDefault),
 		s.Option.string(optionLogDirectory, defaultLogDirectory),
+		s.Option.string(optionKillMode, ""),
+		s.Option.string(optionKillSignal, ""),
+		s.Option.string(optionTimeoutStopSec, ""),
 	}
 
 	err = s.template().Execute(f, to)
@@ -301,7 +307,7 @@ func (s *systemd) runAction(action string) error {
 const systemdScript = `[Unit]
 Description={{.Description}}
 ConditionFileIsExecutable={{.Path|cmdEscape}}
-{{range $i, $dep := .Dependencies}} 
+{{range $i, $dep := .Dependencies}}
 {{$dep}} {{end}}
 
 [Service]
@@ -322,6 +328,9 @@ StandardError=file:{{.LogDirectory}}/{{.Name}}.err
 {{if .SuccessExitStatus}}SuccessExitStatus={{.SuccessExitStatus}}{{end}}
 RestartSec=120
 EnvironmentFile=-/etc/sysconfig/{{.Name}}
+{{if .KillMode }}KillMode={{.KillMode}}{{end}}
+{{if .KillSignal }}KillSignal={{.KillSignal}}{{end}}
+{{if .TimeoutStopSec }}TimeoutStopSec={{.TimeoutStopSec}}{{end}}
 
 {{range $k, $v := .EnvVars -}}
 Environment={{$k}}={{$v}}
