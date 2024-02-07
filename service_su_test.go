@@ -3,6 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // This needs to be run as root/admin hence the reason there is a build tag
+//go:build su
 // +build su
 
 package service_test
@@ -18,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardianos/service"
+	service "github.com/tomascubeek/kardianos-service"
 )
 
 const runAsServiceArg = "RunThisAsService"
