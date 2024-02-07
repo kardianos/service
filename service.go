@@ -345,6 +345,10 @@ type Interface interface {
 	// It should not take more then a few seconds to execute.
 	// Stop should not call os.Exit directly in the function.
 	Stop(s Service) error
+
+	// ShouldStop provides a channel to monitor for service selfstop events.
+	// if the channel is closed, the service loop should exit
+	ShouldStop(s Service) <-chan struct{}
 }
 
 // Shutdowner represents a service interface for a program that differentiates between "stop" and

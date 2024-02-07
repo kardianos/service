@@ -187,10 +187,28 @@ func (ws *windowsService) Execute(args []string, r <-chan svc.ChangeRequest, cha
 		return true, 1
 	}
 
+	stopChan := ws.i.ShouldStop(ws)
+	wait := func() (*svc.ChangeRequest, bool) {
+		if stopChan != nil {
+			select {
+			case <-stopChan:
+				return nil, true
+			case c := <-r:
+				return &c, false
+			}
+		} else {
+			c := <-r
+			return &c, false
+		}
+	}
+
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 loop:
 	for {
-		c := <-r
+		c, shouldStop := wait()
+		if shouldStop {
+			break loop
+		}
 		switch c.Cmd {
 		case svc.Interrogate:
 			changes <- c.CurrentStatus
