@@ -29,12 +29,13 @@ const (
 	ServiceStartDisabled  = "disabled"
 	ServiceStartAutomatic = "automatic"
 
-	OnFailure              = "OnFailure"
-	OnFailureRestart       = "restart"
-	OnFailureReboot        = "reboot"
-	OnFailureNoAction      = "noaction"
-	OnFailureDelayDuration = "OnFailureDelayDuration"
-	OnFailureResetPeriod   = "OnFailureResetPeriod"
+	OnFailure                         = "OnFailure"
+	OnFailureRestart                  = "restart"
+	OnFailureReboot                   = "reboot"
+	OnFailureNoAction                 = "noaction"
+	OnFailureDelayDuration            = "OnFailureDelayDuration"
+	OnFailureResetPeriod              = "OnFailureResetPeriod"
+	RecoveryActionsOnNonCrashFailures = "false"
 
 	errnoServiceDoesNotExist syscall.Errno = 1060
 )
@@ -311,9 +312,13 @@ func (ws *windowsService) Install() error {
 		DelayedAutoStart: ws.Option.bool("DelayedAutoStart", false),
 		ServiceType:      uint32(serviceType),
 	}, ws.Arguments...)
+
 	if err != nil {
 		return err
 	}
+
+	defer s.Close()
+
 	if onFailure := ws.Option.string(OnFailure, ""); onFailure != "" {
 		var delay = 1 * time.Second
 		if d, err := time.ParseDuration(ws.Option.string(OnFailureDelayDuration, "1s")); err == nil {
@@ -330,16 +335,35 @@ func (ws *windowsService) Install() error {
 		default:
 			actionType = mgr.ServiceRestart
 		}
+
 		if err := s.SetRecoveryActions([]mgr.RecoveryAction{
+			// First Failure
 			{
 				Type:  actionType,
 				Delay: delay,
 			},
-		}, uint32(ws.Option.int(OnFailureResetPeriod, 10))); err != nil {
+			// Second Failure
+			{
+				Type:  actionType,
+				Delay: delay,
+			},
+			// Subsequent Failures
+			{
+				Type:  actionType,
+				Delay: delay,
+			},
+		},
+			/* Reset Period */
+			uint32(ws.Option.int(OnFailureResetPeriod, 10)),
+		); err != nil {
 			return err
 		}
 	}
-	defer s.Close()
+
+	if recovery := ws.Option.bool(RecoveryActionsOnNonCrashFailures, false); recovery {
+		s.SetRecoveryActionsOnNonCrashFailures(true)
+	}
+
 	err = eventlog.InstallAsEventCreate(ws.Name, eventlog.Error|eventlog.Warning|eventlog.Info)
 	if err != nil {
 		if !strings.Contains(err.Error(), "exists") {
