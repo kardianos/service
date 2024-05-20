@@ -53,6 +53,30 @@ type WindowsLogger struct {
 	errs chan<- error
 }
 
+// ControlsHandler provides a way to set allowed controls and handle them.
+// Note that Stop and Shutdown will not be passed throw this handler, also there are no
+// Start control. User must handle Star, Stop and Shutdown with base service Interface.
+type ControlsHandler struct {
+	Changes <-chan svc.Accepted
+	Handler func(request svc.ChangeRequest) svc.Status
+}
+
+// winControls is a helper function to extract ControlsHandler from Config
+func (kv KeyValue) winControls() ControlsHandler {
+	const extraControlsName = "ExtraControls"
+	if v, found := kv[extraControlsName]; found {
+		if castValue, is := v.(ControlsHandler); is {
+			return castValue
+		}
+	}
+	return ControlsHandler{
+		Changes: nil,
+		Handler: func(req svc.ChangeRequest) svc.Status {
+			return req.CurrentStatus
+		},
+	}
+}
+
 type windowsSystem struct{}
 
 func (windowsSystem) String() string {
@@ -178,48 +202,99 @@ func (ws *windowsService) getError() error {
 	return ws.stopStartErr
 }
 
-func (ws *windowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (bool, uint32) {
-	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
-	changes <- svc.Status{State: svc.StartPending}
+type changesWrapper struct {
+	change chan<- svc.Status
+	last   *svc.Status
+}
+
+func (w *changesWrapper) set(st svc.Status) {
+	w.last = &st
+	w.change <- st
+}
+
+func (w *changesWrapper) get() *svc.Status {
+	return w.last
+}
+
+func wrapChanges(ch chan<- svc.Status) *changesWrapper {
+	return &changesWrapper{
+		change: ch,
+	}
+}
+
+func (ws *windowsService) Execute(args []string, r <-chan svc.ChangeRequest, changesCh chan<- svc.Status) (bool, uint32) {
+	controls := ws.Config.Option.winControls()
+
+	changes := wrapChanges(changesCh)
+	changes.set(svc.Status{State: svc.StartPending})
 
 	if err := ws.i.Start(ws); err != nil {
 		ws.setError(err)
 		return true, 1
 	}
 
-	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-loop:
-	for {
-		c := <-r
-		switch c.Cmd {
-		case svc.Interrogate:
-			changes <- c.CurrentStatus
-		case svc.Stop:
-			changes <- svc.Status{State: svc.StopPending}
-			if err := ws.i.Stop(ws); err != nil {
-				ws.setError(err)
-				return true, 2
-			}
-			break loop
-		case svc.Shutdown:
-			changes <- svc.Status{State: svc.StopPending}
-			var err error
-			if wsShutdown, ok := ws.i.(Shutdowner); ok {
-				err = wsShutdown.Shutdown(ws)
-			} else {
-				err = ws.i.Stop(ws)
-			}
-			if err != nil {
-				ws.setError(err)
-				return true, 2
-			}
-			break loop
-		default:
-			continue loop
-		}
+	cmdsAccepted := svc.AcceptStop | svc.AcceptShutdown
+	// give service a chance to init with proper accepts
+	// if it has nothing to init (or had no time to decide) we use defaults
+	select {
+	case cmdsAccepted = <-controls.Changes:
+	default:
+	}
+
+	changes.set(svc.Status{State: svc.Running, Accepts: cmdsAccepted})
+	err := ws.run(r, changes, controls)
+	if err != nil {
+		ws.setError(err)
+		return true, 2
 	}
 
 	return false, 0
+}
+
+func (ws *windowsService) run(r <-chan svc.ChangeRequest, changes *changesWrapper, controls ControlsHandler) error {
+	for {
+		select {
+		case c := <-r:
+			switch c.Cmd {
+			case svc.Interrogate:
+				changes.set(c.CurrentStatus)
+			case svc.Stop:
+				changes.set(svc.Status{State: svc.StopPending})
+				if err := ws.i.Stop(ws); err != nil {
+					return err
+				}
+				return nil
+			case svc.Shutdown:
+				changes.set(svc.Status{State: svc.StopPending})
+				var err error
+				if wsShutdown, ok := ws.i.(Shutdowner); ok {
+					err = wsShutdown.Shutdown(ws)
+				} else {
+					err = ws.i.Stop(ws)
+				}
+				if err != nil {
+					return err
+				}
+				return nil
+			default:
+				res := c.CurrentStatus
+				if controls.Handler != nil {
+					res = controls.Handler(c)
+				}
+				changes.set(res)
+			}
+
+		case accepts := <-controls.Changes:
+			st := changes.get()
+			if st == nil {
+				st = &svc.Status{
+					State: svc.Stopped,
+				}
+			}
+			st.Accepts = accepts
+			changes.set(*st)
+		}
+	}
 }
 
 func lowPrivMgr() (*mgr.Mgr, error) {
