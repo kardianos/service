@@ -150,7 +150,7 @@ func (s *systemd) Install() error {
 		return fmt.Errorf("Init already exists: %s", confPath)
 	}
 
-	f, err := os.OpenFile(confPath, os.O_WRONLY|os.O_CREATE, 0644)
+	f, err := os.OpenFile(confPath, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err
 	}
