@@ -16,7 +16,8 @@ import (
 var logger service.Logger
 
 // Program structures.
-//  Define Start and Stop methods.
+//
+//	Define Start and Stop methods.
 type program struct {
 	exit chan struct{}
 }
@@ -54,11 +55,12 @@ func (p *program) Stop(s service.Service) error {
 }
 
 // Service setup.
-//   Define service config.
-//   Create the service.
-//   Setup the logger.
-//   Handle service controls (optional).
-//   Run the service.
+//
+//	Define service config.
+//	Create the service.
+//	Setup the logger.
+//	Handle service controls (optional).
+//	Run the service.
 func main() {
 	svcFlag := flag.String("service", "", "Control the system service.")
 	flag.Parse()
