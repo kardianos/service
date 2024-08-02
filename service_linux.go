@@ -54,6 +54,15 @@ func init() {
 			new: newUpstartService,
 		},
 		linuxSystemService{
+			name:   "linux-procd",
+			detect: isProcd,
+			interactive: func() bool {
+				is, _ := isInteractive()
+				return is
+			},
+			new: newProcdService,
+		},
+		linuxSystemService{
 			name:   "linux-openrc",
 			detect: isOpenRC,
 			interactive: func() bool {
