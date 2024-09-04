@@ -210,7 +210,7 @@ func (s *systemd) Uninstall() error {
 	if err := os.Remove(cp); err != nil {
 		return err
 	}
-	return nil
+	return s.run("daemon-reload")
 }
 
 func (s *systemd) Logger(errs chan<- error) (Logger, error) {
