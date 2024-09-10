@@ -20,6 +20,9 @@ import (
 )
 
 func isSystemd() bool {
+	if _, err := exec.LookPath("rpm-ostree"); err == nil {
+		return true
+	}
 	if _, err := os.Stat("/run/systemd/system"); err == nil {
 		return true
 	}
