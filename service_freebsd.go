@@ -89,13 +89,12 @@ func (s *freebsdService) template() *template.Template {
 	}
 }
 
-func (s *freebsdService) configPath() (cp string, err error) {
+func (s *freebsdService) configPath() (string, error) {
 	if oserr := os.MkdirAll(configDir, 0755); oserr != nil {
-		err = oserr
-		return
+		return "", oserr
 	}
-	cp = filepath.Join(configDir, s.Config.Name)
-	return
+
+	return filepath.Join(configDir, s.Config.Name), nil
 }
 
 func (s *freebsdService) Install() error {

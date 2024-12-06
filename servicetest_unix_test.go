@@ -2,23 +2,23 @@
 // Use of this source code is governed by a zlib-style
 // license that can be found in the LICENSE file.
 
-//go:build darwin || dragonfly || freebsd || linux || nacl || netbsd || openbsd || solaris
-// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris
+//go:build darwin || dragonfly || freebsd || linux || nacl || netbsd || openbsd || solaris || aix || ppc64
+// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris aix ppc64
 
 package service_test
 
 import (
+	"log"
 	"os"
-	"testing"
 )
 
-func interruptProcess(t *testing.T) {
+func interruptProcess() {
 	pid := os.Getpid()
 	p, err := os.FindProcess(pid)
 	if err != nil {
-		t.Fatalf("FindProcess: %s", err)
+		log.Fatalf("FindProcess: %s", err)
 	}
 	if err := p.Signal(os.Interrupt); err != nil {
-		t.Fatalf("Signal: %s", err)
+		log.Fatalf("Signal: %s", err)
 	}
 }

@@ -14,22 +14,25 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/kardianos/service"
+	"github.com/kardianos/service" //nolint:depguard
 )
 
 // Config is the runner app config structure.
 type Config struct {
-	Name, DisplayName, Description string
+	Name        string `json:"name"`
+	DisplayName string `json:"displyName"`
+	Description string `json:"description"`
 
-	Dir  string
-	Exec string
-	Args []string
-	Env  []string
+	Dir  string   `json:"dir"`
+	Exec string   `json:"exec"`
+	Args []string `json:"args"`
+	Env  []string `json:"env"`
 
-	Stderr, Stdout string
+	Stderr string `json:"stderr"`
+	Stdout string `json:"stdout"`
 }
 
-var logger service.Logger
+var logger service.Logger //nolint:gochecknoglobals
 
 type program struct {
 	exit    chan struct{}
@@ -40,12 +43,12 @@ type program struct {
 	cmd *exec.Cmd
 }
 
-func (p *program) Start(s service.Service) error {
+func (p *program) Start(_ service.Service) error {
 	// Look for exec.
 	// Verify home directory.
 	fullExec, err := exec.LookPath(p.Exec)
 	if err != nil {
-		return fmt.Errorf("Failed to find executable %q: %v", p.Exec, err)
+		return fmt.Errorf("Failed to find executable %q: %w", p.Exec, err)
 	}
 
 	p.cmd = exec.Command(fullExec, p.Args...)
@@ -55,6 +58,8 @@ func (p *program) Start(s service.Service) error {
 	go p.run()
 	return nil
 }
+
+//nolint:errcheck
 func (p *program) run() {
 	logger.Info("Starting ", p.DisplayName)
 	defer func() {
@@ -66,16 +71,16 @@ func (p *program) run() {
 	}()
 
 	if p.Stderr != "" {
-		f, err := os.OpenFile(p.Stderr, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+		f, err := os.OpenFile(p.Stderr, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o777)
 		if err != nil {
-			logger.Warningf("Failed to open std err %q: %v", p.Stderr, err)
+			logger.Warningf("Failed to open std err %q: %w", p.Stderr, err)
 			return
 		}
 		defer f.Close()
 		p.cmd.Stderr = f
 	}
 	if p.Stdout != "" {
-		f, err := os.OpenFile(p.Stdout, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0777)
+		f, err := os.OpenFile(p.Stdout, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o777)
 		if err != nil {
 			logger.Warningf("Failed to open std out %q: %v", p.Stdout, err)
 			return
@@ -88,10 +93,10 @@ func (p *program) run() {
 	if err != nil {
 		logger.Warningf("Error running: %v", err)
 	}
-
-	return
 }
-func (p *program) Stop(s service.Service) error {
+
+//nolint:errcheck
+func (p *program) Stop(_ service.Service) error {
 	close(p.exit)
 	logger.Info("Stopping ", p.DisplayName)
 	if p.cmd.Process != nil {
@@ -181,13 +186,16 @@ func main() {
 	if len(*svcFlag) != 0 {
 		err := service.Control(s, *svcFlag)
 		if err != nil {
-			log.Printf("Valid actions: %q\n", service.ControlAction)
+			log.Printf("Valid actions: %q\n", []string{
+				service.ControlActionStart, service.ControlActionStop,
+				service.ControlActionRestart, service.ControlActionInstall, service.ControlActionUninstall,
+			})
 			log.Fatal(err)
 		}
 		return
 	}
 	err = s.Run()
 	if err != nil {
-		logger.Error(err)
+		_ = logger.Error(err)
 	}
 }

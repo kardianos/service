@@ -11,7 +11,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log/syslog"
 	"os/exec"
 	"syscall"
@@ -42,18 +41,23 @@ func (s sysLogger) send(err error) error {
 func (s sysLogger) Error(v ...interface{}) error {
 	return s.send(s.Writer.Err(fmt.Sprint(v...)))
 }
+
 func (s sysLogger) Warning(v ...interface{}) error {
 	return s.send(s.Writer.Warning(fmt.Sprint(v...)))
 }
+
 func (s sysLogger) Info(v ...interface{}) error {
 	return s.send(s.Writer.Info(fmt.Sprint(v...)))
 }
+
 func (s sysLogger) Errorf(format string, a ...interface{}) error {
 	return s.send(s.Writer.Err(fmt.Sprintf(format, a...)))
 }
+
 func (s sysLogger) Warningf(format string, a ...interface{}) error {
 	return s.send(s.Writer.Warning(fmt.Sprintf(format, a...)))
 }
+
 func (s sysLogger) Infof(format string, a ...interface{}) error {
 	return s.send(s.Writer.Info(fmt.Sprintf(format, a...)))
 }
@@ -77,41 +81,39 @@ func runCommand(command string, readStdout bool, arguments ...string) (int, stri
 	if readStdout {
 		// Connect pipe to read Stdout
 		stdout, err = cmd.StdoutPipe()
-
 		if err != nil {
 			// Failed to connect pipe
-			return 0, "", fmt.Errorf("%q failed to connect stdout pipe: %v", command, err)
+			return 0, "", fmt.Errorf("%q failed to connect stdout pipe: %w", command, err)
 		}
 	}
 
 	// Connect pipe to read Stderr
 	stderr, err := cmd.StderrPipe()
-
 	if err != nil {
 		// Failed to connect pipe
-		return 0, "", fmt.Errorf("%q failed to connect stderr pipe: %v", command, err)
+		return 0, "", fmt.Errorf("%q failed to connect stderr pipe: %w", command, err)
 	}
 
 	// Do not use cmd.Run()
 	if err := cmd.Start(); err != nil {
 		// Problem while copying stdin, stdout, or stderr
-		return 0, "", fmt.Errorf("%q failed: %v", command, err)
+		return 0, "", fmt.Errorf("%q failed: %w", command, err)
 	}
 
 	// Zero exit status
 	// Darwin: launchctl can fail with a zero exit status,
-	// so check for emtpy stderr
+	// so check for empty stderr
 	if command == "launchctl" {
-		slurp, _ := ioutil.ReadAll(stderr)
+		slurp, _ := io.ReadAll(stderr)
 		if len(slurp) > 0 && !bytes.HasSuffix(slurp, []byte("Operation now in progress\n")) {
 			return 0, "", fmt.Errorf("%q failed with stderr: %s", command, slurp)
 		}
 	}
 
 	if readStdout {
-		out, err := ioutil.ReadAll(stdout)
+		out, err := io.ReadAll(stdout)
 		if err != nil {
-			return 0, "", fmt.Errorf("%q failed while attempting to read stdout: %v", command, err)
+			return 0, "", fmt.Errorf("%q failed while attempting to read stdout: %w", command, err)
 		} else if len(out) > 0 {
 			output = string(out)
 		}
@@ -125,7 +127,7 @@ func runCommand(command string, readStdout bool, arguments ...string) (int, stri
 		}
 
 		// An error occurred and there is no exit status.
-		return 0, output, fmt.Errorf("%q failed: %v", command, err)
+		return 0, output, fmt.Errorf("%q failed: %w", command, err)
 	}
 
 	return 0, output, nil

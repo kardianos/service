@@ -8,22 +8,24 @@ package main
 import (
 	"log"
 
-	"github.com/kardianos/service"
+	"github.com/kardianos/service" //nolint:depguard
 )
 
-var logger service.Logger
+var logger service.Logger //nolint:gochecknoglobals
 
 type program struct{}
 
-func (p *program) Start(s service.Service) error {
+func (p *program) Start(_ service.Service) error {
 	// Start should not block. Do the actual work async.
 	go p.run()
 	return nil
 }
+
 func (p *program) run() {
 	// Do work here
 }
-func (p *program) Stop(s service.Service) error {
+
+func (p *program) Stop(_ service.Service) error {
 	// Stop should not block. Return with a few seconds.
 	return nil
 }
@@ -46,6 +48,6 @@ func main() {
 	}
 	err = s.Run()
 	if err != nil {
-		logger.Error(err)
+		_ = logger.Error(err)
 	}
 }

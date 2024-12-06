@@ -6,44 +6,18 @@ package service
 
 import (
 	"errors"
-	"io/ioutil"
 	"os"
 	"testing"
 )
 
-// createTestCgroupFiles creates mock files for tests
+// createTestCgroupFiles creates mock files for tests.
 func createTestCgroupFiles() (*os.File, *os.File, error) {
-	// docker cgroup setup
-	hDockerGrp, err := ioutil.TempFile("", "*")
-	if err != nil {
-		return nil, nil, errors.New("docker tempfile create failed")
-	}
-	_, err = hDockerGrp.Write([]byte(dockerCgroup))
-	if err != nil {
-		return nil, nil, errors.New("docker tempfile write failed")
-	}
-
-	// linux cgroup setup
-	hLinuxGrp, err := ioutil.TempFile("", "*")
-	if err != nil {
-		return nil, nil, errors.New("\"normal\" tempfile  create failed")
-	}
-	_, err = hLinuxGrp.Write([]byte(linuxCgroup))
-	if err != nil {
-		return nil, nil, errors.New("\"normal\" tempfile write failed")
-	}
-
-	return hDockerGrp, hLinuxGrp, nil
-}
-
-// createTestMountInfoFiles creates mock files for tests
-func createTestMountInfoFiles() (*os.File, *os.File, error) {
 	// docker cgroup setup
 	hDockerGrp, err := os.CreateTemp("", "*")
 	if err != nil {
 		return nil, nil, errors.New("docker tempfile create failed")
 	}
-	_, err = hDockerGrp.Write([]byte(dockerMountInfo))
+	_, err = hDockerGrp.WriteString(dockerCgroup)
 	if err != nil {
 		return nil, nil, errors.New("docker tempfile write failed")
 	}
@@ -53,7 +27,7 @@ func createTestMountInfoFiles() (*os.File, *os.File, error) {
 	if err != nil {
 		return nil, nil, errors.New("\"normal\" tempfile  create failed")
 	}
-	_, err = hLinuxGrp.Write([]byte(linuxMountInfo))
+	_, err = hLinuxGrp.WriteString(linuxCgroup)
 	if err != nil {
 		return nil, nil, errors.New("\"normal\" tempfile write failed")
 	}
@@ -61,14 +35,38 @@ func createTestMountInfoFiles() (*os.File, *os.File, error) {
 	return hDockerGrp, hLinuxGrp, nil
 }
 
-// removeTestFile closes and removes the provided file
+// createTestMountInfoFiles creates mock files for tests.
+func createTestMountInfoFiles() (*os.File, *os.File, error) {
+	// docker cgroup setup
+	hDockerGrp, err := os.CreateTemp("", "*")
+	if err != nil {
+		return nil, nil, errors.New("docker tempfile create failed")
+	}
+	_, err = hDockerGrp.WriteString(dockerMountInfo)
+	if err != nil {
+		return nil, nil, errors.New("docker tempfile write failed")
+	}
+
+	// linux cgroup setup
+	hLinuxGrp, err := os.CreateTemp("", "*")
+	if err != nil {
+		return nil, nil, errors.New("\"normal\" tempfile  create failed")
+	}
+	_, err = hLinuxGrp.WriteString(linuxMountInfo)
+	if err != nil {
+		return nil, nil, errors.New("\"normal\" tempfile write failed")
+	}
+
+	return hDockerGrp, hLinuxGrp, nil
+}
+
+// removeTestFile closes and removes the provided file.
 func removeTestFile(hFile *os.File) {
 	hFile.Close()
 	os.Remove(hFile.Name())
 }
 
-func Test_isInContainerCGroup(t *testing.T) {
-
+func Test_isInContainerCGroup(t *testing.T) { //nolint:dupl
 	// setup
 	hDockerGrp, hLinuxGrp, err := createTestCgroupFiles()
 	if err != nil {
@@ -106,8 +104,8 @@ func Test_isInContainerCGroup(t *testing.T) {
 		})
 	}
 }
-func Test_isInContainerMountInfo(t *testing.T) {
 
+func Test_isInContainerMountInfo(t *testing.T) { //nolint:dupl
 	// setup
 	hDockerGrp, hLinuxGrp, err := createTestMountInfoFiles()
 	if err != nil {
@@ -147,7 +145,6 @@ func Test_isInContainerMountInfo(t *testing.T) {
 }
 
 func Test_isInContainerDockerEnv(t *testing.T) {
-
 	// TEST
 	type args struct {
 		filePath string
@@ -176,7 +173,6 @@ func Test_isInContainerDockerEnv(t *testing.T) {
 }
 
 func Test_isInteractive(t *testing.T) {
-
 	// setup
 	hDockerGrp, hLinuxGrp, err := createTestCgroupFiles()
 	if err != nil {
@@ -199,7 +195,8 @@ func Test_isInteractive(t *testing.T) {
 		want    bool
 		wantErr bool
 	}{
-		{"docker",
+		{
+			"docker",
 			func() {
 				strStack <- cgroupFile
 				cgroupFile = hDockerGrp.Name()
@@ -209,7 +206,8 @@ func Test_isInteractive(t *testing.T) {
 			},
 			true, false,
 		},
-		{"linux",
+		{
+			"linux",
 			func() {
 				strStack <- cgroupFile
 				cgroupFile = hLinuxGrp.Name()
@@ -264,6 +262,7 @@ const (
 1:name=systemd:/init.scope
 0::/init.scope`
 
+	//nolint:lll,dupword
 	dockerMountInfo = `3860 3859 0:159 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=666
 3861 3857 0:160 / /sys ro,nosuid,nodev,noexec,relatime - sysfs sysfs ro
 3862 3861 0:29 / /sys/fs/cgroup ro,nosuid,nodev,noexec,relatime - cgroup2 cgroup rw
@@ -277,6 +276,7 @@ const (
 3777 3858 0:157 /bus /proc/bus ro,nosuid,nodev,noexec,relatime - proc proc rw
 3778 3858 0:157 /fs /proc/fs ro,nosuid,nodev,noexec,relatime - proc proc rw`
 
+	//nolint:lll,dupword
 	linuxMountInfo = `183 28 0:44 / /run/credentials/systemd-tmpfiles-setup.service ro,nosuid,nodev,noexec,relatime,nosymfollow shared:103 - tmpfs tmpfs rw,size=1024k,nr_inodes=1024,mode=700,inode64,noswap
 129 36 0:45 / /proc/sys/fs/binfmt_misc rw,nosuid,nodev,noexec,relatime shared:105 - binfmt_misc binfmt_misc rw
 407 28 0:48 / /run/credentials/systemd-resolved.service ro,nosuid,nodev,noexec,relatime,nosymfollow shared:107 - tmpfs tmpfs rw,size=1024k,nr_inodes=1024,mode=700,inode64,noswap

@@ -8,14 +8,15 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 )
 
-var cgroupFile = "/proc/1/cgroup"
-var mountInfoFile = "/proc/self/mountinfo"
-var dockerEnvFile = "/.dockerenv"
+var (
+	cgroupFile    = "/proc/1/cgroup"       //nolint:gochecknoglobals
+	mountInfoFile = "/proc/self/mountinfo" //nolint:gochecknoglobals
+	dockerEnvFile = "/.dockerenv"          //nolint:gochecknoglobals
+)
 
 type linuxSystemService struct {
 	name        string
@@ -27,17 +28,20 @@ type linuxSystemService struct {
 func (sc linuxSystemService) String() string {
 	return sc.name
 }
+
 func (sc linuxSystemService) Detect() bool {
 	return sc.detect()
 }
+
 func (sc linuxSystemService) Interactive() bool {
 	return sc.interactive()
 }
+
 func (sc linuxSystemService) New(i Interface, c *Config) (Service, error) {
 	return sc.new(i, sc.String(), c)
 }
 
-func init() {
+func init() { //nolint:gochecknoinits
 	ChooseSystem(linuxSystemService{
 		name:   "linux-systemd",
 		detect: isSystemd,
@@ -88,7 +92,7 @@ func init() {
 
 func binaryName(pid int) (string, error) {
 	statPath := fmt.Sprintf("/proc/%d/stat", pid)
-	dataBytes, err := ioutil.ReadFile(statPath)
+	dataBytes, err := os.ReadFile(statPath)
 	if err != nil {
 		return "", err
 	}
@@ -200,11 +204,13 @@ func isInContainerCGroup(cgroupPath string) (bool, error) {
 	return false, nil
 }
 
-var tf = map[string]interface{}{
-	"cmd": func(s string) string {
-		return `"` + strings.Replace(s, `"`, `\"`, -1) + `"`
-	},
-	"cmdEscape": func(s string) string {
-		return strings.Replace(s, " ", `\x20`, -1)
-	},
+func getTemplateFunctions() map[string]interface{} {
+	return map[string]interface{}{
+		"cmd": func(s string) string {
+			return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
+		},
+		"cmdEscape": func(s string) string {
+			return strings.ReplaceAll(s, " ", `\x20`)
+		},
+	}
 }
