@@ -1,0 +1,84 @@
+# This workflow will install Go dependencies, run tests for 4 versions of Go
+# For more information see: https://support.github.com/features/actions
+
+name: Unit tests
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/*.yml"
+      - "**/*.go"
+      - "**/go.mod"
+      - "**/go.sum"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  go-test:
+    name: Run go unit tests
+    strategy:
+      matrix:
+        go-version: ["1.18", "1.19", "1.23"]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Install Go"
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - uses: actions/checkout@v3
+
+      - name: Install test dependencies
+        run: |
+          go get github.com/boumenot/gocover-cobertura
+
+      - name: Install project dependencies
+        run: go build
+
+      - name: Run test
+        run: |
+          # run test:
+          PKGS=$(go list ./... | grep -v /vendor/)
+          DEPS=$(go list ./... | grep -v vendor | grep -v test | xargs | sed 's/ /,/g')
+          go test ${PKGS} -v \
+            -coverprofile=coverage_${{ matrix.go-version }}.out \
+            -covermode=count \
+            -coverpkg ${DEPS} 2>&1
+
+      - name: Generate code coverage report
+        run: |
+          go run github.com/boumenot/gocover-cobertura < coverage_${{ matrix.go-version }}.out > coverage-unit_${{ matrix.go-version }}.xml
+
+      - name: compute valid coverage total
+        run: |
+          go tool cover -func=coverage_${{ matrix.go-version }}.out
+
+      - name: Code Coverage Report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        if: matrix.go-version == '1.19'
+        with:
+          # will generate code-coverage-results.md
+          filename: coverage-unit_*.xml
+          badge: true
+          fail_below_min: true
+          format: markdown
+          hide_branch_rate: false
+          hide_complexity: true
+          indicators: true
+          output: both
+          thresholds: "5 10"
+
+      - name: Add coverage comment to PR
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: matrix.go-version == '1.19' && github.event_name == 'pull_request'
+        with:
+          path: code-coverage-results.md
+
+      - name: Upload coverage results
+        uses: actions/upload-artifact@v3
+        with:
+          name: go-coverage-results
+          path: coverage-unit_*.xml
