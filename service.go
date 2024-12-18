@@ -59,7 +59,7 @@
 //			logger.Error(err)
 //		}
 //	}
-package service // import "github.com/kardianos/service"
+package service // import "github.com/patchsimple/service"
 
 import (
 	"errors"
