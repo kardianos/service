@@ -55,7 +55,7 @@ func (p *procd) Install() error {
 	}
 	_, err = os.Stat(confPath)
 	if err == nil {
-		return fmt.Errorf("Init already exists: %p", confPath)
+		return fmt.Errorf("init already exists: %q", confPath)
 	}
 
 	f, err := os.Create(confPath)
