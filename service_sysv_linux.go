@@ -42,24 +42,23 @@ func (s *sysv) Platform() string {
 	return s.platform
 }
 
-var errNoUserServiceSystemV = errors.New("User services are not supported on SystemV.")
+var errNoUserServiceSystemV = errors.New("User services are not supported on SystemV.") //nolint:revive
 
-func (s *sysv) configPath() (cp string, err error) {
+func (s *sysv) configPath() (string, error) {
 	if s.Option.bool(optionUserService, optionUserServiceDefault) {
-		err = errNoUserServiceSystemV
-		return
+		return "", errNoUserServiceSystemV
 	}
-	cp = "/etc/init.d/" + s.Config.Name
-	return
+
+	return "/etc/init.d/" + s.Config.Name, nil
 }
 
 func (s *sysv) template() *template.Template {
 	customScript := s.Option.string(optionSysvScript, "")
 
 	if customScript != "" {
-		return template.Must(template.New("").Funcs(tf).Parse(customScript))
+		return template.Must(template.New("").Funcs(getTemplateFunctions()).Parse(customScript))
 	}
-	return template.Must(template.New("").Funcs(tf).Parse(sysvScript))
+	return template.Must(template.New("").Funcs(getTemplateFunctions()).Parse(sysvScript))
 }
 
 func (s *sysv) Install() error {
@@ -83,7 +82,7 @@ func (s *sysv) Install() error {
 		return err
 	}
 
-	var to = &struct {
+	to := &struct {
 		*Config
 		Path         string
 		LogDirectory string
@@ -98,7 +97,7 @@ func (s *sysv) Install() error {
 		return err
 	}
 
-	if err = os.Chmod(confPath, 0755); err != nil {
+	if err = os.Chmod(confPath, 0o755); err != nil {
 		return err
 	}
 	for _, i := range [...]string{"2", "3", "4", "5"} {
@@ -132,18 +131,19 @@ func (s *sysv) Logger(errs chan<- error) (Logger, error) {
 	}
 	return s.SystemLogger(errs)
 }
+
 func (s *sysv) SystemLogger(errs chan<- error) (Logger, error) {
 	return newSysLogger(s.Name, errs)
 }
 
-func (s *sysv) Run() (err error) {
-	err = s.i.Start(s)
+func (s *sysv) Run() error {
+	err := s.i.Start(s)
 	if err != nil {
 		return err
 	}
 
 	s.Option.funcSingle(optionRunWait, func() {
-		var sigChan = make(chan os.Signal, 3)
+		sigChan := make(chan os.Signal, 3)
 		signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
 		<-sigChan
 	})()
@@ -184,6 +184,7 @@ func (s *sysv) Restart() error {
 	return s.Start()
 }
 
+//nolint:dupword
 const sysvScript = `#!/bin/sh
 # For RedHat and cousins:
 # chkconfig: - 99 01

@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-// versionAtMost will return true if the provided version is less than or equal to max
-func versionAtMost(version, max []int) (bool, error) {
-	if comp, err := versionCompare(version, max); err != nil {
+// versionAtMost will return true if the provided version is less than or equal to max.
+func versionAtMost(version, maxVersion []int) (bool, error) {
+	if comp, err := versionCompare(version, maxVersion); err != nil {
 		return false, err
 	} else if comp == 1 {
 		return false, nil
@@ -21,7 +21,7 @@ func versionAtMost(version, max []int) (bool, error) {
 // Return values are as follows
 // -1 - v1 is less than v2
 // 0  - v1 is equal to v2
-// 1  - v1 is greater than v2
+// 1  - v1 is greater than v2.
 func versionCompare(v1, v2 []int) (int, error) {
 	if len(v1) != len(v2) {
 		return 0, errors.New("version length mismatch")

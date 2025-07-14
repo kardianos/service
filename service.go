@@ -99,10 +99,10 @@ const (
 	optionLogDirectory = "LogDirectory"
 )
 
-// Status represents service status as an byte value
+// Status represents service status as an byte value.
 type Status byte
 
-// Status of service represented as an byte
+// Status of service represented as an byte.
 const (
 	StatusUnknown Status = iota // Status is unable to be determined due to an error or it was not installed.
 	StatusRunning
@@ -141,6 +141,7 @@ type Config struct {
 	EnvVars map[string]string
 }
 
+//nolint:gochecknoglobals
 var (
 	system         System
 	systemRegistry []System
@@ -148,9 +149,9 @@ var (
 
 var (
 	// ErrNameFieldRequired is returned when Config.Name is empty.
-	ErrNameFieldRequired = errors.New("Config.Name field is required.")
+	ErrNameFieldRequired = errors.New("Config.Name field is required.") //nolint:revive
 	// ErrNoServiceSystemDetected is returned when no system was detected.
-	ErrNoServiceSystemDetected = errors.New("No service system detected.")
+	ErrNoServiceSystemDetected = errors.New("No service system detected.") //nolint:revive
 	// ErrNotInstalled is returned when the service is not installed.
 	ErrNotInstalled = errors.New("the service is not installed")
 )
@@ -231,6 +232,8 @@ func New(i Interface, c *Config) (Service, error) {
 //   - OnFailureDelayDuration  string ( "1s" )       - Delay before restarting the service, time.Duration string.
 //
 //   - OnFailureResetPeriod    int ( 10 )            - Reset period for errors, seconds.
+//
+//nolint:lll
 type KeyValue map[string]interface{}
 
 // bool returns the value of the given name, assuming the value is a boolean.
@@ -268,7 +271,7 @@ func (kv KeyValue) string(name string, defaultValue string) string {
 
 // float64 returns the value of the given name, assuming the value is a float64.
 // If the value isn't found or is not of the type, the defaultValue is returned.
-func (kv KeyValue) float64(name string, defaultValue float64) float64 {
+func (kv KeyValue) float64(name string, defaultValue float64) float64 { //nolint:unused
 	if v, found := kv[name]; found {
 		if castValue, is := v.(float64); is {
 			return castValue
@@ -307,7 +310,7 @@ func Interactive() bool {
 
 func newSystem() System {
 	for _, choice := range systemRegistry {
-		if choice.Detect() == false {
+		if !choice.Detect() {
 			continue
 		}
 		return choice
@@ -388,7 +391,7 @@ type Shutdowner interface {
 // TODO: Add Configure to Service interface.
 
 // Service represents a service that can be run or controlled.
-type Service interface {
+type Service interface { //nolint:interfacebloat
 	// Run should be called shortly after the program entry point.
 	// After Interface.Stop has finished running, Run will stop blocking.
 	// After Run stops blocking, the program must exit shortly after.
@@ -434,27 +437,33 @@ type Service interface {
 }
 
 // ControlAction list valid string texts to use in Control.
-var ControlAction = [5]string{"start", "stop", "restart", "install", "uninstall"}
+const (
+	ControlActionStart     = "start"
+	ControlActionStop      = "stop"
+	ControlActionRestart   = "restart"
+	ControlActionInstall   = "install"
+	ControlActionUninstall = "uninstall"
+)
 
 // Control issues control functions to the service from a given action string.
 func Control(s Service, action string) error {
 	var err error
 	switch action {
-	case ControlAction[0]:
+	case ControlActionStart:
 		err = s.Start()
-	case ControlAction[1]:
+	case ControlActionStop:
 		err = s.Stop()
-	case ControlAction[2]:
+	case ControlActionRestart:
 		err = s.Restart()
-	case ControlAction[3]:
+	case ControlActionInstall:
 		err = s.Install()
-	case ControlAction[4]:
+	case ControlActionUninstall:
 		err = s.Uninstall()
 	default:
 		err = fmt.Errorf("Unknown action %s", action)
 	}
 	if err != nil {
-		return fmt.Errorf("Failed to %s %v: %v", action, s, err)
+		return fmt.Errorf("Failed to %s %v: %w", action, s, err)
 	}
 	return nil
 }

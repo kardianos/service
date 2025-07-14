@@ -59,15 +59,14 @@ func (s *upstart) Platform() string {
 // Upstart has some support for user services in graphical sessions.
 // Due to the mix of actual support for user services over versions, just don't bother.
 // Upstart will be replaced by systemd in most cases anyway.
-var errNoUserServiceUpstart = errors.New("User services are not supported on Upstart.")
+var errNoUserServiceUpstart = errors.New("User services are not supported on Upstart.") //nolint:revive
 
-func (s *upstart) configPath() (cp string, err error) {
+func (s *upstart) configPath() (string, error) {
 	if s.Option.bool(optionUserService, optionUserServiceDefault) {
-		err = errNoUserServiceUpstart
-		return
+		return "", errNoUserServiceUpstart
 	}
-	cp = "/etc/init/" + s.Config.Name + ".conf"
-	return
+
+	return "/etc/init/" + s.Config.Name + ".conf", nil
 }
 
 func (s *upstart) hasKillStanza() bool {
@@ -119,10 +118,10 @@ func (s *upstart) template() *template.Template {
 	customScript := s.Option.string(optionUpstartScript, "")
 
 	if customScript != "" {
-		return template.Must(template.New("").Funcs(tf).Parse(customScript))
-	} else {
-		return template.Must(template.New("").Funcs(tf).Parse(upstartScript))
+		return template.Must(template.New("").Funcs(getTemplateFunctions()).Parse(customScript))
 	}
+
+	return template.Must(template.New("").Funcs(getTemplateFunctions()).Parse(upstartScript))
 }
 
 func (s *upstart) Install() error {
@@ -146,7 +145,7 @@ func (s *upstart) Install() error {
 		return err
 	}
 
-	var to = &struct {
+	to := &struct {
 		*Config
 		Path            string
 		HasKillStanza   bool
@@ -182,18 +181,19 @@ func (s *upstart) Logger(errs chan<- error) (Logger, error) {
 	}
 	return s.SystemLogger(errs)
 }
+
 func (s *upstart) SystemLogger(errs chan<- error) (Logger, error) {
 	return newSysLogger(s.Name, errs)
 }
 
-func (s *upstart) Run() (err error) {
-	err = s.i.Start(s)
+func (s *upstart) Run() error {
+	err := s.i.Start(s)
 	if err != nil {
 		return err
 	}
 
 	s.Option.funcSingle(optionRunWait, func() {
-		var sigChan = make(chan os.Signal, 3)
+		sigChan := make(chan os.Signal, 3)
 		signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
 		<-sigChan
 	})()
@@ -208,9 +208,9 @@ func (s *upstart) Status() (Status, error) {
 	}
 
 	switch {
-	case strings.HasPrefix(out, fmt.Sprintf("%s start/running", s.Name)):
+	case strings.HasPrefix(out, s.Name+" start/running"):
 		return StatusRunning, nil
-	case strings.HasPrefix(out, fmt.Sprintf("%s stop/waiting", s.Name)):
+	case strings.HasPrefix(out, s.Name+" stop/waiting"):
 		return StatusStopped, nil
 	default:
 		return StatusUnknown, ErrNotInstalled
@@ -231,6 +231,8 @@ func (s *upstart) Restart() error {
 
 // The upstart script should stop with an INT or the Go runtime will terminate
 // the program before the Stop handler can run.
+//
+//nolint:lll,dupword
 const upstartScript = `# {{.Description}}
 
 {{if .DisplayName}}description    "{{.DisplayName}}"{{end}}
@@ -259,7 +261,7 @@ script
 	stdout_log="{{.LogDirectory}}/{{.Name}}.out"
 	stderr_log="{{.LogDirectory}}/{{.Name}}.err"
 	{{end}}
-	
+
 	if [ -f "/etc/sysconfig/{{.Name}}" ]; then
 		set -a
 		source /etc/sysconfig/{{.Name}}

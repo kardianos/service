@@ -34,7 +34,7 @@ func isSystemd() bool {
 		defer filerc.Close()
 
 		buf := new(bytes.Buffer)
-		buf.ReadFrom(filerc)
+		_, _ = buf.ReadFrom(filerc)
 		contents := buf.String()
 
 		if strings.Trim(contents, " \r\n") == "systemd" {
@@ -71,22 +71,21 @@ func (s *systemd) Platform() string {
 	return s.platform
 }
 
-func (s *systemd) configPath() (cp string, err error) {
+func (s *systemd) configPath() (string, error) {
 	if !s.isUserService() {
-		cp = "/etc/systemd/system/" + s.unitName()
-		return
+		return "/etc/systemd/system/" + s.unitName(), nil
 	}
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return
+		return "", err
 	}
 	systemdUserDir := filepath.Join(homeDir, ".config/systemd/user")
 	err = os.MkdirAll(systemdUserDir, os.ModePerm)
 	if err != nil {
-		return
+		return "", err
 	}
-	cp = filepath.Join(systemdUserDir, s.unitName())
-	return
+
+	return filepath.Join(systemdUserDir, s.unitName()), nil
 }
 
 func (s *systemd) unitName() string {
@@ -131,9 +130,9 @@ func (s *systemd) template() *template.Template {
 	customScript := s.Option.string(optionSystemdScript, "")
 
 	if customScript != "" {
-		return template.Must(template.New("").Funcs(tf).Parse(customScript))
+		return template.Must(template.New("").Funcs(getTemplateFunctions()).Parse(customScript))
 	}
-	return template.Must(template.New("").Funcs(tf).Parse(systemdScript))
+	return template.Must(template.New("").Funcs(getTemplateFunctions()).Parse(systemdScript))
 }
 
 func (s *systemd) isUserService() bool {
@@ -150,7 +149,7 @@ func (s *systemd) Install() error {
 		return fmt.Errorf("Init already exists: %s", confPath)
 	}
 
-	f, err := os.OpenFile(confPath, os.O_WRONLY|os.O_CREATE, 0644)
+	f, err := os.OpenFile(confPath, os.O_WRONLY|os.O_CREATE, 0o644)
 	if err != nil {
 		return err
 	}
@@ -161,7 +160,7 @@ func (s *systemd) Install() error {
 		return err
 	}
 
-	var to = &struct {
+	to := &struct {
 		*Config
 		Path                 string
 		HasOutputFileSupport bool
@@ -219,18 +218,19 @@ func (s *systemd) Logger(errs chan<- error) (Logger, error) {
 	}
 	return s.SystemLogger(errs)
 }
+
 func (s *systemd) SystemLogger(errs chan<- error) (Logger, error) {
 	return newSysLogger(s.Name, errs)
 }
 
-func (s *systemd) Run() (err error) {
-	err = s.i.Start(s)
+func (s *systemd) Run() error {
+	err := s.i.Start(s)
 	if err != nil {
 		return err
 	}
 
 	s.Option.funcSingle(optionRunWait, func() {
-		var sigChan = make(chan os.Signal, 3)
+		sigChan := make(chan os.Signal, 3)
 		signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
 		<-sigChan
 	})()
@@ -301,7 +301,7 @@ func (s *systemd) runAction(action string) error {
 const systemdScript = `[Unit]
 Description={{.Description}}
 ConditionFileIsExecutable={{.Path|cmdEscape}}
-{{range $i, $dep := .Dependencies}} 
+{{range $i, $dep := .Dependencies}}
 {{$dep}} {{end}}
 
 [Service]

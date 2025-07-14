@@ -25,15 +25,13 @@ func isOpenRC() bool {
 		defer filerc.Close()
 
 		buf := new(bytes.Buffer)
-		buf.ReadFrom(filerc)
+		_, _ = buf.ReadFrom(filerc)
 		contents := buf.String()
 
 		re := regexp.MustCompile(`::sysinit:.*openrc.*sysinit`)
 		matches := re.FindStringSubmatch(contents)
-		if len(matches) > 0 {
-			return true
-		}
-		return false
+
+		return len(matches) > 0
 	}
 	return false
 }
@@ -59,9 +57,9 @@ func (s *openrc) template() *template.Template {
 	customScript := s.Option.string(optionOpenRCScript, "")
 
 	if customScript != "" {
-		return template.Must(template.New("").Funcs(tf).Parse(customScript))
+		return template.Must(template.New("").Funcs(getTemplateFunctions()).Parse(customScript))
 	}
-	return template.Must(template.New("").Funcs(tf).Parse(openRCScript))
+	return template.Must(template.New("").Funcs(getTemplateFunctions()).Parse(openRCScript))
 }
 
 func newOpenRCService(i Interface, platform string, c *Config) (Service, error) {
@@ -75,13 +73,12 @@ func newOpenRCService(i Interface, platform string, c *Config) (Service, error) 
 
 var errNoUserServiceOpenRC = errors.New("user services are not supported on OpenRC")
 
-func (s *openrc) configPath() (cp string, err error) {
+func (s *openrc) configPath() (string, error) {
 	if s.Option.bool(optionUserService, optionUserServiceDefault) {
-		err = errNoUserServiceOpenRC
-		return
+		return "", errNoUserServiceOpenRC
 	}
-	cp = "/etc/init.d/" + s.Config.Name
-	return
+
+	return "/etc/init.d/" + s.Config.Name, nil
 }
 
 func (s *openrc) Install() error {
@@ -100,7 +97,7 @@ func (s *openrc) Install() error {
 	}
 	defer f.Close()
 
-	err = os.Chmod(confPath, 0755)
+	err = os.Chmod(confPath, 0o755)
 	if err != nil {
 		return err
 	}
@@ -110,7 +107,7 @@ func (s *openrc) Install() error {
 		return err
 	}
 
-	var to = &struct {
+	to := &struct {
 		*Config
 		Path         string
 		LogDirectory string
@@ -150,14 +147,14 @@ func (s *openrc) SystemLogger(errs chan<- error) (Logger, error) {
 	return newSysLogger(s.Name, errs)
 }
 
-func (s *openrc) Run() (err error) {
-	err = s.i.Start(s)
+func (s *openrc) Run() error {
+	err := s.i.Start(s)
 	if err != nil {
 		return err
 	}
 
 	s.Option.funcSingle(optionRunWait, func() {
-		var sigChan = make(chan os.Signal, 3)
+		sigChan := make(chan os.Signal, 3)
 		signal.Notify(sigChan, syscall.SIGTERM, os.Interrupt)
 		<-sigChan
 	})()
@@ -185,7 +182,7 @@ func (s *openrc) Status() (Status, error) {
 			case exitCode == 3:
 				return StatusStopped, nil
 			default:
-				return StatusUnknown, fmt.Errorf("unknown error: %v - %v", out, err)
+				return StatusUnknown, fmt.Errorf("unknown error: %v - %w", out, err)
 			}
 		} else {
 			return StatusUnknown, err
@@ -236,7 +233,7 @@ export {{$k}}={{$v}}
 
 {{- if .Dependencies }}
 depend() {
-{{- range $i, $dep := .Dependencies}} 
+{{- range $i, $dep := .Dependencies}}
 {{"\t"}}{{$dep}}{{end}}
 }
 {{- end}}

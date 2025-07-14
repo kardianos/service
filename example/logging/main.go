@@ -10,10 +10,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/kardianos/service"
+	"github.com/kardianos/service" //nolint:depguard
 )
 
-var logger service.Logger
+var logger service.Logger //nolint:gochecknoglobals
 
 // Program structures.
 //
@@ -22,7 +22,8 @@ type program struct {
 	exit chan struct{}
 }
 
-func (p *program) Start(s service.Service) error {
+//nolint:errcheck
+func (p *program) Start(_ service.Service) error {
 	if service.Interactive() {
 		logger.Info("Running in terminal.")
 	} else {
@@ -34,6 +35,8 @@ func (p *program) Start(s service.Service) error {
 	go p.run()
 	return nil
 }
+
+//nolint:errcheck,unparam
 func (p *program) run() error {
 	logger.Infof("I'm running %v.", service.Platform())
 	ticker := time.NewTicker(2 * time.Second)
@@ -47,7 +50,9 @@ func (p *program) run() error {
 		}
 	}
 }
-func (p *program) Stop(s service.Service) error {
+
+//nolint:errcheck
+func (p *program) Stop(_ service.Service) error {
 	// Any work in Stop should be quick, usually a few seconds at most.
 	logger.Info("I'm Stopping!")
 	close(p.exit)
@@ -74,7 +79,8 @@ func main() {
 		Description: "This is an example Go service that outputs log messages.",
 		Dependencies: []string{
 			"Requires=network.target",
-			"After=network-online.target syslog.target"},
+			"After=network-online.target syslog.target",
+		},
 		Option: options,
 	}
 
@@ -101,13 +107,16 @@ func main() {
 	if len(*svcFlag) != 0 {
 		err := service.Control(s, *svcFlag)
 		if err != nil {
-			log.Printf("Valid actions: %q\n", service.ControlAction)
+			log.Printf("Valid actions: %q\n", []string{
+				service.ControlActionStart, service.ControlActionStop,
+				service.ControlActionRestart, service.ControlActionInstall, service.ControlActionUninstall,
+			})
 			log.Fatal(err)
 		}
 		return
 	}
 	err = s.Run()
 	if err != nil {
-		logger.Error(err)
+		_ = logger.Error(err)
 	}
 }

@@ -1,0 +1,30 @@
+linters:
+  # Enable all available linters.
+  # Default: false
+  enable-all: true
+  # Disable specific linter
+  # https://golangci-lint.run/usage/linters/#disabled-by-default
+  disable:
+    - copyloopvar # we use a too old go version
+    - intrange # we use a too old go version
+    - execinquery # deprecated
+    - exportloopref # deprecated
+    # - depguard
+    # - gci
+    # - godox
+    # - gofumpt
+    - gomnd
+    - wsl
+    - wrapcheck # old code => no wrapped error
+    - varnamelen
+    - paralleltest
+    - ireturn
+    - mnd
+    - testpackage
+    - err113 # old code => no wrapped error
+    - stylecheck
+    - cyclop
+    #    - revive
+    - nlreturn
+    - exhaustruct
+

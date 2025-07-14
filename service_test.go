@@ -5,11 +5,12 @@
 package service_test
 
 import (
+	"log"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/kardianos/service"
+	"github.com/kardianos/service" //nolint:depguard
 )
 
 func TestRunInterrupt(t *testing.T) {
@@ -24,7 +25,7 @@ func TestRunInterrupt(t *testing.T) {
 
 	go func() {
 		<-time.After(1 * time.Second)
-		interruptProcess(t)
+		interruptProcess()
 	}()
 
 	go func() {
@@ -32,7 +33,7 @@ func TestRunInterrupt(t *testing.T) {
 			<-time.After(200 * time.Millisecond)
 		}
 		if p.numStopped == 0 {
-			t.Fatal("Run() hasn't been stopped")
+			log.Fatal("Run() hasn't been stopped")
 		}
 	}()
 
@@ -43,7 +44,7 @@ func TestRunInterrupt(t *testing.T) {
 
 const testInstallEnv = "TEST_USER_INSTALL"
 
-// Should always run, without asking for any permission
+// Should always run, without asking for any permission.
 func TestUserRunInterrupt(t *testing.T) {
 	if os.Getenv(testInstallEnv) != "1" {
 		t.Skipf("env %q is not set to 1", testInstallEnv)
@@ -73,14 +74,16 @@ type program struct {
 	numStopped int
 }
 
-func (p *program) Start(s service.Service) error {
+func (p *program) Start(_ service.Service) error {
 	go p.run()
 	return nil
 }
+
 func (p *program) run() {
 	// Do work here
 }
-func (p *program) Stop(s service.Service) error {
+
+func (p *program) Stop(_ service.Service) error {
 	p.numStopped++
 	return nil
 }

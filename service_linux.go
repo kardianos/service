@@ -6,13 +6,17 @@ package service
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 )
 
-var cgroupFile = "/proc/1/cgroup"
+var (
+	cgroupFile    = "/proc/1/cgroup"       //nolint:gochecknoglobals
+	mountInfoFile = "/proc/self/mountinfo" //nolint:gochecknoglobals
+	dockerEnvFile = "/.dockerenv"          //nolint:gochecknoglobals
+)
 
 type linuxSystemService struct {
 	name        string
@@ -24,17 +28,20 @@ type linuxSystemService struct {
 func (sc linuxSystemService) String() string {
 	return sc.name
 }
+
 func (sc linuxSystemService) Detect() bool {
 	return sc.detect()
 }
+
 func (sc linuxSystemService) Interactive() bool {
 	return sc.interactive()
 }
+
 func (sc linuxSystemService) New(i Interface, c *Config) (Service, error) {
 	return sc.new(i, sc.String(), c)
 }
 
-func init() {
+func init() { //nolint:gochecknoinits
 	ChooseSystem(linuxSystemService{
 		name:   "linux-systemd",
 		detect: isSystemd,
@@ -94,7 +101,7 @@ func init() {
 
 func binaryName(pid int) (string, error) {
 	statPath := fmt.Sprintf("/proc/%d/stat", pid)
-	dataBytes, err := ioutil.ReadFile(statPath)
+	dataBytes, err := os.ReadFile(statPath)
 	if err != nil {
 		return "", err
 	}
@@ -107,7 +114,7 @@ func binaryName(pid int) (string, error) {
 }
 
 func isInteractive() (bool, error) {
-	inContainer, err := isInContainer(cgroupFile)
+	inContainer, err := isInContainer()
 	if err != nil {
 		return false, err
 	}
@@ -127,7 +134,62 @@ func isInteractive() (bool, error) {
 
 // isInContainer checks if the service is being executed in docker or lxc
 // container.
-func isInContainer(cgroupPath string) (bool, error) {
+func isInContainer() (bool, error) {
+	inContainer, err := isInContainerDockerEnv(dockerEnvFile)
+	if err != nil {
+		return false, err
+	}
+	if inContainer {
+		return true, nil
+	}
+
+	inContainer, err = isInContainerCGroup(cgroupFile)
+	if err != nil {
+		return false, err
+	}
+	if inContainer {
+		return true, nil
+	}
+
+	return isInContainerMountInfo(mountInfoFile)
+}
+
+func isInContainerDockerEnv(filePath string) (bool, error) {
+	_, err := os.Stat(filePath)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+
+	return false, err
+}
+
+func isInContainerMountInfo(filePath string) (bool, error) {
+	const maxlines = 15 // maximum lines to scan
+	f, err := os.Open(filePath)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	scan := bufio.NewScanner(f)
+
+	lines := 0
+	for scan.Scan() && !(lines > maxlines) {
+		if strings.Contains(scan.Text(), "/docker/containers") {
+			return true, nil
+		}
+		lines++
+	}
+	if err := scan.Err(); err != nil {
+		return false, err
+	}
+
+	return false, nil
+}
+
+func isInContainerCGroup(cgroupPath string) (bool, error) {
 	const maxlines = 5 // maximum lines to scan
 
 	f, err := os.Open(cgroupPath)
@@ -151,11 +213,13 @@ func isInContainer(cgroupPath string) (bool, error) {
 	return false, nil
 }
 
-var tf = map[string]interface{}{
-	"cmd": func(s string) string {
-		return `"` + strings.Replace(s, `"`, `\"`, -1) + `"`
-	},
-	"cmdEscape": func(s string) string {
-		return strings.Replace(s, " ", `\x20`, -1)
-	},
+func getTemplateFunctions() map[string]interface{} {
+	return map[string]interface{}{
+		"cmd": func(s string) string {
+			return `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
+		},
+		"cmdEscape": func(s string) string {
+			return strings.ReplaceAll(s, " ", `\x20`)
+		},
+	}
 }
