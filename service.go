@@ -97,6 +97,7 @@ const (
 	optionOpenRCScript  = "OpenRCScript"
 
 	optionLogDirectory = "LogDirectory"
+	optionRestartSec   = "RestartSec"
 )
 
 // Status represents service status as an byte value

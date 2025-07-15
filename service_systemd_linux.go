@@ -175,6 +175,7 @@ func (s *systemd) Install() error {
 		SuccessExitStatus    string
 		LogOutput            bool
 		LogDirectory         string
+		RestartSec           string
 	}{
 		s.Config,
 		path,
@@ -186,6 +187,7 @@ func (s *systemd) Install() error {
 		s.Option.string(optionSuccessExitStatus, ""),
 		s.Option.bool(optionLogOutput, optionLogOutputDefault),
 		s.Option.string(optionLogDirectory, defaultLogDirectory),
+		s.Option.string(optionRestartSec, "120s"),
 	}
 
 	err = s.template().Execute(f, to)
@@ -323,7 +325,7 @@ StandardError=file:{{.LogDirectory}}/{{.Name}}.err
 {{if gt .LimitNOFILE -1 }}LimitNOFILE={{.LimitNOFILE}}{{end}}
 {{if .Restart}}Restart={{.Restart}}{{end}}
 {{if .SuccessExitStatus}}SuccessExitStatus={{.SuccessExitStatus}}{{end}}
-RestartSec=120
+{{if .RestartSec}}RestartSec={{.RestartSec}}{{end}}
 EnvironmentFile=-/etc/sysconfig/{{.Name}}
 
 {{range $k, $v := .EnvVars -}}
