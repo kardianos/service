@@ -204,8 +204,16 @@ cmd="{{.Path}}{{range .Arguments}} {{.|cmd}}{{end}}"
 
 name=$(basename $(readlink -f $0))
 pid_file="/var/run/$name.pid"
-stdout_log="{{.LogDirectory}}/$name.log"
-stderr_log="{{.LogDirectory}}/$name.err"
+log_dir="{{.LogDirectory}}"
+stdout_log="$log_dir/$name.log"
+stderr_log="$log_dir/$name.err"
+
+if [ ! -d "$log_dir" ]; then
+    mkdir -p "$log_dir"
+    if grep $name $log_dir > /dev/null; then
+        chmod 750 $log_dir
+    fi
+fi
 
 {{range $k, $v := .EnvVars -}}
 export {{$k}}={{$v}}

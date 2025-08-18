@@ -256,8 +256,16 @@ end script
 # Start
 script
 	{{if .LogOutput}}
-	stdout_log="{{.LogDirectory}}/{{.Name}}.out"
-	stderr_log="{{.LogDirectory}}/{{.Name}}.err"
+    log_dir="{{.LogDirectory}}"
+    stdout_log="$log_dir/$name.log"
+    stderr_log="$log_dir/$name.err"
+
+    if [ ! -d "$log_dir" ]; then
+        mkdir -p "$log_dir"
+        if grep $name $log_dir > /dev/null; then
+            chmod 750 $log_dir
+        fi
+    fi
 	{{end}}
 	
 	if [ -f "/etc/sysconfig/{{.Name}}" ]; then
