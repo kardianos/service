@@ -175,6 +175,7 @@ func (s *systemd) Install() error {
 		SuccessExitStatus    string
 		LogOutput            bool
 		LogDirectory         string
+		WantedBy             string
 	}{
 		s.Config,
 		path,
@@ -186,6 +187,7 @@ func (s *systemd) Install() error {
 		s.Option.string(optionSuccessExitStatus, ""),
 		s.Option.bool(optionLogOutput, optionLogOutputDefault),
 		s.Option.string(optionLogDirectory, defaultLogDirectory),
+		s.Option.string(optionWantedBy, optionWantedByDefault),
 	}
 
 	err = s.template().Execute(f, to)

@@ -97,6 +97,9 @@ const (
 	optionOpenRCScript  = "OpenRCScript"
 
 	optionLogDirectory = "LogDirectory"
+
+	optionWantedBy        = "WantedBy"
+	optionWantedByDefault = "multi-user.target"
 )
 
 // Status represents service status as an byte value
