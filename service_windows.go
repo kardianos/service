@@ -45,6 +45,7 @@ type windowsService struct {
 
 	errSync      sync.Mutex
 	stopStartErr error
+	sigChan      chan os.Signal
 }
 
 // WindowsLogger allows using windows specific logging methods.
@@ -190,7 +191,12 @@ func (ws *windowsService) Execute(args []string, r <-chan svc.ChangeRequest, cha
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 loop:
 	for {
-		c := <-r
+		var c svc.ChangeRequest
+		select {
+		case c = <-r:
+		case <-ws.sigChan:
+			c = svc.ChangeRequest{Cmd: svc.Shutdown}
+		}
 		switch c.Cmd {
 		case svc.Interrogate:
 			changes <- c.CurrentStatus
@@ -375,6 +381,11 @@ func (ws *windowsService) Uninstall() error {
 func (ws *windowsService) Run() error {
 	ws.setError(nil)
 	if !interactive {
+		// Windows maps CTRL_CLOSE/CTRL_LOGOFF/CTRL_SHUTDOWN to SIGTERM via the Go runtime.
+		// Watch for it so the service can stop even if the SCM does not deliver
+		// SERVICE_CONTROL_SHUTDOWN (e.g. console-attached child of a service process).
+		ws.sigChan = make(chan os.Signal, 3)
+		signal.Notify(ws.sigChan, syscall.SIGTERM, os.Interrupt)
 		// Return error messages from start and stop routines
 		// that get executed in the Execute method.
 		// Guarded with a mutex as it may run a different thread
