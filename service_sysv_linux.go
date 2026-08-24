@@ -86,8 +86,11 @@ func (s *sysv) Install() error {
 	data := map[string]any{
 		"Description":      c.Description,
 		"DisplayName":      c.DisplayName,
+		"Name":             c.Name,
 		"Path":             path,
 		"Arguments":        c.Arguments,
+		"UserName":         c.UserName,
+		"ChRoot":           c.ChRoot,
 		"WorkingDirectory": c.WorkingDirectory,
 		"LogDirectory":     s.Option.string(optionLogDirectory, defaultLogDirectory),
 		"EnvVars":          envVars(c.EnvVars, func(k, v string) string { return "export " + k + "=" + v }),
