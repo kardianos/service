@@ -181,12 +181,19 @@ func (s *openrc) Run() (err error) {
 }
 
 func (s *openrc) Status() (Status, error) {
-	// rc-service uses the errno library for its exit codes:
-	// errno 0 = service started
-	// errno 1 = EPERM 1 Operation not permitted
-	// errno 2 = ENOENT 2 No such file or directory
-	// errno 3 = ESRCH 3 No such process
-	// for more info, see https://man7.org/linux/man-pages/man3/errno.3.html
+	// rc-service exit codes
+	// 1 = does not exist. eerrox() -> EXIT_FAILURE = 1
+	//     - https://github.com/OpenRC/openrc/blob/2e1dbd9ebe08f7dbdf33afd29a5c561fa173f3e8/src/rc-service/rc-service.c#L156
+	//     - https://github.com/OpenRC/openrc/blob/2e1dbd9ebe08f7dbdf33afd29a5c561fa173f3e8/src/libeinfo/libeinfo.c#L663
+	// 4 = stopping
+	// 8 = starting
+	// 16 = inactive
+	// 32 = crashed
+	// 64 = unsupervised
+	// 0 = started
+	// 3 = stopped
+	// see: https://github.com/OpenRC/openrc/blob/2e1dbd9ebe08f7dbdf33afd29a5c561fa173f3e8/sh/openrc-run.sh.in#L139
+	//      https://github.com/OpenRC/openrc/blob/2e1dbd9ebe08f7dbdf33afd29a5c561fa173f3e8/sh/supervise-daemon.sh#L88
 	_, out, err := runWithOutput("rc-service", s.Name, "status")
 	if err != nil {
 		if exiterr, ok := err.(*exec.ExitError); ok {
@@ -194,8 +201,6 @@ func (s *openrc) Status() (Status, error) {
 			exitCode := exiterr.ExitCode()
 			switch {
 			case exitCode == 1:
-				return StatusUnknown, err
-			case exitCode == 2:
 				return StatusUnknown, ErrNotInstalled
 			case exitCode == 3:
 				return StatusStopped, nil
