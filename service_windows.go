@@ -36,6 +36,8 @@ const (
 	OnFailureDelayDuration = "OnFailureDelayDuration"
 	OnFailureResetPeriod   = "OnFailureResetPeriod"
 
+	RecoveryActionsOnNonCrashFailures = "RecoveryActionsOnNonCrashFailures"
+
 	errnoServiceDoesNotExist syscall.Errno = 1060
 )
 
@@ -339,6 +341,7 @@ func (ws *windowsService) Install() error {
 			return err
 		}
 	}
+	s.SetRecoveryActionsOnNonCrashFailures(ws.Option.bool(RecoveryActionsOnNonCrashFailures, false))
 	defer s.Close()
 	err = eventlog.InstallAsEventCreate(ws.Name, eventlog.Error|eventlog.Warning|eventlog.Info)
 	if err != nil {

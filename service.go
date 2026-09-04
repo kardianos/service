@@ -232,6 +232,8 @@ func New(i Interface, c *Config) (Service, error) {
 //
 //   - OnFailureResetPeriod    int ( 10 )            - Reset period for errors, seconds.
 //
+//   - RecoveryActionsOnNonCrashFailures    bool (false)   - If set to true, perform recovery actions if the service stops with a nonzero exit code.
+//
 // # Custom service-file templates
 //
 // The LaunchdConfig, SystemdScript, UpstartScript, SysvScript, RCSScript, and
