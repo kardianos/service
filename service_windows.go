@@ -265,6 +265,34 @@ func (ws *windowsService) setEnvironmentVariablesInRegistry() error {
 	return nil
 }
 
+func (ws *windowsService) recoveryActions() ([]mgr.RecoveryAction, uint32) {
+	onFailure := ws.Option.string(OnFailure, OnFailureRestart)
+	if onFailure == "" {
+		onFailure = OnFailureRestart
+	}
+	var delay = 1 * time.Second
+	if d, err := time.ParseDuration(ws.Option.string(OnFailureDelayDuration, "1s")); err == nil {
+		delay = d
+	}
+	var actionType int
+	switch onFailure {
+	case OnFailureReboot:
+		actionType = mgr.ComputerReboot
+	case OnFailureRestart:
+		actionType = mgr.ServiceRestart
+	case OnFailureNoAction:
+		actionType = mgr.NoAction
+	default:
+		actionType = mgr.ServiceRestart
+	}
+	return []mgr.RecoveryAction{
+		{
+			Type:  actionType,
+			Delay: delay,
+		},
+	}, uint32(ws.Option.int(OnFailureResetPeriod, 10))
+}
+
 func (ws *windowsService) Install() error {
 	exepath, err := ws.execPath()
 	if err != nil {
@@ -314,30 +342,9 @@ func (ws *windowsService) Install() error {
 	if err != nil {
 		return err
 	}
-	if onFailure := ws.Option.string(OnFailure, ""); onFailure != "" {
-		var delay = 1 * time.Second
-		if d, err := time.ParseDuration(ws.Option.string(OnFailureDelayDuration, "1s")); err == nil {
-			delay = d
-		}
-		var actionType int
-		switch onFailure {
-		case OnFailureReboot:
-			actionType = mgr.ComputerReboot
-		case OnFailureRestart:
-			actionType = mgr.ServiceRestart
-		case OnFailureNoAction:
-			actionType = mgr.NoAction
-		default:
-			actionType = mgr.ServiceRestart
-		}
-		if err := s.SetRecoveryActions([]mgr.RecoveryAction{
-			{
-				Type:  actionType,
-				Delay: delay,
-			},
-		}, uint32(ws.Option.int(OnFailureResetPeriod, 10))); err != nil {
-			return err
-		}
+	actions, resetPeriod := ws.recoveryActions()
+	if err := s.SetRecoveryActions(actions, resetPeriod); err != nil {
+		return err
 	}
 	defer s.Close()
 	err = eventlog.InstallAsEventCreate(ws.Name, eventlog.Error|eventlog.Warning|eventlog.Info)
