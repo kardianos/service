@@ -240,30 +240,84 @@ func (s *darwinLaunchdService) Uninstall() error {
 	return os.Remove(confPath)
 }
 
+var launchdPIDRegexp = regexp.MustCompile(`"PID" = ([0-9]+);`)
+
+func isRunningFromLaunchctlOutput(out string) bool {
+	return len(launchdPIDRegexp.FindStringSubmatch(out)) == 2
+}
+
+func isLaunchctlPermissionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "permission denied") ||
+		strings.Contains(msg, "not privileged") ||
+		strings.Contains(msg, "operation not permitted")
+}
+
+func isLaunchctlNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "Could not find service") ||
+		strings.Contains(msg, "Could not find specified service")
+}
+
+func parseLaunchctlStatus(userService bool, isRoot bool, exitCode int, out string, runErr error, confPathErr error) (Status, error) {
+	if runErr == nil && exitCode == 0 {
+		if isRunningFromLaunchctlOutput(out) {
+			return StatusRunning, nil
+		}
+		if confPathErr == nil {
+			return StatusStopped, nil
+		}
+		if errors.Is(confPathErr, os.ErrNotExist) {
+			return StatusUnknown, ErrNotInstalled
+		}
+		return StatusUnknown, confPathErr
+	}
+
+	if runErr == nil && exitCode != 0 {
+		runErr = fmt.Errorf("launchctl list exited with code %d", exitCode)
+	}
+
+	if isLaunchctlPermissionError(runErr) {
+		return StatusUnknown, runErr
+	}
+
+	if isLaunchctlNotFoundError(runErr) {
+		// If querying a system service (LaunchDaemon) without root privilege,
+		// or if launchctl resolved the query to the caller's mach port domain,
+		// we cannot determine whether the service is stopped or running.
+		if !userService && (!isRoot || strings.Contains(runErr.Error(), "in domain for port")) {
+			return StatusUnknown, runErr
+		}
+
+		if confPathErr == nil {
+			return StatusStopped, nil
+		}
+		if errors.Is(confPathErr, os.ErrNotExist) {
+			return StatusUnknown, ErrNotInstalled
+		}
+		return StatusUnknown, confPathErr
+	}
+
+	return StatusUnknown, runErr
+}
+
 func (s *darwinLaunchdService) Status() (Status, error) {
 	exitCode, out, err := runWithOutput("launchctl", "list", s.Name)
-	if exitCode == 0 && err != nil {
-		if !strings.Contains(err.Error(), "failed with stderr") {
-			return StatusUnknown, err
-		}
+	confPath, confErr := s.getServiceFilePath()
+	var confPathErr error
+	if confErr != nil {
+		confPathErr = confErr
+	} else {
+		_, confPathErr = os.Stat(confPath)
 	}
-
-	re := regexp.MustCompile(`"PID" = ([0-9]+);`)
-	matches := re.FindStringSubmatch(out)
-	if len(matches) == 2 {
-		return StatusRunning, nil
-	}
-
-	confPath, err := s.getServiceFilePath()
-	if err != nil {
-		return StatusUnknown, err
-	}
-
-	if _, err = os.Stat(confPath); err == nil {
-		return StatusStopped, nil
-	}
-
-	return StatusUnknown, ErrNotInstalled
+	isRoot := os.Geteuid() == 0
+	return parseLaunchctlStatus(s.userService, isRoot, exitCode, out, err, confPathErr)
 }
 
 func (s *darwinLaunchdService) Start() error {
