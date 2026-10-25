@@ -149,16 +149,14 @@ func (s *systemd) Install() error {
 	if err != nil {
 		return err
 	}
-	_, err = os.Stat(confPath)
+	return s.install(confPath)
+}
+
+func (s *systemd) install(confPath string) error {
+	_, err := os.Stat(confPath)
 	if err == nil {
 		return fmt.Errorf("Init already exists: %s", confPath)
 	}
-
-	f, err := os.OpenFile(confPath, os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
 
 	path, err := s.execPath()
 	if err != nil {
@@ -208,7 +206,27 @@ func (s *systemd) Install() error {
 	if err != nil {
 		return err
 	}
+
+	// Publish only a complete unit; failed rendering or writes must not block a retry.
+	tempDir, err := os.MkdirTemp(filepath.Dir(confPath), "."+filepath.Base(confPath)+"-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tempDir)
+	tempPath := filepath.Join(tempDir, "unit")
+	f, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tempPath)
 	if _, err = f.WriteString(out); err != nil {
+		f.Close()
+		return err
+	}
+	if err = f.Close(); err != nil {
+		return err
+	}
+	if err = os.Rename(tempPath, confPath); err != nil {
 		return err
 	}
 
