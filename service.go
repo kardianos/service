@@ -109,6 +109,15 @@ const (
 	StatusStopped
 )
 
+// ServiceLevel selects who the service is installed for.
+type ServiceLevel string
+
+const (
+	ServiceLevelSystem   ServiceLevel = "system"
+	ServiceLevelAllUsers ServiceLevel = "allusers"
+	ServiceLevelUser     ServiceLevel = "user"
+)
+
 // Config provides the setup for a Service. The Name field is required.
 type Config struct {
 	Name        string   // Required name of the service. No spaces suggested.
@@ -139,6 +148,20 @@ type Config struct {
 	Option KeyValue
 
 	EnvVars map[string]string
+
+	// Defaults to ServiceLevelSystem when empty.
+	ServiceLevel ServiceLevel
+}
+
+func (c *Config) serviceLevel() (ServiceLevel, error) {
+	switch c.ServiceLevel {
+	case "":
+		return ServiceLevelSystem, nil // default to a System level service
+	case ServiceLevelSystem, ServiceLevelAllUsers, ServiceLevelUser:
+		return c.ServiceLevel, nil
+	default:
+		return "", fmt.Errorf("unknown service level %q", c.ServiceLevel)
+	}
 }
 
 var (
@@ -153,6 +176,15 @@ var (
 	ErrNoServiceSystemDetected = errors.New("No service system detected.")
 	// ErrNotInstalled is returned when the service is not installed.
 	ErrNotInstalled = errors.New("the service is not installed")
+	// ErrUnsupportedServiceLevel is returned when the platform cannot install
+	// the requested Config.ServiceLevel.
+	ErrUnsupportedServiceLevel = errors.New("service level is not supported on this platform")
+	// ErrRequiresPrivilege is returned when an operation needs root or
+	// administrator privileges.
+	ErrRequiresPrivilege = errors.New("this operation requires root or administrator privileges")
+	// ErrUserContextRequired is returned when an operation must run as a
+	// user rather than as root.
+	ErrUserContextRequired = errors.New("this operation must be run as the user, not as root or administrator")
 )
 
 // New creates a new service based on a service interface and configuration.

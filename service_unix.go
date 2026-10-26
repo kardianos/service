@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log/syslog"
+	"os"
 	"os/exec"
 	"syscall"
 )
@@ -67,7 +68,11 @@ func runWithOutput(command string, arguments ...string) (int, string, error) {
 	return runCommand(command, true, arguments...)
 }
 
-func runCommand(command string, readStdout bool, arguments ...string) (int, string, error) {
+var runCommand = execCommand
+
+var isPrivileged = func() bool { return os.Geteuid() == 0 }
+
+func execCommand(command string, readStdout bool, arguments ...string) (int, string, error) {
 	cmd := exec.Command(command, arguments...)
 
 	var output string
