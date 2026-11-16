@@ -1,0 +1,16 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          booted
+# Required-Start:    $all
+# Required-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:
+# Short-Description: Marks the end of boot for the container tests
+### END INIT INFO
+
+# runlevel changes before the rc scripts have finished, so the harness waits
+# for this file instead.
+
+case "$1" in
+start) touch /run/booted ;;
+esac

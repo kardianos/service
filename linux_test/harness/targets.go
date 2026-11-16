@@ -44,6 +44,7 @@ var targets = []Target{
 	{Name: "systemd-rocky8", Init: systemd, Suites: []string{"unit", "su", "allusers"}, BestEffort: true},
 	{Name: "systemd-centos7", Init: systemd, Suites: []string{"unit", "allusers"}, BestEffort: true, RequiresCgroupV1: true},
 	{Name: "openrc-alpine", Init: openrc, Suites: []string{"unit", "su"}},
+	{Name: "sysv-debian12", Init: sysv, Suites: []string{"unit", "su"}, BestEffort: true},
 }
 
 func selectTargets(all []Target, only []string, suite string) ([]Target, error) {

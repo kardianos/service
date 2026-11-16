@@ -59,7 +59,21 @@ var openrc = &InitSystem{
 	},
 }
 
-var initSystems = []*InitSystem{systemd, openrc}
+var sysv = &InitSystem{
+	Name:     "sysv",
+	Boot:     []string{"/sbin/init"},
+	Platform: "unix-systemv",
+	Ready:    markerReady,
+	Version:  []string{"dpkg-query", "-W", "-f", "sysvinit ${Version}\n", "sysvinit-core"},
+	// There is no journal and no syslog daemon. grep -I skips binary files
+	// such as wtmp.
+	FailureLogs: [][]string{
+		{"sh", "-c", `for f in /var/log/*; do grep -Iq . "$f" 2>/dev/null && { echo "==> $f"; tail -n 200 "$f"; }; done`},
+		{"ps", "auxf"},
+	},
+}
+
+var initSystems = []*InitSystem{systemd, openrc, sysv}
 
 func waitReady(ctx context.Context, rt Runtime, name string, init *InitSystem, timeout, poll time.Duration) (bool, string) {
 	deadline := time.Now().Add(timeout)

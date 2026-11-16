@@ -248,6 +248,19 @@ func TestRunTargetOpenRCFailureLogs(t *testing.T) {
 	}
 }
 
+func TestRunTargetSysVFailureLogs(t *testing.T) {
+	rt := &fakeRuntime{ready: true, list: "TestA\n", testExit: 1}
+	runTarget(context.Background(), rt, Target{Name: "t", Init: sysv, Suites: []string{"su"}}, testOptions(t))
+	for _, cmd := range []string{"sh", "ps"} {
+		if !rt.ran(cmd) {
+			t.Errorf("did not collect %s on failure", cmd)
+		}
+	}
+	if rt.ran("journalctl") || rt.ran("rc-status") {
+		t.Error("collected another init system's logs on SysV")
+	}
+}
+
 func TestRunTargetFreshContainerPerSuite(t *testing.T) {
 	rt := &fakeRuntime{ready: true, list: "TestA\n", testExit: 1}
 	rs := runTarget(context.Background(), rt, Target{Name: "t", Init: systemd, Suites: []string{"unit", "su"}}, testOptions(t))
