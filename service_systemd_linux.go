@@ -464,6 +464,9 @@ func (s *systemd) StartAll() error {
 		return err
 	}
 	return forEachUser(users, loginUser.label, func(u loginUser) error {
+		if !managerRunning(u) {
+			return nil
+		}
 		// Picks up a unit file added or changed since the manager started.
 		reload := systemctlAsUser(version, u, "daemon-reload")
 		if err := run(reload[0], reload[1:]...); err != nil {
@@ -482,6 +485,9 @@ func (s *systemd) StopAll() error {
 		return err
 	}
 	return forEachUser(users, loginUser.label, func(u loginUser) error {
+		if !managerRunning(u) {
+			return nil
+		}
 		stop := systemctlAsUser(version, u, "stop", s.unitName())
 		code, _, err := runWithOutput(stop[0], stop[1:]...)
 		if code == systemctlNotLoaded {
@@ -523,6 +529,13 @@ func parseLoginctlUsers(out string) []loginUser {
 		users = append(users, loginUser{uid: uint32(uid), name: fields[1]})
 	}
 	return users
+}
+
+// loginctl will report managers that are stopping or gone, so we need to do
+// an explicit check
+func managerRunning(u loginUser) bool {
+	_, out, _ := runWithOutput("systemctl", "is-active", fmt.Sprintf("user@%d.service", u.uid))
+	return strings.TrimSpace(out) == "active"
 }
 
 // runs a systemctl command for a particular user

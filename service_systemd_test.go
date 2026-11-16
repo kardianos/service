@@ -300,10 +300,25 @@ func TestSystemdUserSystemctl(t *testing.T) {
 }
 
 const (
-	loginctlUsers   = "loginctl list-users --no-legend"
-	loginctlTwoUser = "1000 alice no active\n1001 bob no active\n"
-	systemctlVer    = "systemctl --version"
+	loginctlUsers  = "loginctl list-users --no-legend"
+	loginctlOutput = "1000 alice no active\n1001 bob no active\n1002 carol no closing\n"
+	systemctlVer   = "systemctl --version"
 )
+
+var managerChecks = map[string]string{
+	"systemctl is-active user@1000.service": "active\n",
+	"systemctl is-active user@1001.service": "active\n",
+	"systemctl is-active user@1002.service": "inactive\n",
+}
+
+// withManagerChecks adds the manager checks to calls, sorted.
+func withManagerChecks(calls ...string) []string {
+	for c := range managerChecks {
+		calls = append(calls, c)
+	}
+	sort.Strings(calls)
+	return calls
+}
 
 // allUsersVersions are the systemd versions the StartAll and StopAll tests run
 // against, one for each way of reaching a user's manager.
@@ -329,9 +344,13 @@ func TestSystemdStopAllCommands(t *testing.T) {
 			// bob has no copy loaded, which is not an error.
 			bobStop := v.prefix(testBob) + " stop svc.service"
 			calls := stubCommands(t, func(argv []string) (int, string, error) {
-				switch strings.Join(argv, " ") {
+				cmd := strings.Join(argv, " ")
+				if out, ok := managerChecks[cmd]; ok {
+					return 0, out, nil
+				}
+				switch cmd {
 				case loginctlUsers:
-					return 0, loginctlTwoUser, nil
+					return 0, loginctlOutput, nil
 				case systemctlVer:
 					return 0, fmt.Sprintf("systemd %d (%d)\n", v.version, v.version), nil
 				case bobStop:
@@ -343,13 +362,12 @@ func TestSystemdStopAllCommands(t *testing.T) {
 			if err := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers}).StopAll(); err != nil {
 				t.Fatal(err)
 			}
-			want := []string{
+			want := withManagerChecks(
 				loginctlUsers,
 				systemctlVer,
-				v.prefix(testAlice) + " stop svc.service",
+				v.prefix(testAlice)+" stop svc.service",
 				bobStop,
-			}
-			sort.Strings(want)
+			)
 			if got := joinCalls(*calls); !reflect.DeepEqual(got, want) {
 				t.Errorf("ran %q, want %q", got, want)
 			}
@@ -361,10 +379,14 @@ func TestSystemdStartAllCommands(t *testing.T) {
 	stubPrivileged(t, true)
 	for _, v := range allUsersVersions {
 		t.Run(fmt.Sprint(v.version), func(t *testing.T) {
-			calls := recordCommands(t, map[string]string{
-				loginctlUsers: loginctlTwoUser,
+			outputs := map[string]string{
+				loginctlUsers: loginctlOutput,
 				systemctlVer:  fmt.Sprintf("systemd %d (%d)\n", v.version, v.version),
-			})
+			}
+			for c, out := range managerChecks {
+				outputs[c] = out
+			}
+			calls := recordCommands(t, outputs)
 
 			if err := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers}).StartAll(); err != nil {
 				t.Fatal(err)
@@ -375,7 +397,7 @@ func TestSystemdStartAllCommands(t *testing.T) {
 					v.prefix(u)+" daemon-reload",
 					v.prefix(u)+" start svc.service")
 			}
-			sort.Strings(want)
+			want = withManagerChecks(want...)
 			if got := joinCalls(*calls); !reflect.DeepEqual(got, want) {
 				t.Errorf("ran %q, want %q", got, want)
 			}
@@ -404,9 +426,11 @@ func TestSystemdAllCommandsReturnErrors(t *testing.T) {
 		cmd := strings.Join(argv, " ")
 		switch {
 		case cmd == loginctlUsers:
-			return 0, loginctlTwoUser, nil
+			return 0, loginctlOutput, nil
 		case cmd == systemctlVer:
 			return 0, "systemd 252 (252.5-2)\n", nil
+		case managerChecks[cmd] != "":
+			return 0, managerChecks[cmd], nil
 		case strings.Contains(cmd, " stop ") || strings.Contains(cmd, " start "):
 			return 1, "", errors.New("Failed to connect to bus")
 		}
