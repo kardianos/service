@@ -31,6 +31,9 @@ func (solarisSystem) Interactive() bool {
 	return interactive
 }
 func (solarisSystem) New(i Interface, c *Config) (Service, error) {
+	if err := c.requireSystemLevel(); err != nil {
+		return nil, err
+	}
 	s := &solarisService{
 		i:      i,
 		Config: c,

@@ -64,6 +64,9 @@ func (s *openrc) template() (*tmpl, error) {
 }
 
 func newOpenRCService(i Interface, platform string, c *Config) (Service, error) {
+	if err := c.requireSystemLevel(); err != nil {
+		return nil, err
+	}
 	s := &openrc{
 		i:        i,
 		platform: platform,

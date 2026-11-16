@@ -82,6 +82,17 @@ func (c *Config) userServiceLevel() (ServiceLevel, error) {
 	return c.serviceLevel()
 }
 
+func (c *Config) requireSystemLevel() error {
+	level, err := c.serviceLevel() // defaults to system if unset
+	if err != nil {
+		return err
+	}
+	if level != ServiceLevelSystem {
+		return ErrUnsupportedServiceLevel
+	}
+	return nil
+}
+
 func execCommand(command string, readStdout bool, arguments ...string) (int, string, error) {
 	cmd := exec.Command(command, arguments...)
 

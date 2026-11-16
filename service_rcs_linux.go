@@ -52,6 +52,9 @@ func isRCS() bool {
 }
 
 func newRCSService(i Interface, platform string, c *Config) (Service, error) {
+	if err := c.requireSystemLevel(); err != nil {
+		return nil, err
+	}
 	s := &rcs{
 		i:        i,
 		platform: platform,

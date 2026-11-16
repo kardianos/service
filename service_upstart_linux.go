@@ -35,6 +35,9 @@ type upstart struct {
 }
 
 func newUpstartService(i Interface, platform string, c *Config) (Service, error) {
+	if err := c.requireSystemLevel(); err != nil {
+		return nil, err
+	}
 	s := &upstart{
 		i:        i,
 		platform: platform,

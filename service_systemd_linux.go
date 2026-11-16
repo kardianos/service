@@ -50,13 +50,24 @@ type systemd struct {
 	i        Interface
 	platform string
 	*Config
+
+	level ServiceLevel
 }
 
 func newSystemdService(i Interface, platform string, c *Config) (Service, error) {
+	level, err := c.userServiceLevel()
+	if err != nil {
+		return nil, err
+	}
+	if level == ServiceLevelAllUsers {
+		return nil, ErrUnsupportedServiceLevel // todo
+	}
 	s := &systemd{
 		i:        i,
 		platform: platform,
 		Config:   c,
+
+		level: level,
 	}
 
 	return s, nil
@@ -141,7 +152,7 @@ func (s *systemd) template() (*tmpl, error) {
 }
 
 func (s *systemd) isUserService() bool {
-	return s.Option.bool(optionUserService, optionUserServiceDefault)
+	return s.level == ServiceLevelUser
 }
 
 func (s *systemd) Install() error {
