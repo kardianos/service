@@ -59,8 +59,9 @@ func newSystemdService(i Interface, platform string, c *Config) (Service, error)
 	if err != nil {
 		return nil, err
 	}
-	if level == ServiceLevelAllUsers {
-		return nil, ErrUnsupportedServiceLevel // todo
+	if level == ServiceLevelAllUsers && (c.UserName != "" || c.ChRoot != "" ||
+		c.Option.string(optionLogDirectory, "") != "") {
+		return nil, errors.New("AllUsers services run as the logged-in user and cannot set UserName, ChRoot or LogDirectory")
 	}
 	s := &systemd{
 		i:        i,
@@ -84,23 +85,57 @@ func (s *systemd) Platform() string {
 	return s.platform
 }
 
-func (s *systemd) configPath() (cp string, err error) {
-	if !s.isUserService() {
-		cp = "/etc/systemd/system/" + s.unitName()
-		return
+func (s *systemd) configPath() (string, error) {
+	switch s.level {
+	case ServiceLevelUser:
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(homeDir, ".config/systemd/user", s.unitName()), nil
+	case ServiceLevelAllUsers:
+		return "/etc/systemd/user/" + s.unitName(), nil
+	default:
+		return "/etc/systemd/system/" + s.unitName(), nil
 	}
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return
-	}
-	systemdUserDir := filepath.Join(homeDir, ".config/systemd/user")
-	err = os.MkdirAll(systemdUserDir, os.ModePerm)
-	if err != nil {
-		return
-	}
-	cp = filepath.Join(systemdUserDir, s.unitName())
-	return
 }
+
+// installScope is the systemctl flag for enable and disable.
+func (s *systemd) installScope() []string {
+	switch s.level {
+	case ServiceLevelUser:
+		return []string{"--user"}
+	case ServiceLevelAllUsers:
+		return []string{"--global"}
+	default:
+		return nil
+	}
+}
+
+// installCommands returns the systemctl calls Install makes after writing the
+// unit.
+func (s *systemd) installCommands() [][]string {
+	return s.enableCommands("enable")
+}
+
+// uninstallCommands returns the systemctl calls Uninstall makes. The unit
+// file is removed after the first one.
+func (s *systemd) uninstallCommands() [][]string {
+	return s.enableCommands("disable")
+}
+
+func (s *systemd) enableCommands(action string) [][]string {
+	cmds := [][]string{append(s.installScope(), action, s.unitName())}
+	// --global only edits /etc/systemd/user, and has no manager to reload.
+	if s.level != ServiceLevelAllUsers {
+		cmds = append(cmds, append(s.installScope(), "daemon-reload"))
+	}
+	return cmds
+}
+
+// minAllUsersVersion is the first systemd with ConditionUser=, which keeps
+// AllUsers units out of greeter and other system users' managers
+const minAllUsersVersion = 235
 
 func (s *systemd) unitName() string {
 	return s.Config.Name + ".service"
@@ -156,6 +191,14 @@ func (s *systemd) isUserService() bool {
 }
 
 func (s *systemd) Install() error {
+	if s.level == ServiceLevelAllUsers {
+		if !isPrivileged() {
+			return ErrRequiresPrivilege
+		}
+		if v := s.getSystemdVersion(); v != -1 && v < minAllUsersVersion {
+			return fmt.Errorf("AllUsers services require systemd %d or later, found %d", minAllUsersVersion, v)
+		}
+	}
 	confPath, err := s.configPath()
 	if err != nil {
 		return err
@@ -165,17 +208,70 @@ func (s *systemd) Install() error {
 		return fmt.Errorf("Init already exists: %s", confPath)
 	}
 
-	f, err := os.OpenFile(confPath, os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
 	path, err := s.execPath()
 	if err != nil {
 		return err
 	}
+	if s.level == ServiceLevelAllUsers {
+		path, err = checkExecutableOwnership(path)
+		if err != nil {
+			return err
+		}
+	}
 
+	t, err := s.template()
+	if err != nil {
+		return err
+	}
+	out, err := t.render(s.templateData(path), tfs)
+	if err != nil {
+		return err
+	}
+
+	if err := s.writeUnit(confPath, out); err != nil {
+		return err
+	}
+	for _, args := range s.installCommands() {
+		if err := run("systemctl", args...); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *systemd) writeUnit(path, content string) error {
+	flags := os.O_WRONLY | os.O_CREATE
+	switch s.level {
+	case ServiceLevelUser:
+		if err := os.MkdirAll(filepath.Dir(path), os.ModePerm); err != nil {
+			return err
+		}
+	case ServiceLevelAllUsers:
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			return err
+		}
+		flags |= os.O_EXCL
+	}
+	f, err := os.OpenFile(path, flags, 0644)
+	if err != nil {
+		return err
+	}
+	if s.level == ServiceLevelAllUsers {
+		// umask can narrow the mode, and every user's manager must read it.
+		if err := f.Chmod(0644); err != nil {
+			f.Close()
+			return err
+		}
+	}
+	if _, err := f.WriteString(content); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
+
+// templateData returns the values the unit template is rendered with.
+func (s *systemd) templateData(path string) map[string]any {
 	c := s.Config
 
 	// Conditions that the mini engine cannot express (and/gt on non-string
@@ -183,7 +279,9 @@ func (s *systemd) Install() error {
 	// only needs {{if Key}} truthiness. Everything else is passed through as a
 	// string or a []string for {{range}}.
 	outputFileSupport := ""
-	if s.Option.bool(optionLogOutput, optionLogOutputDefault) && s.hasOutputFileSupport() {
+	// AllUsers output goes to each user's journal
+	// there is no log directory that is writable by every user
+	if s.level != ServiceLevelAllUsers && s.Option.bool(optionLogOutput, optionLogOutputDefault) && s.hasOutputFileSupport() {
 		outputFileSupport = "yes"
 	}
 
@@ -192,7 +290,15 @@ func (s *systemd) Install() error {
 		limitNOFILE = strconv.Itoa(n)
 	}
 
-	data := map[string]any{
+	wantedBy, userScope, allUsers := "multi-user.target", "", ""
+	switch s.level {
+	case ServiceLevelUser:
+		wantedBy, userScope = "default.target", "yes"
+	case ServiceLevelAllUsers:
+		wantedBy, userScope, allUsers = "default.target", "yes", "yes"
+	}
+
+	return map[string]any{
 		"Description":       c.Description,
 		"Path":              path,
 		"Name":              c.Name,
@@ -209,31 +315,18 @@ func (s *systemd) Install() error {
 		"Restart":           s.Option.string(optionRestart, "always"),
 		"SuccessExitStatus": s.Option.string(optionSuccessExitStatus, ""),
 		"EnvVars":           envVars(c.EnvVars, func(k, v string) string { return "Environment=" + k + "=" + v }),
+		"WantedBy":          wantedBy,
+		"UserScope":         userScope,
+		"AllUsers":          allUsers,
 	}
-
-	t, err := s.template()
-	if err != nil {
-		return err
-	}
-	out, err := t.render(data, tfs)
-	if err != nil {
-		return err
-	}
-	if _, err = f.WriteString(out); err != nil {
-		return err
-	}
-
-	err = s.runAction("enable")
-	if err != nil {
-		return err
-	}
-
-	return s.run("daemon-reload")
 }
 
 func (s *systemd) Uninstall() error {
-	err := s.runAction("disable")
-	if err != nil {
+	if s.level == ServiceLevelAllUsers && !isPrivileged() {
+		return ErrRequiresPrivilege
+	}
+	cmds := s.uninstallCommands()
+	if err := run("systemctl", cmds[0]...); err != nil {
 		return err
 	}
 	cp, err := s.configPath()
@@ -243,7 +336,12 @@ func (s *systemd) Uninstall() error {
 	if err := os.Remove(cp); err != nil {
 		return err
 	}
-	return s.run("daemon-reload")
+	for _, args := range cmds[1:] {
+		if err := run("systemctl", args...); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *systemd) Logger(errs chan<- error) (Logger, error) {
@@ -315,14 +413,14 @@ func (s *systemd) Restart() error {
 
 func (s *systemd) runWithOutput(command string, arguments ...string) (int, string, error) {
 	if s.isUserService() {
-		arguments = append(arguments, "--user")
+		arguments = append([]string{"--user"}, arguments...)
 	}
 	return runWithOutput(command, arguments...)
 }
 
 func (s *systemd) run(action string, args ...string) error {
 	if s.isUserService() {
-		return run("systemctl", append([]string{action, "--user"}, args...)...)
+		return run("systemctl", append([]string{"--user", action}, args...)...)
 	}
 	return run("systemctl", append([]string{action}, args...)...)
 }
@@ -338,7 +436,8 @@ func (s *systemd) runAction(action string) error {
 const systemdScript = `[Unit]
 Description={{Description}}
 ConditionFileIsExecutable={{Path | cmdEscape}}
-{{range Dependencies}}{{.}}
+{{if AllUsers}}ConditionUser=!@system
+{{end}}{{range Dependencies}}{{.}}
 {{end}}
 [Service]
 StartLimitInterval=5
@@ -346,8 +445,8 @@ StartLimitBurst=10
 ExecStart={{Path | cmdEscape}}{{range Arguments}} {{. | cmd}}{{end}}
 {{if ChRoot}}RootDirectory={{ChRoot | cmd}}
 {{end}}{{if WorkingDirectory}}WorkingDirectory={{WorkingDirectory | cmdEscape}}
-{{end}}{{if UserName}}User={{UserName}}
-{{end}}{{if ReloadSignal}}ExecReload=/bin/kill -{{ReloadSignal}} "$MAINPID"
+{{end}}{{if UserScope}}{{else}}{{if UserName}}User={{UserName}}
+{{end}}{{end}}{{if ReloadSignal}}ExecReload=/bin/kill -{{ReloadSignal}} "$MAINPID"
 {{end}}{{if PIDFile}}PIDFile={{PIDFile | cmd}}
 {{end}}{{if OutputFileSupport}}StandardOutput=file:{{LogDirectory}}/{{Name}}.out
 StandardError=file:{{LogDirectory}}/{{Name}}.err
@@ -359,5 +458,5 @@ EnvironmentFile=-/etc/sysconfig/{{Name}}
 
 {{range EnvVars}}{{.}}
 {{end}}[Install]
-WantedBy=multi-user.target
+WantedBy={{WantedBy}}
 `

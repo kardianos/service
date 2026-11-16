@@ -10,8 +10,9 @@ func TestUnixBackendsRejectLevels(t *testing.T) {
 		name      string
 		new       func(i Interface, platform string, c *Config) (Service, error)
 		allowUser bool
+		allowAll  bool
 	}{
-		{name: "systemd", new: newSystemdService, allowUser: true},
+		{name: "systemd", new: newSystemdService, allowUser: true, allowAll: true},
 		{name: "sysv", new: newSystemVService},
 		{name: "upstart", new: newUpstartService},
 		{name: "openrc", new: newOpenRCService},
@@ -37,7 +38,8 @@ func TestUnixBackendsRejectLevels(t *testing.T) {
 					if err == nil {
 						t.Fatal("err = nil, want an error")
 					}
-				case l.level == ServiceLevelUser && b.allowUser:
+				case l.level == ServiceLevelUser && b.allowUser,
+					l.level == ServiceLevelAllUsers && b.allowAll:
 					if err != nil {
 						t.Fatalf("err = %v, want nil", err)
 					}

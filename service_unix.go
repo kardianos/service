@@ -72,7 +72,7 @@ func runWithOutput(command string, arguments ...string) (int, string, error) {
 var runCommand = execCommand
 
 // isPrivileged reports whether the process runs as root. Replaced in tests.
-var isPrivileged = func() bool { return os.Geteuid() == 0 } //nolint:unused // Used by AllUsers on darwin and systemd.
+var isPrivileged = func() bool { return os.Geteuid() == 0 } //nolint:unused // Unused on freebsd, solaris and aix.
 
 func (c *Config) userServiceLevel() (ServiceLevel, error) {
 	// fallback to the deprecated UserService level if ServiceLevel isn't defined

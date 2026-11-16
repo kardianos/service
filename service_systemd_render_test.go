@@ -3,56 +3,24 @@
 package service
 
 import (
-	"strconv"
+	"strings"
 	"testing"
 )
 
-// systemdInputs collects the systemd-specific values Install passes to the
-// template, so the render can be exercised without touching the filesystem.
-type systemdInputs struct {
-	c                 *Config
-	path              string
-	reloadSignal      string
-	pidFile           string
-	limitNOFILE       int
-	restart           string
-	successExitStatus string
-	logOutput         bool
-	hasOutput         bool
-	logDir            string
-}
-
-// renderSystemd mirrors the data map built in (*systemd).Install and renders
-// the built-in template through the engine.
-func renderSystemd(in systemdInputs) (string, error) {
-	c := in.c
-	outputFileSupport := ""
-	if in.logOutput && in.hasOutput {
-		outputFileSupport = "yes"
+// renderSystemd renders the built-in template with the data Install would use
+// for c, on a systemd with file output support.
+func renderSystemd(t *testing.T, c *Config, path string) string {
+	t.Helper()
+	recordCommands(t, map[string]string{"systemctl --version": "systemd 252 (252.5-2)"})
+	svc, err := newSystemdService(nil, "linux-systemd", c)
+	if err != nil {
+		t.Fatal(err)
 	}
-	limitNOFILE := ""
-	if in.limitNOFILE > -1 {
-		limitNOFILE = strconv.Itoa(in.limitNOFILE)
+	out, err := systemdTemplate.render(svc.(*systemd).templateData(path), tfs)
+	if err != nil {
+		t.Fatal(err)
 	}
-	data := map[string]any{
-		"Description":       c.Description,
-		"Path":              in.path,
-		"Name":              c.Name,
-		"Dependencies":      c.Dependencies,
-		"Arguments":         c.Arguments,
-		"ChRoot":            c.ChRoot,
-		"WorkingDirectory":  c.WorkingDirectory,
-		"UserName":          c.UserName,
-		"ReloadSignal":      in.reloadSignal,
-		"PIDFile":           in.pidFile,
-		"LogDirectory":      in.logDir,
-		"OutputFileSupport": outputFileSupport,
-		"LimitNOFILE":       limitNOFILE,
-		"Restart":           in.restart,
-		"SuccessExitStatus": in.successExitStatus,
-		"EnvVars":           envVars(c.EnvVars, func(k, v string) string { return "Environment=" + k + "=" + v }),
-	}
-	return renderTemplate(systemdScript, data, tfs)
+	return out
 }
 
 const systemdGoldenMinimal = `[Unit]
@@ -107,17 +75,20 @@ WantedBy=multi-user.target
 `
 
 func TestSystemdRender(t *testing.T) {
-	base := systemdInputs{
-		path: "/usr/bin/svc app", reloadSignal: "SIGUSR1", pidFile: "/var/run/svc.pid",
-		limitNOFILE: 4096, restart: "always", successExitStatus: "1 2",
-		logOutput: true, hasOutput: true, logDir: "/var/log",
+	options := KeyValue{
+		optionReloadSignal:      "SIGUSR1",
+		optionPIDFile:           "/var/run/svc.pid",
+		optionLimitNOFILE:       4096,
+		optionRestart:           "always",
+		optionSuccessExitStatus: "1 2",
+		optionLogOutput:         true,
 	}
 	cases := []struct {
 		name string
 		c    *Config
 		want string
 	}{
-		{"minimal", &Config{Name: "svc", Description: "A test"}, systemdGoldenMinimal},
+		{"minimal", &Config{Name: "svc", Description: "A test", Option: options}, systemdGoldenMinimal},
 		{"full", &Config{
 			Name:             "svc",
 			Description:      "A test service",
@@ -127,18 +98,57 @@ func TestSystemdRender(t *testing.T) {
 			WorkingDirectory: "/opt/my app",
 			ChRoot:           "/jail",
 			EnvVars:          map[string]string{"B": "2", "A": "1"},
+			Option:           options,
 		}, systemdGoldenFull},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			in := base
-			in.c = tc.c
-			got, err := renderSystemd(in)
-			if err != nil {
-				t.Fatal(err)
-			}
+			got := renderSystemd(t, tc.c, "/usr/bin/svc app")
 			if got != tc.want {
 				t.Errorf("output mismatch\n--- got ---\n%q\n--- want ---\n%q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSystemdRenderByLevel(t *testing.T) {
+	cases := []struct {
+		level   ServiceLevel
+		want    []string
+		notWant []string
+	}{
+		{
+			level:   ServiceLevelSystem,
+			want:    []string{"WantedBy=multi-user.target\n", "User=bob\n", "StandardOutput=file:"},
+			notWant: []string{"ConditionUser="},
+		},
+		{
+			level:   ServiceLevelUser,
+			want:    []string{"WantedBy=default.target\n", "StandardOutput=file:"},
+			notWant: []string{"User=", "ConditionUser=", "multi-user.target"},
+		},
+		{
+			level:   ServiceLevelAllUsers,
+			want:    []string{"WantedBy=default.target\n", "\nConditionUser=!@system\n"},
+			notWant: []string{"User=bob", "StandardOutput=", "StandardError=", "multi-user.target"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.level), func(t *testing.T) {
+			c := &Config{Name: "svc", ServiceLevel: tc.level, Option: KeyValue{optionLogOutput: true}}
+			if tc.level != ServiceLevelAllUsers {
+				c.UserName = "bob"
+			}
+			got := renderSystemd(t, c, "/usr/bin/svc")
+			for _, w := range tc.want {
+				if !strings.Contains(got, w) {
+					t.Errorf("missing %q in\n%s", w, got)
+				}
+			}
+			for _, w := range tc.notWant {
+				if strings.Contains(got, w) {
+					t.Errorf("unexpected %q in\n%s", w, got)
+				}
 			}
 		})
 	}
