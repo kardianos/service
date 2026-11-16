@@ -441,6 +441,104 @@ func (s *systemd) runAction(action string) error {
 	return run("systemctl", append(s.runScope(), action, s.unitName())...)
 }
 
+// the exit code of "systemctl stop" when the service isn't loaded
+const systemctlNotLoaded = 5
+
+// required for "systemctl -M user@"
+const minMachineUserVersion = 248
+
+type loginUser struct {
+	uid  uint32
+	name string
+}
+
+func (u loginUser) label() string {
+	return u.name
+}
+
+// StartAll starts the service for every logged-in user.
+// No-op for already running services.
+func (s *systemd) StartAll() error {
+	users, version, err := s.listAllUsers()
+	if err != nil {
+		return err
+	}
+	return forEachUser(users, loginUser.label, func(u loginUser) error {
+		// Picks up a unit file added or changed since the manager started.
+		reload := systemctlAsUser(version, u, "daemon-reload")
+		if err := run(reload[0], reload[1:]...); err != nil {
+			return err
+		}
+		start := systemctlAsUser(version, u, "start", s.unitName())
+		return run(start[0], start[1:]...)
+	})
+}
+
+// StopAll stops the service for every logged-in user.
+// Waits for all commands to finish.
+func (s *systemd) StopAll() error {
+	users, version, err := s.listAllUsers()
+	if err != nil {
+		return err
+	}
+	return forEachUser(users, loginUser.label, func(u loginUser) error {
+		stop := systemctlAsUser(version, u, "stop", s.unitName())
+		code, _, err := runWithOutput(stop[0], stop[1:]...)
+		if code == systemctlNotLoaded {
+			return nil
+		}
+		return err
+	})
+}
+
+func (s *systemd) listAllUsers() ([]loginUser, int64, error) {
+	if s.level != ServiceLevelAllUsers {
+		return nil, 0, ErrUnsupportedOperation
+	}
+	if !isPrivileged() {
+		return nil, 0, ErrRequiresPrivilege
+	}
+	_, out, err := runWithOutput("loginctl", "list-users", "--no-legend")
+	if err != nil {
+		return nil, 0, err
+	}
+	return parseLoginctlUsers(out), s.getSystemdVersion(), nil
+}
+
+// parses `loginctl list-users --no-legend`
+// deduplicates users and elides root
+func parseLoginctlUsers(out string) []loginUser {
+	var users []loginUser
+	seen := map[uint32]bool{}
+	for _, line := range strings.Split(out, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		uid, err := strconv.ParseUint(fields[0], 10, 32)
+		if err != nil || uid == 0 || seen[uint32(uid)] {
+			continue
+		}
+		seen[uint32(uid)] = true
+		users = append(users, loginUser{uid: uint32(uid), name: fields[1]})
+	}
+	return users
+}
+
+// runs a systemctl command for a particular user
+// if systemd is 248+, uses -M
+// else, fallback to runuser
+func systemctlAsUser(version int64, u loginUser, args ...string) []string {
+	if version >= minMachineUserVersion {
+		return append([]string{"systemctl", "--user", "-M", u.name + "@"}, args...)
+	}
+	return append([]string{
+		"runuser", "-u", u.name, "--",
+		"env", fmt.Sprintf("XDG_RUNTIME_DIR=/run/user/%d", u.uid),
+		"systemctl", "--user",
+	}, args...)
+}
+
 // systemdScript is expanded by the mini template engine (renderTemplate).
 // {{if}}/{{range}} operate on plain string / []string values built in Install;
 // compound conditions such as "and .LogOutput .HasOutputFileSupport" or

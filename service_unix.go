@@ -9,12 +9,14 @@ package service
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log/syslog"
 	"os"
 	"os/exec"
+	"sync"
 	"syscall"
 )
 
@@ -91,6 +93,23 @@ func (c *Config) requireSystemLevel() error {
 		return ErrUnsupportedServiceLevel
 	}
 	return nil
+}
+
+// forEachUser runs f for every user concurrently
+func forEachUser[U any](users []U, label func(U) string, f func(U) error) error { //nolint:unused // Unused on freebsd, solaris and aix.
+	errs := make([]error, len(users))
+	var wg sync.WaitGroup
+	for i, u := range users {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := f(u); err != nil {
+				errs[i] = fmt.Errorf("%s: %w", label(u), err)
+			}
+		}()
+	}
+	wg.Wait()
+	return errors.Join(errs...)
 }
 
 func execCommand(command string, readStdout bool, arguments ...string) (int, string, error) {

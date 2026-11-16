@@ -3,6 +3,7 @@
 package service
 
 import (
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -44,4 +45,14 @@ func stubPrivileged(t *testing.T, v bool) { //nolint:unused // Unused on freebsd
 	prev := isPrivileged
 	isPrivileged = func() bool { return v }
 	t.Cleanup(func() { isPrivileged = prev })
+}
+
+func joinCalls(calls [][]string) []string { //nolint:unused // Unused on freebsd, solaris and aix.
+	var out []string
+	for _, c := range calls {
+		out = append(out, strings.Join(c, " "))
+	}
+	// sorted as `calls` has no guaranteed ordering
+	sort.Strings(out)
+	return out
 }

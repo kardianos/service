@@ -4,8 +4,10 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -209,5 +211,217 @@ func TestSystemdCommandScope(t *testing.T) {
 				t.Errorf("ran %q, want %q", *calls, want)
 			}
 		})
+	}
+}
+
+var _ AllUsersController = (*systemd)(nil)
+
+func TestAllUsersAllCommandsRequirePrivilege(t *testing.T) {
+	stubPrivileged(t, false)
+	calls := recordCommands(t, nil)
+	s := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers})
+
+	for name, cmd := range map[string]func() error{"StartAll": s.StartAll, "StopAll": s.StopAll} {
+		if err := cmd(); !errors.Is(err, ErrRequiresPrivilege) {
+			t.Errorf("%s err = %v, want %v", name, err, ErrRequiresPrivilege)
+		}
+	}
+	if len(*calls) != 0 {
+		t.Errorf("ran %q, want no commands", *calls)
+	}
+}
+
+func TestAllUsersAllCommandsOtherLevels(t *testing.T) {
+	stubPrivileged(t, true)
+	calls := recordCommands(t, nil)
+	for _, level := range []ServiceLevel{ServiceLevelSystem, ServiceLevelUser} {
+		s := newSystemd(t, &Config{ServiceLevel: level})
+		for name, cmd := range map[string]func() error{"StartAll": s.StartAll, "StopAll": s.StopAll} {
+			if err := cmd(); !errors.Is(err, ErrUnsupportedOperation) {
+				t.Errorf("%s %s err = %v, want %v", level, name, err, ErrUnsupportedOperation)
+			}
+		}
+	}
+	if len(*calls) != 0 {
+		t.Errorf("ran %q, want no commands", *calls)
+	}
+}
+
+func TestSystemdParseLoginctlUsers(t *testing.T) {
+	alice := loginUser{uid: 1000, name: "alice"}
+	bob := loginUser{uid: 1001, name: "bob"}
+	tests := []struct {
+		name string
+		out  string
+		want []loginUser
+	}{
+		{"empty", "", nil},
+		{"two users", "1000 alice\n1001 bob\n", []loginUser{alice, bob}},
+		{"root", "   0 root\n1000 alice\n", []loginUser{alice}},
+		{"duplicate", "1000 alice\n1000 alice\n", []loginUser{alice}},
+		{"whitespace", "\n      1000 alice   \n\t1001 bob\n\n", []loginUser{alice, bob}},
+		{"old format", "      1000 alice\n       120 gdm\n", []loginUser{alice, {uid: 120, name: "gdm"}}},
+		{"linger and state", "1000 alice no  active\n1001 bob   yes lingering\n", []loginUser{alice, bob}},
+		{"malformed", "alice 1000\n1000\n", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := parseLoginctlUsers(tt.out); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("parseLoginctlUsers() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSystemdUserSystemctl(t *testing.T) {
+	u := loginUser{uid: 1000, name: "alice"}
+	machine := []string{"systemctl", "--user", "-M", "alice@", "start", "svc.service"}
+	runuser := []string{
+		"runuser", "-u", "alice", "--", "env", "XDG_RUNTIME_DIR=/run/user/1000",
+		"systemctl", "--user", "start", "svc.service",
+	}
+	tests := []struct {
+		version int64
+		want    []string
+	}{
+		{260, machine},
+		{248, machine},
+		{247, runuser},
+		{239, runuser},
+		{-1, runuser},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprint(tt.version), func(t *testing.T) {
+			if got := systemctlAsUser(tt.version, u, "start", "svc.service"); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("userSystemctl() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+const (
+	loginctlUsers   = "loginctl list-users --no-legend"
+	loginctlTwoUser = "1000 alice no active\n1001 bob no active\n"
+	systemctlVer    = "systemctl --version"
+)
+
+// allUsersVersions are the systemd versions the StartAll and StopAll tests run
+// against, one for each way of reaching a user's manager.
+var allUsersVersions = []struct {
+	version int64
+	prefix  func(u loginUser) string
+}{
+	{239, func(u loginUser) string {
+		return fmt.Sprintf("runuser -u %s -- env XDG_RUNTIME_DIR=/run/user/%d systemctl --user", u.name, u.uid)
+	}},
+	{252, func(u loginUser) string { return "systemctl --user -M " + u.name + "@" }},
+}
+
+var (
+	testAlice = loginUser{uid: 1000, name: "alice"}
+	testBob   = loginUser{uid: 1001, name: "bob"}
+)
+
+func TestSystemdStopAllCommands(t *testing.T) {
+	stubPrivileged(t, true)
+	for _, v := range allUsersVersions {
+		t.Run(fmt.Sprint(v.version), func(t *testing.T) {
+			// bob has no copy loaded, which is not an error.
+			bobStop := v.prefix(testBob) + " stop svc.service"
+			calls := stubCommands(t, func(argv []string) (int, string, error) {
+				switch strings.Join(argv, " ") {
+				case loginctlUsers:
+					return 0, loginctlTwoUser, nil
+				case systemctlVer:
+					return 0, fmt.Sprintf("systemd %d (%d)\n", v.version, v.version), nil
+				case bobStop:
+					return systemctlNotLoaded, "", errors.New("Unit svc.service not loaded.")
+				}
+				return 0, "", nil
+			})
+
+			if err := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers}).StopAll(); err != nil {
+				t.Fatal(err)
+			}
+			want := []string{
+				loginctlUsers,
+				systemctlVer,
+				v.prefix(testAlice) + " stop svc.service",
+				bobStop,
+			}
+			sort.Strings(want)
+			if got := joinCalls(*calls); !reflect.DeepEqual(got, want) {
+				t.Errorf("ran %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+func TestSystemdStartAllCommands(t *testing.T) {
+	stubPrivileged(t, true)
+	for _, v := range allUsersVersions {
+		t.Run(fmt.Sprint(v.version), func(t *testing.T) {
+			calls := recordCommands(t, map[string]string{
+				loginctlUsers: loginctlTwoUser,
+				systemctlVer:  fmt.Sprintf("systemd %d (%d)\n", v.version, v.version),
+			})
+
+			if err := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers}).StartAll(); err != nil {
+				t.Fatal(err)
+			}
+			want := []string{loginctlUsers, systemctlVer}
+			for _, u := range []loginUser{testAlice, testBob} {
+				want = append(want,
+					v.prefix(u)+" daemon-reload",
+					v.prefix(u)+" start svc.service")
+			}
+			sort.Strings(want)
+			if got := joinCalls(*calls); !reflect.DeepEqual(got, want) {
+				t.Errorf("ran %q, want %q", got, want)
+			}
+			// Each user's reload comes before their start.
+			for _, u := range []loginUser{testAlice, testBob} {
+				reload, start := -1, -1
+				for i, c := range *calls {
+					switch strings.Join(c, " ") {
+					case v.prefix(u) + " daemon-reload":
+						reload = i
+					case v.prefix(u) + " start svc.service":
+						start = i
+					}
+				}
+				if reload > start {
+					t.Errorf("%s: start ran before daemon-reload", u.name)
+				}
+			}
+		})
+	}
+}
+
+func TestSystemdAllCommandsReturnErrors(t *testing.T) {
+	stubPrivileged(t, true)
+	stubCommands(t, func(argv []string) (int, string, error) {
+		cmd := strings.Join(argv, " ")
+		switch {
+		case cmd == loginctlUsers:
+			return 0, loginctlTwoUser, nil
+		case cmd == systemctlVer:
+			return 0, "systemd 252 (252.5-2)\n", nil
+		case strings.Contains(cmd, " stop ") || strings.Contains(cmd, " start "):
+			return 1, "", errors.New("Failed to connect to bus")
+		}
+		return 0, "", nil
+	})
+	s := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers})
+
+	for name, cmd := range map[string]func() error{"StartAll": s.StartAll, "StopAll": s.StopAll} {
+		err := cmd()
+		if err == nil {
+			t.Fatalf("%s err = nil, want an error", name)
+		}
+		want := "alice: Failed to connect to bus\nbob: Failed to connect to bus"
+		if err.Error() != want {
+			t.Errorf("%s err = %q, want %q", name, err, want)
+		}
 	}
 }

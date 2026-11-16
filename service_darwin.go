@@ -14,7 +14,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -406,8 +405,8 @@ func (s *darwinLaunchdService) StartAll() error {
 	if err != nil {
 		return err
 	}
-	return forEachUser(uids, func(uid uint32) error {
-		return s.startIn(fmt.Sprintf("gui/%d", uid), confPath)
+	return forEachUser(uids, guiDomain, func(uid uint32) error {
+		return s.startIn(guiDomain(uid), confPath)
 	})
 }
 
@@ -418,27 +417,13 @@ func (s *darwinLaunchdService) StopAll() error {
 	if err != nil {
 		return err
 	}
-	return forEachUser(uids, func(uid uint32) error {
-		return s.stopIn(fmt.Sprintf("gui/%d", uid))
+	return forEachUser(uids, guiDomain, func(uid uint32) error {
+		return s.stopIn(guiDomain(uid))
 	})
 }
 
-// run concurrently, to avoid the pathological case where each process takes
-// a long time to terminate
-func forEachUser(uids []uint32, f func(uid uint32) error) error {
-	errs := make([]error, len(uids))
-	var wg sync.WaitGroup
-	for i, uid := range uids {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := f(uid); err != nil {
-				errs[i] = fmt.Errorf("gui/%d: %w", uid, err)
-			}
-		}()
-	}
-	wg.Wait()
-	return errors.Join(errs...)
+func guiDomain(uid uint32) string {
+	return fmt.Sprintf("gui/%d", uid)
 }
 
 // allUsers checks StartAll and StopAll can run, and returns the uids of the
