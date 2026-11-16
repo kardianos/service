@@ -142,7 +142,7 @@ func (s *systemd) unitName() string {
 }
 
 func (s *systemd) getSystemdVersion() int64 {
-	_, out, err := s.runWithOutput("systemctl", "--version")
+	_, out, err := runWithOutput("systemctl", "--version")
 	if err != nil {
 		return -1
 	}
@@ -186,8 +186,18 @@ func (s *systemd) template() (*tmpl, error) {
 	return systemdTemplate, nil
 }
 
-func (s *systemd) isUserService() bool {
-	return s.level == ServiceLevelUser
+func (s *systemd) runScope() []string {
+	if s.level == ServiceLevelSystem {
+		return nil
+	}
+	return []string{"--user"}
+}
+
+func (s *systemd) userContextRequired() error {
+	if s.level == ServiceLevelAllUsers && isPrivileged() {
+		return ErrUserContextRequired
+	}
+	return nil
 }
 
 func (s *systemd) Install() error {
@@ -370,7 +380,10 @@ func (s *systemd) Run() (err error) {
 }
 
 func (s *systemd) Status() (Status, error) {
-	exitCode, out, err := s.runWithOutput("systemctl", "is-active", s.unitName())
+	if err := s.userContextRequired(); err != nil {
+		return StatusUnknown, err
+	}
+	exitCode, out, err := s.runWithOutput("is-active", s.unitName())
 	if exitCode == 0 && err != nil {
 		return StatusUnknown, err
 	}
@@ -380,7 +393,7 @@ func (s *systemd) Status() (Status, error) {
 		return StatusRunning, nil
 	case strings.HasPrefix(out, "inactive"):
 		// inactive can also mean its not installed, check unit files
-		exitCode, out, err := s.runWithOutput("systemctl", "list-unit-files", "-t", "service", s.unitName())
+		exitCode, out, err := s.runWithOutput("list-unit-files", "-t", "service", s.unitName())
 		if exitCode == 0 && err != nil {
 			return StatusUnknown, err
 		}
@@ -400,33 +413,32 @@ func (s *systemd) Status() (Status, error) {
 }
 
 func (s *systemd) Start() error {
+	if err := s.userContextRequired(); err != nil {
+		return err
+	}
 	return s.runAction("start")
 }
 
 func (s *systemd) Stop() error {
+	if err := s.userContextRequired(); err != nil {
+		return err
+	}
 	return s.runAction("stop")
 }
 
 func (s *systemd) Restart() error {
+	if err := s.userContextRequired(); err != nil {
+		return err
+	}
 	return s.runAction("restart")
 }
 
-func (s *systemd) runWithOutput(command string, arguments ...string) (int, string, error) {
-	if s.isUserService() {
-		arguments = append([]string{"--user"}, arguments...)
-	}
-	return runWithOutput(command, arguments...)
-}
-
-func (s *systemd) run(action string, args ...string) error {
-	if s.isUserService() {
-		return run("systemctl", append([]string{"--user", action}, args...)...)
-	}
-	return run("systemctl", append([]string{action}, args...)...)
+func (s *systemd) runWithOutput(args ...string) (int, string, error) {
+	return runWithOutput("systemctl", append(s.runScope(), args...)...)
 }
 
 func (s *systemd) runAction(action string) error {
-	return s.run(action, s.unitName())
+	return run("systemctl", append(s.runScope(), action, s.unitName())...)
 }
 
 // systemdScript is expanded by the mini template engine (renderTemplate).

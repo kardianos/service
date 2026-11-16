@@ -148,3 +148,66 @@ func TestAllUsersInstallMinVersion(t *testing.T) {
 		t.Errorf("ran %q, want %q", *calls, want)
 	}
 }
+
+func TestAllUsersCommandsRefuseWhenPrivileged(t *testing.T) {
+	stubPrivileged(t, true)
+	calls := recordCommands(t, nil)
+	s := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers})
+
+	commands := map[string]func() error{
+		"Start":   s.Start,
+		"Stop":    s.Stop,
+		"Restart": s.Restart,
+		"Status":  func() error { _, err := s.Status(); return err },
+	}
+	for name, cmd := range commands {
+		if err := cmd(); !errors.Is(err, ErrUserContextRequired) {
+			t.Errorf("%s err = %v, want %v", name, err, ErrUserContextRequired)
+		}
+	}
+	if len(*calls) != 0 {
+		t.Errorf("ran %q, want no commands", *calls)
+	}
+}
+
+func TestSystemdCommandScope(t *testing.T) {
+	stubPrivileged(t, false)
+	tests := []struct {
+		level ServiceLevel
+		scope []string
+	}{
+		{ServiceLevelSystem, nil},
+		{ServiceLevelUser, []string{"--user"}},
+		{ServiceLevelAllUsers, []string{"--user"}},
+	}
+	for _, tt := range tests {
+		t.Run(string(tt.level), func(t *testing.T) {
+			argv := func(args ...string) []string {
+				return append(append([]string{"systemctl"}, tt.scope...), args...)
+			}
+			calls := recordCommands(t, map[string]string{
+				strings.Join(argv("is-active", "svc.service"), " "): "inactive\n",
+			})
+			s := newSystemd(t, &Config{ServiceLevel: tt.level})
+
+			if err := s.Start(); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.Stop(); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.Status(); !errors.Is(err, ErrNotInstalled) {
+				t.Fatalf("Status err = %v, want %v", err, ErrNotInstalled)
+			}
+			want := [][]string{
+				argv("start", "svc.service"),
+				argv("stop", "svc.service"),
+				argv("is-active", "svc.service"),
+				argv("list-unit-files", "-t", "service", "svc.service"),
+			}
+			if !reflect.DeepEqual(*calls, want) {
+				t.Errorf("ran %q, want %q", *calls, want)
+			}
+		})
+	}
+}

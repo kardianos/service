@@ -70,12 +70,8 @@ func TestSystemdLegacyUserService(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			s := svc.(*systemd)
-			if s.level != tt.want {
-				t.Errorf("level = %q, want %q", s.level, tt.want)
-			}
-			if got, want := s.isUserService(), tt.want == ServiceLevelUser; got != want {
-				t.Errorf("isUserService() = %v, want %v", got, want)
+			if got := svc.(*systemd).level; got != tt.want {
+				t.Errorf("level = %q, want %q", got, tt.want)
 			}
 		})
 	}
