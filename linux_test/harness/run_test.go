@@ -207,6 +207,37 @@ func TestRunSuiteSetsExpectPlatform(t *testing.T) {
 	}
 }
 
+func TestRunTargetFreshContainerPerSuite(t *testing.T) {
+	rt := &fakeRuntime{ready: true, list: "TestA\n", testExit: 1}
+	rs := runTarget(context.Background(), rt, Target{Name: "t", Init: systemd, Suites: []string{"unit", "su"}}, testOptions(t))
+	if len(rs) != 2 || rs[0].Suite != "unit" || rs[1].Suite != "su" {
+		t.Fatalf("results = %+v, want unit then su", rs)
+	}
+	for _, r := range rs {
+		if r.Status != Fail {
+			t.Errorf("%s: %s, want FAIL", r.Suite, r.Status)
+		}
+	}
+	if rt.builds != 1 {
+		t.Errorf("built the image %d times, want once", rt.builds)
+	}
+	if len(rt.started) != 2 || rt.started[0] == rt.started[1] {
+		t.Errorf("started %v, want two different containers", rt.started)
+	}
+	if !slices.Equal(rt.removed, rt.started) {
+		t.Errorf("removed %v, want %v", rt.removed, rt.started)
+	}
+}
+
+func TestSuiteBinary(t *testing.T) {
+	if got := (Suite{}).Binary(); got != "service.test" {
+		t.Errorf("untagged binary = %q, want service.test", got)
+	}
+	if got := (Suite{Tags: "su"}).Binary(); got != "su.test" {
+		t.Errorf("tagged binary = %q, want su.test", got)
+	}
+}
+
 func TestRunTargetInterrupted(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

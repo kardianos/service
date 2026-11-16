@@ -11,7 +11,12 @@ type Suite struct {
 	Testsvc bool
 }
 
-func (s Suite) Binary() string { return s.Tags + ".test" }
+func (s Suite) Binary() string {
+	if s.Tags == "" {
+		return "service.test"
+	}
+	return s.Tags + ".test"
+}
 
 type Target struct {
 	// Name is also the directory of the Dockerfile in linux_test/targets.
@@ -27,15 +32,17 @@ type Target struct {
 }
 
 var suites = map[string]Suite{
+	"unit":     {Run: "."},
+	"su":       {Tags: "su", Run: "^(TestInstallRunRestartStopRemove|TestExpectedPlatform)$"},
 	"allusers": {Tags: "systemd_container", Run: "^TestContainer", Testsvc: true},
 }
 
 var targets = []Target{
-	{Name: "systemd-debian12", Init: systemd, Suites: []string{"allusers"}},
-	{Name: "systemd-fedora", Init: systemd, Suites: []string{"allusers"}},
-	{Name: "systemd-ubuntu2004", Init: systemd, Suites: []string{"allusers"}},
-	{Name: "systemd-rocky8", Init: systemd, Suites: []string{"allusers"}, BestEffort: true},
-	{Name: "systemd-centos7", Init: systemd, Suites: []string{"allusers"}, BestEffort: true, RequiresCgroupV1: true},
+	{Name: "systemd-debian12", Init: systemd, Suites: []string{"unit", "su", "allusers"}},
+	{Name: "systemd-fedora", Init: systemd, Suites: []string{"unit", "su", "allusers"}},
+	{Name: "systemd-ubuntu2004", Init: systemd, Suites: []string{"unit", "su", "allusers"}},
+	{Name: "systemd-rocky8", Init: systemd, Suites: []string{"unit", "su", "allusers"}, BestEffort: true},
+	{Name: "systemd-centos7", Init: systemd, Suites: []string{"unit", "allusers"}, BestEffort: true, RequiresCgroupV1: true},
 }
 
 func selectTargets(all []Target, only []string, suite string) ([]Target, error) {

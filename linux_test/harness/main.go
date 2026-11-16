@@ -148,7 +148,11 @@ func printList() {
 	fmt.Println("Suites:")
 	for _, name := range slices.Sorted(maps.Keys(suites)) {
 		s := suites[name]
-		fmt.Printf("  %-10s tags %s, run %s\n", name, s.Tags, s.Run)
+		tags := s.Tags
+		if tags == "" {
+			tags = "none"
+		}
+		fmt.Printf("  %-10s tags %s, run %s\n", name, tags, s.Run)
 	}
 }
 

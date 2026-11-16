@@ -29,10 +29,15 @@ func TestTargetTable(t *testing.T) {
 			t.Errorf("target %s: %v", tg.Name, err)
 		}
 	}
+	bins := map[string]string{}
 	for name, s := range suites {
-		if s.Tags == "" || s.Run == "" {
-			t.Errorf("suite %s needs Tags and Run", name)
+		if s.Run == "" {
+			t.Errorf("suite %s needs Run", name)
 		}
+		if other, ok := bins[s.Binary()]; ok && suites[other].Tags != s.Tags {
+			t.Errorf("suites %s and %s both build %s", name, other, s.Binary())
+		}
+		bins[s.Binary()] = name
 	}
 }
 
