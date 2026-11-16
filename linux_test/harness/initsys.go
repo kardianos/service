@@ -33,7 +33,33 @@ var systemd = &InitSystem{
 	FailureLogs: [][]string{{"journalctl", "--no-pager", "-n", "300"}},
 }
 
-var initSystems = []*InitSystem{systemd}
+// The image writes /run/booted from a service that runs last. The init's own
+// status commands succeed before boot has finished.
+func markerReady(ctx context.Context, rt Runtime, name string) (bool, string) {
+	code, err := rt.Exec(ctx, name, nil, nil, "test", "-e", "/run/booted")
+	if err != nil {
+		return false, err.Error()
+	}
+	if code != 0 {
+		return false, "booting"
+	}
+	return true, "booted"
+}
+
+var openrc = &InitSystem{
+	Name:     "openrc",
+	Boot:     []string{"/sbin/init"},
+	Platform: "linux-openrc",
+	Ready:    markerReady,
+	Version:  []string{"openrc", "--version"},
+	FailureLogs: [][]string{
+		{"cat", "/var/log/rc.log"},
+		{"rc-status", "-a"},
+		{"ps"},
+	},
+}
+
+var initSystems = []*InitSystem{systemd, openrc}
 
 func waitReady(ctx context.Context, rt Runtime, name string, init *InitSystem, timeout, poll time.Duration) (bool, string) {
 	deadline := time.Now().Add(timeout)

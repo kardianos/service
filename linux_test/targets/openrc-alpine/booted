@@ -1,0 +1,13 @@
+#!/sbin/openrc-run
+# rc-status succeeds before boot has finished, so the harness waits for this
+# file instead.
+
+description="Marks the end of boot for the container tests"
+
+depend() {
+	after *
+}
+
+start() {
+	touch /run/booted
+}

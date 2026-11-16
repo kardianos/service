@@ -59,6 +59,11 @@ func (f *fakeRuntime) Exec(_ context.Context, _ string, _ []string, out io.Write
 		}
 		fmt.Fprintln(out, "starting")
 		return 1, nil
+	case slices.Equal(argv, []string{"test", "-e", "/run/booted"}):
+		if f.ready {
+			return 0, nil
+		}
+		return 1, nil
 	case slices.Equal(argv, []string{"systemctl", "--version"}):
 		fmt.Fprintln(out, "systemd 252 (252.1)\n+PAM")
 	case slices.Contains(argv, "-test.list"):
@@ -204,6 +209,42 @@ func TestRunSuiteSetsExpectPlatform(t *testing.T) {
 	runTarget(context.Background(), rt, Target{Name: "t", Init: systemd, Suites: []string{"allusers"}}, testOptions(t))
 	if want := []string{"EXPECT_PLATFORM=linux-systemd"}; !slices.Equal(rt.env, want) {
 		t.Errorf("env = %q, want %q", rt.env, want)
+	}
+}
+
+func TestRunTargetMarkerReady(t *testing.T) {
+	tests := []struct {
+		name  string
+		ready bool
+		want  Status
+	}{
+		{"booted", true, Pass},
+		{"not booted", false, Fail},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rt := &fakeRuntime{ready: tt.ready, list: "TestA\n"}
+			rs := runTarget(context.Background(), rt, Target{Name: "t", Init: openrc, Suites: []string{"su"}}, testOptions(t))
+			if rs[0].Status != tt.want {
+				t.Errorf("status %s, want %s (%s)", rs[0].Status, tt.want, rs[0].Reason)
+			}
+			if rt.ran("systemctl") {
+				t.Error("used systemctl on OpenRC")
+			}
+		})
+	}
+}
+
+func TestRunTargetOpenRCFailureLogs(t *testing.T) {
+	rt := &fakeRuntime{ready: true, list: "TestA\n", testExit: 1}
+	runTarget(context.Background(), rt, Target{Name: "t", Init: openrc, Suites: []string{"su"}}, testOptions(t))
+	for _, cmd := range []string{"cat", "rc-status", "ps"} {
+		if !rt.ran(cmd) {
+			t.Errorf("did not collect %s on failure", cmd)
+		}
+	}
+	if rt.ran("journalctl") {
+		t.Error("collected journalctl on OpenRC")
 	}
 }
 
