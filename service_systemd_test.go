@@ -481,7 +481,7 @@ func TestSystemdAllCommandsReturnErrors(t *testing.T) {
 }
 
 func TestManagerRunning(t *testing.T) {
-	// is-active exits 3 for every state except active.
+	// is-active exits 3 for every state except active, reloading and (v257+) refreshing.
 	errExit3 := errors.New("exit status 3")
 	errBus := errors.New("exit status 1: Failed to connect to bus")
 	tests := []struct {
@@ -492,14 +492,16 @@ func TestManagerRunning(t *testing.T) {
 		wantErr bool
 	}{
 		{"active", "active\n", nil, true, false},
-		{"reloading", "reloading\n", errExit3, true, false},
+		{"reloading", "reloading\n", nil, true, false},
+		{"refreshing", "refreshing\n", nil, true, false},
 		{"activating", "activating\n", errExit3, true, false},
 		{"inactive", "inactive\n", errExit3, false, false},
 		{"failed", "failed\n", errExit3, false, false},
 		{"deactivating", "deactivating\n", errExit3, false, false},
+		{"maintenance", "maintenance\n", errExit3, false, false},
 		{"query failed", "", errBus, false, true},
 		{"no output", "", nil, false, true},
-		{"unknown state", "maintenance\n", errExit3, false, true},
+		{"unknown state", "bogus\n", errExit3, false, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

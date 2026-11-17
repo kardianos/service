@@ -535,12 +535,13 @@ func parseLoginctlUsers(out string) []loginUser {
 // an explicit check
 func managerRunning(u loginUser) (bool, error) {
 	unit := fmt.Sprintf("user@%d.service", u.uid)
-	// is-active exits non-zero for every state except active, so check the output
+	// is-active exits non-zero for every state except active, reloading and
+	// (v257+) refreshing, so check the output
 	_, out, err := runWithOutput("systemctl", "is-active", unit)
 	switch state := strings.TrimSpace(out); state {
-	case "active", "reloading", "activating":
+	case "active", "reloading", "refreshing", "activating":
 		return true, nil
-	case "inactive", "failed", "deactivating":
+	case "inactive", "failed", "deactivating", "maintenance":
 		return false, nil
 	case "":
 		if err == nil {
