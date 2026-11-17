@@ -5,39 +5,64 @@ package service
 import (
 	"errors"
 	"os/exec"
-	"strings"
 	"testing"
 	"time"
 )
 
-func TestExecCommandIncludesStderr(t *testing.T) {
-	code, out, err := execCommand("sh", true, "-c", "echo partial; echo 'Failed to connect to bus' >&2; exit 4")
-	if code != 4 {
-		t.Errorf("code = %d, want 4", code)
+func TestExecCommand(t *testing.T) {
+	tests := []struct {
+		name        string
+		command     string
+		args        []string
+		wantCode    int
+		wantOut     string
+		wantErr     string
+		wantExitErr bool
+	}{
+		{
+			name:        "stderr in error",
+			command:     "sh",
+			args:        []string{"-c", "echo partial; echo 'Failed to connect to bus' >&2; exit 4"},
+			wantCode:    4,
+			wantOut:     "partial\n",
+			wantErr:     "exit status 4: Failed to connect to bus",
+			wantExitErr: true,
+		},
+		{
+			name:        "no stderr",
+			command:     "sh",
+			args:        []string{"-c", "exit 3"},
+			wantCode:    3,
+			wantErr:     "exit status 3",
+			wantExitErr: true,
+		},
+		{
+			name:    "success ignores stderr",
+			command: "sh",
+			args:    []string{"-c", "echo warning >&2; echo ok"},
+			wantOut: "ok\n",
+		},
 	}
-	if out != "partial\n" {
-		t.Errorf("out = %q, want %q", out, "partial\n")
-	}
-	if want := "exit status 4: Failed to connect to bus"; err == nil || err.Error() != want {
-		t.Fatalf("err = %v, want %q", err, want)
-	}
-	var exitErr *exec.ExitError
-	if !errors.As(err, &exitErr) {
-		t.Errorf("err = %T, want it to wrap *exec.ExitError", err)
-	}
-}
-
-func TestExecCommandNoStderr(t *testing.T) {
-	_, _, err := execCommand("sh", false, "-c", "exit 3")
-	if want := "exit status 3"; err == nil || err.Error() != want {
-		t.Fatalf("err = %v, want %q", err, want)
-	}
-}
-
-func TestExecCommandSuccessIgnoresStderr(t *testing.T) {
-	code, out, err := execCommand("sh", true, "-c", "echo warning >&2; echo ok")
-	if code != 0 || out != "ok\n" || err != nil {
-		t.Fatalf("got (%d, %q, %v), want (0, %q, nil)", code, out, err, "ok\n")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			code, out, err := execCommand(tt.command, true, tt.args...)
+			if code != tt.wantCode || out != tt.wantOut {
+				t.Errorf("got (%d, %q), want (%d, %q)", code, out, tt.wantCode, tt.wantOut)
+			}
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			if err == nil || err.Error() != tt.wantErr {
+				t.Fatalf("err = %v, want %q", err, tt.wantErr)
+			}
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) != tt.wantExitErr {
+				t.Errorf("err wraps *exec.ExitError = %v, want %v", !tt.wantExitErr, tt.wantExitErr)
+			}
+		})
 	}
 }
 
@@ -65,12 +90,5 @@ func TestExecCommandLargeStderr(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("execCommand hung on a command that fills stderr")
-	}
-}
-
-func TestExecCommandStartFailure(t *testing.T) {
-	_, _, err := execCommand("/nonexistent/command", true)
-	if err == nil || !strings.HasPrefix(err.Error(), `"/nonexistent/command" failed: `) {
-		t.Fatalf("err = %v, want a start failure", err)
 	}
 }

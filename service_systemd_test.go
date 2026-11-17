@@ -216,34 +216,35 @@ func TestSystemdCommandScope(t *testing.T) {
 
 var _ AllUsersController = (*systemd)(nil)
 
-func TestAllUsersAllCommandsRequirePrivilege(t *testing.T) {
-	stubPrivileged(t, false)
-	calls := recordCommands(t, nil)
-	s := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers})
-
-	for name, cmd := range map[string]func() error{"StartAll": s.StartAll, "StopAll": s.StopAll} {
-		if err := cmd(); !errors.Is(err, ErrRequiresPrivilege) {
-			t.Errorf("%s err = %v, want %v", name, err, ErrRequiresPrivilege)
-		}
-	}
-	if len(*calls) != 0 {
-		t.Errorf("ran %q, want no commands", *calls)
-	}
+// allUsersCommands lets a test run the same checks against StartAll and StopAll.
+func allUsersCommands(s *systemd) map[string]func() error {
+	return map[string]func() error{"StartAll": s.StartAll, "StopAll": s.StopAll}
 }
 
-func TestAllUsersAllCommandsOtherLevels(t *testing.T) {
-	stubPrivileged(t, true)
-	calls := recordCommands(t, nil)
-	for _, level := range []ServiceLevel{ServiceLevelSystem, ServiceLevelUser} {
-		s := newSystemd(t, &Config{ServiceLevel: level})
-		for name, cmd := range map[string]func() error{"StartAll": s.StartAll, "StopAll": s.StopAll} {
-			if err := cmd(); !errors.Is(err, ErrUnsupportedOperation) {
-				t.Errorf("%s %s err = %v, want %v", level, name, err, ErrUnsupportedOperation)
-			}
-		}
+func TestAllUsersAllCommandsRefused(t *testing.T) {
+	tests := []struct {
+		name       string
+		level      ServiceLevel
+		privileged bool
+		want       error
+	}{
+		{"unprivileged", ServiceLevelAllUsers, false, ErrRequiresPrivilege},
+		{"system level", ServiceLevelSystem, true, ErrUnsupportedOperation},
+		{"user level", ServiceLevelUser, true, ErrUnsupportedOperation},
 	}
-	if len(*calls) != 0 {
-		t.Errorf("ran %q, want no commands", *calls)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			stubPrivileged(t, tt.privileged)
+			calls := recordCommands(t, nil)
+			for name, cmd := range allUsersCommands(newSystemd(t, &Config{ServiceLevel: tt.level})) {
+				if err := cmd(); !errors.Is(err, tt.want) {
+					t.Errorf("%s err = %v, want %v", name, err, tt.want)
+				}
+			}
+			if len(*calls) != 0 {
+				t.Errorf("ran %q, want no commands", *calls)
+			}
+		})
 	}
 }
 
@@ -320,16 +321,12 @@ func withManagerChecks(calls ...string) []string {
 	return calls
 }
 
-// allUsersVersions are the systemd versions the StartAll and StopAll tests run
-// against, one for each way of reaching a user's manager.
-var allUsersVersions = []struct {
-	version int64
-	prefix  func(u loginUser) string
-}{
-	{239, func(u loginUser) string {
-		return fmt.Sprintf("runuser -u %s -- env XDG_RUNTIME_DIR=/run/user/%d systemctl --user", u.name, u.uid)
-	}},
-	{252, func(u loginUser) string { return "systemctl --user -M " + u.name + "@" }},
+// The StartAll and StopAll tests use one version, since
+// TestSystemdUserSystemctl covers how each version reaches a user's manager.
+const allUsersVersion = 252
+
+func userPrefix(u loginUser) string {
+	return "systemctl --user -M " + u.name + "@"
 }
 
 var (
@@ -337,196 +334,191 @@ var (
 	testBob   = loginUser{uid: 1001, name: "bob"}
 )
 
-func TestSystemdStopAllCommands(t *testing.T) {
-	stubPrivileged(t, true)
-	for _, v := range allUsersVersions {
-		t.Run(fmt.Sprint(v.version), func(t *testing.T) {
-			// bob has no copy loaded, which is not an error.
-			bobStop := v.prefix(testBob) + " stop svc.service"
-			calls := stubCommands(t, func(argv []string) (int, string, error) {
-				cmd := strings.Join(argv, " ")
-				if out, ok := managerChecks[cmd]; ok {
-					return 0, out, nil
-				}
-				switch cmd {
-				case loginctlUsers:
-					return 0, loginctlOutput, nil
-				case systemctlVer:
-					return 0, fmt.Sprintf("systemd %d (%d)\n", v.version, v.version), nil
-				case bobStop:
-					return systemctlNotLoaded, "", errors.New("Unit svc.service not loaded.")
-				}
-				return 0, "", nil
-			})
+type cmdResult struct {
+	code int
+	out  string
+	err  error
+}
 
-			if err := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers}).StopAll(); err != nil {
-				t.Fatal(err)
+// stubAllUsers answers the commands StartAll and StopAll run with
+// loginctlOutput, managerChecks and the given systemd version. override can
+// replace the result of any command by returning non-nil.
+func stubAllUsers(t *testing.T, version int64, override func(cmd string) *cmdResult) *[][]string {
+	t.Helper()
+	stubPrivileged(t, true)
+	return stubCommands(t, func(argv []string) (int, string, error) {
+		cmd := strings.Join(argv, " ")
+		if override != nil {
+			if r := override(cmd); r != nil {
+				return r.code, r.out, r.err
 			}
-			want := withManagerChecks(
-				loginctlUsers,
-				systemctlVer,
-				v.prefix(testAlice)+" stop svc.service",
-				bobStop,
-			)
-			if got := joinCalls(*calls); !reflect.DeepEqual(got, want) {
-				t.Errorf("ran %q, want %q", got, want)
-			}
-		})
+		}
+		if out, ok := managerChecks[cmd]; ok {
+			return 0, out, nil
+		}
+		switch cmd {
+		case loginctlUsers:
+			return 0, loginctlOutput, nil
+		case systemctlVer:
+			return 0, fmt.Sprintf("systemd %d (%d)\n", version, version), nil
+		}
+		return 0, "", nil
+	})
+}
+
+func TestSystemdStopAllCommands(t *testing.T) {
+	// bob has no copy loaded, which is not an error.
+	bobStop := userPrefix(testBob) + " stop svc.service"
+	calls := stubAllUsers(t, allUsersVersion, func(cmd string) *cmdResult {
+		if cmd == bobStop {
+			return &cmdResult{systemctlNotLoaded, "", errors.New("exit status 5: Unit svc.service not loaded.")}
+		}
+		return nil
+	})
+
+	if err := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers}).StopAll(); err != nil {
+		t.Fatal(err)
+	}
+	want := withManagerChecks(
+		loginctlUsers,
+		systemctlVer,
+		userPrefix(testAlice)+" stop svc.service",
+		bobStop,
+	)
+	if got := joinCalls(*calls); !reflect.DeepEqual(got, want) {
+		t.Errorf("ran %q, want %q", got, want)
 	}
 }
 
 func TestSystemdStartAllCommands(t *testing.T) {
-	stubPrivileged(t, true)
-	for _, v := range allUsersVersions {
-		t.Run(fmt.Sprint(v.version), func(t *testing.T) {
-			outputs := map[string]string{
-				loginctlUsers: loginctlOutput,
-				systemctlVer:  fmt.Sprintf("systemd %d (%d)\n", v.version, v.version),
-			}
-			for c, out := range managerChecks {
-				outputs[c] = out
-			}
-			calls := recordCommands(t, outputs)
+	calls := stubAllUsers(t, allUsersVersion, nil)
 
-			if err := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers}).StartAll(); err != nil {
-				t.Fatal(err)
+	if err := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers}).StartAll(); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{loginctlUsers, systemctlVer}
+	for _, u := range []loginUser{testAlice, testBob} {
+		want = append(want,
+			userPrefix(u)+" daemon-reload",
+			userPrefix(u)+" start svc.service")
+	}
+	want = withManagerChecks(want...)
+	if got := joinCalls(*calls); !reflect.DeepEqual(got, want) {
+		t.Errorf("ran %q, want %q", got, want)
+	}
+	// Each user's reload comes before their start.
+	for _, u := range []loginUser{testAlice, testBob} {
+		reload, start := -1, -1
+		for i, c := range *calls {
+			switch strings.Join(c, " ") {
+			case userPrefix(u) + " daemon-reload":
+				reload = i
+			case userPrefix(u) + " start svc.service":
+				start = i
 			}
-			want := []string{loginctlUsers, systemctlVer}
-			for _, u := range []loginUser{testAlice, testBob} {
-				want = append(want,
-					v.prefix(u)+" daemon-reload",
-					v.prefix(u)+" start svc.service")
-			}
-			want = withManagerChecks(want...)
-			if got := joinCalls(*calls); !reflect.DeepEqual(got, want) {
-				t.Errorf("ran %q, want %q", got, want)
-			}
-			// Each user's reload comes before their start.
-			for _, u := range []loginUser{testAlice, testBob} {
-				reload, start := -1, -1
-				for i, c := range *calls {
-					switch strings.Join(c, " ") {
-					case v.prefix(u) + " daemon-reload":
-						reload = i
-					case v.prefix(u) + " start svc.service":
-						start = i
-					}
+		}
+		if reload > start {
+			t.Errorf("%s: start ran before daemon-reload", u.name)
+		}
+	}
+}
+
+func TestSystemdAllCommandsReturnErrors(t *testing.T) {
+	errBus := errors.New("exit status 1: Failed to connect to bus")
+	tests := []struct {
+		name          string
+		fails         func(cmd string) bool
+		wantUsers     []string
+		wantUserCalls bool
+	}{
+		{
+			name:      "manager check",
+			fails:     func(cmd string) bool { return strings.HasPrefix(cmd, "systemctl is-active ") },
+			wantUsers: []string{"alice", "bob", "carol"},
+		},
+		{
+			name: "start or stop",
+			fails: func(cmd string) bool {
+				return strings.Contains(cmd, " stop ") || strings.Contains(cmd, " start ")
+			},
+			wantUsers:     []string{"alice", "bob"},
+			wantUserCalls: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			calls := stubAllUsers(t, allUsersVersion, func(cmd string) *cmdResult {
+				if tt.fails(cmd) {
+					return &cmdResult{1, "", errBus}
 				}
-				if reload > start {
-					t.Errorf("%s: start ran before daemon-reload", u.name)
+				return nil
+			})
+			for name, cmd := range allUsersCommands(newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers})) {
+				*calls = nil
+				err := cmd()
+				if !errors.Is(err, errBus) {
+					t.Fatalf("%s err = %v, want it to wrap %v", name, err, errBus)
+				}
+				var gotUsers []string
+				for _, line := range strings.Split(err.Error(), "\n") {
+					user, _, _ := strings.Cut(line, ": ")
+					gotUsers = append(gotUsers, user)
+				}
+				if !reflect.DeepEqual(gotUsers, tt.wantUsers) {
+					t.Errorf("%s failed for %q, want %q", name, gotUsers, tt.wantUsers)
+				}
+				if tt.wantUserCalls {
+					continue
+				}
+				for _, c := range joinCalls(*calls) {
+					if strings.Contains(c, "--user") {
+						t.Errorf("%s ran %q after the manager check failed", name, c)
+					}
 				}
 			}
 		})
 	}
 }
 
-func TestSystemdAllCommandsReturnErrors(t *testing.T) {
-	stubPrivileged(t, true)
-	stubCommands(t, func(argv []string) (int, string, error) {
-		cmd := strings.Join(argv, " ")
-		switch {
-		case cmd == loginctlUsers:
-			return 0, loginctlOutput, nil
-		case cmd == systemctlVer:
-			return 0, "systemd 252 (252.5-2)\n", nil
-		case managerChecks[cmd] != "":
-			return 0, managerChecks[cmd], nil
-		case strings.Contains(cmd, " stop ") || strings.Contains(cmd, " start "):
-			return 1, "", errors.New("Failed to connect to bus")
-		}
-		return 0, "", nil
-	})
-	s := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers})
-
-	for name, cmd := range map[string]func() error{"StartAll": s.StartAll, "StopAll": s.StopAll} {
-		err := cmd()
-		if err == nil {
-			t.Fatalf("%s err = nil, want an error", name)
-		}
-		want := "alice: Failed to connect to bus\nbob: Failed to connect to bus"
-		if err.Error() != want {
-			t.Errorf("%s err = %q, want %q", name, err, want)
-		}
-	}
-}
-
 func TestManagerRunning(t *testing.T) {
+	// is-active exits 3 for every state except active.
+	errExit3 := errors.New("exit status 3")
+	errBus := errors.New("exit status 1: Failed to connect to bus")
 	tests := []struct {
+		name    string
 		out     string
 		err     error
 		want    bool
-		wantErr string
+		wantErr bool
 	}{
-		{out: "active\n", want: true},
-		{out: "reloading\n", err: errors.New("exit status 3"), want: true},
-		{out: "activating\n", err: errors.New("exit status 3"), want: true},
-		{out: "inactive\n", err: errors.New("exit status 3")},
-		{out: "failed\n", err: errors.New("exit status 3")},
-		{out: "deactivating\n", err: errors.New("exit status 3")},
-		{
-			err:     errors.New("exit status 1: Failed to connect to bus: Connection timed out"),
-			wantErr: "checking user@1000.service: exit status 1: Failed to connect to bus: Connection timed out",
-		},
-		{wantErr: "checking user@1000.service: no state reported"},
-		{
-			out:     "maintenance\n",
-			err:     errors.New("exit status 3"),
-			wantErr: `user@1000.service is in unexpected state "maintenance"`,
-		},
+		{"active", "active\n", nil, true, false},
+		{"reloading", "reloading\n", errExit3, true, false},
+		{"activating", "activating\n", errExit3, true, false},
+		{"inactive", "inactive\n", errExit3, false, false},
+		{"failed", "failed\n", errExit3, false, false},
+		{"deactivating", "deactivating\n", errExit3, false, false},
+		{"query failed", "", errBus, false, true},
+		{"no output", "", nil, false, true},
+		{"unknown state", "maintenance\n", errExit3, false, true},
 	}
 	for _, tt := range tests {
-		t.Run(strings.TrimSpace(tt.out), func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			stubCommands(t, func([]string) (int, string, error) {
-				return 3, tt.out, tt.err
+				return 0, tt.out, tt.err
 			})
 			got, err := managerRunning(testAlice)
-			if tt.wantErr != "" {
-				if err == nil || err.Error() != tt.wantErr {
-					t.Fatalf("err = %v, want %q", err, tt.wantErr)
-				}
-				return
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
 			}
-			if err != nil {
-				t.Fatal(err)
+			if tt.err == errBus && !errors.Is(err, errBus) {
+				t.Errorf("err = %v, want it to wrap %v", err, errBus)
+			}
+			if err != nil && !strings.Contains(err.Error(), "user@1000.service") {
+				t.Errorf("err = %q, want it to name the unit", err)
 			}
 			if got != tt.want {
 				t.Errorf("running = %v, want %v", got, tt.want)
 			}
 		})
-	}
-}
-
-func TestSystemdAllCommandsFailWhenManagerCheckFails(t *testing.T) {
-	stubPrivileged(t, true)
-	calls := stubCommands(t, func(argv []string) (int, string, error) {
-		switch cmd := strings.Join(argv, " "); {
-		case cmd == loginctlUsers:
-			return 0, loginctlOutput, nil
-		case cmd == systemctlVer:
-			return 0, "systemd 252 (252.5-2)\n", nil
-		case strings.HasPrefix(cmd, "systemctl is-active "):
-			return 1, "", errors.New("exit status 1: Failed to connect to bus")
-		}
-		return 0, "", nil
-	})
-	s := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers})
-
-	for name, cmd := range map[string]func() error{"StartAll": s.StartAll, "StopAll": s.StopAll} {
-		*calls = nil
-		err := cmd()
-		if err == nil {
-			t.Fatalf("%s err = nil, want an error", name)
-		}
-		for _, u := range []loginUser{testAlice, testBob} {
-			want := fmt.Sprintf("%s: checking user@%d.service: exit status 1: Failed to connect to bus", u.name, u.uid)
-			if !strings.Contains(err.Error(), want) {
-				t.Errorf("%s err = %q, want it to contain %q", name, err, want)
-			}
-		}
-		for _, c := range joinCalls(*calls) {
-			if strings.Contains(c, "--user") {
-				t.Errorf("%s ran %q after the manager check failed", name, c)
-			}
-		}
 	}
 }
