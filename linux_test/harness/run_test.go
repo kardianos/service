@@ -224,7 +224,7 @@ func TestRunTargetMarkerReady(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rt := &fakeRuntime{ready: tt.ready, list: "TestA\n"}
-			rs := runTarget(context.Background(), rt, Target{Name: "t", Init: openrc, Suites: []string{"su"}}, testOptions(t))
+			rs := runTarget(context.Background(), rt, Target{Name: "t", Init: openrc, Suites: []string{"lifecycle"}}, testOptions(t))
 			if rs[0].Status != tt.want {
 				t.Errorf("status %s, want %s (%s)", rs[0].Status, tt.want, rs[0].Reason)
 			}
@@ -237,7 +237,7 @@ func TestRunTargetMarkerReady(t *testing.T) {
 
 func TestRunTargetOpenRCFailureLogs(t *testing.T) {
 	rt := &fakeRuntime{ready: true, list: "TestA\n", testExit: 1}
-	runTarget(context.Background(), rt, Target{Name: "t", Init: openrc, Suites: []string{"su"}}, testOptions(t))
+	runTarget(context.Background(), rt, Target{Name: "t", Init: openrc, Suites: []string{"lifecycle"}}, testOptions(t))
 	for _, cmd := range []string{"cat", "rc-status", "ps"} {
 		if !rt.ran(cmd) {
 			t.Errorf("did not collect %s on failure", cmd)
@@ -250,7 +250,7 @@ func TestRunTargetOpenRCFailureLogs(t *testing.T) {
 
 func TestRunTargetSysVFailureLogs(t *testing.T) {
 	rt := &fakeRuntime{ready: true, list: "TestA\n", testExit: 1}
-	runTarget(context.Background(), rt, Target{Name: "t", Init: sysv, Suites: []string{"su"}}, testOptions(t))
+	runTarget(context.Background(), rt, Target{Name: "t", Init: sysv, Suites: []string{"lifecycle"}}, testOptions(t))
 	for _, cmd := range []string{"sh", "ps"} {
 		if !rt.ran(cmd) {
 			t.Errorf("did not collect %s on failure", cmd)
@@ -263,9 +263,9 @@ func TestRunTargetSysVFailureLogs(t *testing.T) {
 
 func TestRunTargetFreshContainerPerSuite(t *testing.T) {
 	rt := &fakeRuntime{ready: true, list: "TestA\n", testExit: 1}
-	rs := runTarget(context.Background(), rt, Target{Name: "t", Init: systemd, Suites: []string{"unit", "su"}}, testOptions(t))
-	if len(rs) != 2 || rs[0].Suite != "unit" || rs[1].Suite != "su" {
-		t.Fatalf("results = %+v, want unit then su", rs)
+	rs := runTarget(context.Background(), rt, Target{Name: "t", Init: systemd, Suites: []string{"unit", "lifecycle"}}, testOptions(t))
+	if len(rs) != 2 || rs[0].Suite != "unit" || rs[1].Suite != "lifecycle" {
+		t.Fatalf("results = %+v, want unit then lifecycle", rs)
 	}
 	for _, r := range rs {
 		if r.Status != Fail {

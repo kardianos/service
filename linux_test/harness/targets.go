@@ -32,19 +32,19 @@ type Target struct {
 }
 
 var suites = map[string]Suite{
-	"unit":     {Run: "."},
-	"su":       {Tags: "su", Run: "^(TestInstallRunRestartStopRemove|TestExpectedPlatform)$"},
-	"allusers": {Tags: "systemd_container", Run: "^TestContainer", Testsvc: true},
+	"unit":      {Run: "."},
+	"lifecycle": {Tags: "su", Run: "^(TestInstallRunRestartStopRemove|TestExpectedPlatform|TestUninstallRemovesEverything|TestFailedInstall)$"},
+	"allusers":  {Tags: "systemd_container", Run: "^TestContainer", Testsvc: true},
 }
 
 var targets = []Target{
-	{Name: "systemd-debian12", Init: systemd, Suites: []string{"unit", "su", "allusers"}},
-	{Name: "systemd-fedora", Init: systemd, Suites: []string{"unit", "su", "allusers"}},
-	{Name: "systemd-ubuntu2004", Init: systemd, Suites: []string{"unit", "su", "allusers"}},
-	{Name: "systemd-rocky8", Init: systemd, Suites: []string{"unit", "su", "allusers"}, BestEffort: true},
+	{Name: "systemd-debian12", Init: systemd, Suites: []string{"unit", "lifecycle", "allusers"}},
+	{Name: "systemd-fedora", Init: systemd, Suites: []string{"unit", "lifecycle", "allusers"}},
+	{Name: "systemd-ubuntu2004", Init: systemd, Suites: []string{"unit", "lifecycle", "allusers"}},
+	{Name: "systemd-rocky8", Init: systemd, Suites: []string{"unit", "lifecycle", "allusers"}, BestEffort: true},
 	{Name: "systemd-centos7", Init: systemd, Suites: []string{"unit", "allusers"}, BestEffort: true, RequiresCgroupV1: true},
-	{Name: "openrc-alpine", Init: openrc, Suites: []string{"unit", "su"}},
-	{Name: "sysv-debian12", Init: sysv, Suites: []string{"unit", "su"}, BestEffort: true},
+	{Name: "openrc-alpine", Init: openrc, Suites: []string{"unit", "lifecycle"}},
+	{Name: "sysv-debian12", Init: sysv, Suites: []string{"unit", "lifecycle"}, BestEffort: true},
 }
 
 func selectTargets(all []Target, only []string, suite string) ([]Target, error) {

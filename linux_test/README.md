@@ -14,7 +14,7 @@ Containers are deleted upon completion.
 ```
 go -C linux_test/harness run .                          # every target
 go -C linux_test/harness run . -only systemd-debian12   # one target
-go -C linux_test/harness run . -suite su -run Platform  # part of one suite
+go -C linux_test/harness run . -suite lifecycle -run Platform  # part of one suite
 go -C linux_test/harness run . -list                    # targets and suites
 ```
 
@@ -39,15 +39,15 @@ Image build output to `linux_test/out/<target>/build.log`.
 | Suite | Build tags | Tests |
 |---|---|---|
 | `unit` | none | the library's unit tests, under a booted init |
-| `su` | `su` | `TestInstallRunRestartStopRemove` and `TestExpectedPlatform` |
-| `allusers` | `systemd_container` | the systemd AllUsers tests (`TestContainer*`) |
+| `lifecycle` | `su` | miscellaneous lifecycle tests |
+| `allusers` | `systemd_container` | the systemd AllUsers |
 
 ## Debugging a failure
 
 If you need to look around inside the container, run the target again with `-keep`. The summary then prints the command for a shell in the failed container, such as:
 
 ```
-podman exec -it kardianos-service-test-systemd-debian12-su-12345 sh
+podman exec -it kardianos-service-test-systemd-debian12-lifecycle-12345 sh
 ```
 
 ## Adding a target
