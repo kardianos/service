@@ -119,8 +119,8 @@ func (p *procd) Uninstall() error {
 }
 
 func (p *procd) Status() (Status, error) {
-	_, out, err := runWithOutput(p.scriptPath, "status")
-	if err != nil && !(err.Error() == "exit status 3") {
+	code, out, err := runWithOutput(p.scriptPath, "status")
+	if err != nil && code != 3 {
 		return StatusUnknown, err
 	}
 

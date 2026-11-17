@@ -449,3 +449,84 @@ func TestSystemdAllCommandsReturnErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestManagerRunning(t *testing.T) {
+	tests := []struct {
+		out     string
+		err     error
+		want    bool
+		wantErr string
+	}{
+		{out: "active\n", want: true},
+		{out: "reloading\n", err: errors.New("exit status 3"), want: true},
+		{out: "activating\n", err: errors.New("exit status 3"), want: true},
+		{out: "inactive\n", err: errors.New("exit status 3")},
+		{out: "failed\n", err: errors.New("exit status 3")},
+		{out: "deactivating\n", err: errors.New("exit status 3")},
+		{
+			err:     errors.New("exit status 1: Failed to connect to bus: Connection timed out"),
+			wantErr: "checking user@1000.service: exit status 1: Failed to connect to bus: Connection timed out",
+		},
+		{wantErr: "checking user@1000.service: no state reported"},
+		{
+			out:     "maintenance\n",
+			err:     errors.New("exit status 3"),
+			wantErr: `user@1000.service is in unexpected state "maintenance"`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(strings.TrimSpace(tt.out), func(t *testing.T) {
+			stubCommands(t, func([]string) (int, string, error) {
+				return 3, tt.out, tt.err
+			})
+			got, err := managerRunning(testAlice)
+			if tt.wantErr != "" {
+				if err == nil || err.Error() != tt.wantErr {
+					t.Fatalf("err = %v, want %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Errorf("running = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSystemdAllCommandsFailWhenManagerCheckFails(t *testing.T) {
+	stubPrivileged(t, true)
+	calls := stubCommands(t, func(argv []string) (int, string, error) {
+		switch cmd := strings.Join(argv, " "); {
+		case cmd == loginctlUsers:
+			return 0, loginctlOutput, nil
+		case cmd == systemctlVer:
+			return 0, "systemd 252 (252.5-2)\n", nil
+		case strings.HasPrefix(cmd, "systemctl is-active "):
+			return 1, "", errors.New("exit status 1: Failed to connect to bus")
+		}
+		return 0, "", nil
+	})
+	s := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers})
+
+	for name, cmd := range map[string]func() error{"StartAll": s.StartAll, "StopAll": s.StopAll} {
+		*calls = nil
+		err := cmd()
+		if err == nil {
+			t.Fatalf("%s err = nil, want an error", name)
+		}
+		for _, u := range []loginUser{testAlice, testBob} {
+			want := fmt.Sprintf("%s: checking user@%d.service: exit status 1: Failed to connect to bus", u.name, u.uid)
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("%s err = %q, want it to contain %q", name, err, want)
+			}
+		}
+		for _, c := range joinCalls(*calls) {
+			if strings.Contains(c, "--user") {
+				t.Errorf("%s ran %q after the manager check failed", name, c)
+			}
+		}
+	}
+}

@@ -464,8 +464,8 @@ func (s *systemd) StartAll() error {
 		return err
 	}
 	return forEachUser(users, loginUser.label, func(u loginUser) error {
-		if !managerRunning(u) {
-			return nil
+		if running, err := managerRunning(u); err != nil || !running {
+			return err
 		}
 		// Picks up a unit file added or changed since the manager started.
 		reload := systemctlAsUser(version, u, "daemon-reload")
@@ -485,8 +485,8 @@ func (s *systemd) StopAll() error {
 		return err
 	}
 	return forEachUser(users, loginUser.label, func(u loginUser) error {
-		if !managerRunning(u) {
-			return nil
+		if running, err := managerRunning(u); err != nil || !running {
+			return err
 		}
 		stop := systemctlAsUser(version, u, "stop", s.unitName())
 		code, _, err := runWithOutput(stop[0], stop[1:]...)
@@ -533,9 +533,23 @@ func parseLoginctlUsers(out string) []loginUser {
 
 // loginctl will report managers that are stopping or gone, so we need to do
 // an explicit check
-func managerRunning(u loginUser) bool {
-	_, out, _ := runWithOutput("systemctl", "is-active", fmt.Sprintf("user@%d.service", u.uid))
-	return strings.TrimSpace(out) == "active"
+func managerRunning(u loginUser) (bool, error) {
+	unit := fmt.Sprintf("user@%d.service", u.uid)
+	// is-active exits non-zero for every state except active, so check the output
+	_, out, err := runWithOutput("systemctl", "is-active", unit)
+	switch state := strings.TrimSpace(out); state {
+	case "active", "reloading", "activating":
+		return true, nil
+	case "inactive", "failed", "deactivating":
+		return false, nil
+	case "":
+		if err == nil {
+			err = errors.New("no state reported")
+		}
+		return false, fmt.Errorf("checking %s: %w", unit, err)
+	default:
+		return false, fmt.Errorf("%s is in unexpected state %q", unit, state)
+	}
 }
 
 // runs a systemctl command for a particular user
