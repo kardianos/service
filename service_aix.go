@@ -49,7 +49,7 @@ func (aixSystem) New(i Interface, c *Config) (Service, error) {
 
 // Retrieve process arguments from a PID.
 func getArgsFromPid(pid int) string {
-	cmd := exec.Command("ps", "-o", "args", "-p", strconv.Itoa(pid))
+	cmd := exec.Command("/usr/bin/ps", "-o", "args", "-p", strconv.Itoa(pid))
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	if err := cmd.Run(); err == nil {
@@ -114,11 +114,18 @@ func (s *aixService) Install() error {
 	if err != nil {
 		return err
 	}
-	if len(s.Config.Arguments) > 0 {
-		err = run("mkssys", "-s", s.Name, "-p", path, "-a", strings.Join(s.Config.Arguments, " "), "-u", "0", "-R", "-Q", "-S", "-n", "15", "-f", "9", "-d", "-w", "30")
-	} else {
-		err = run("mkssys", "-s", s.Name, "-p", path, "-u", "0", "-R", "-Q", "-S", "-n", "15", "-f", "9", "-d", "-w", "30")
+
+	user_id := "0"
+	if len(s.Config.UserName) > 0 {
+		user_id = s.Config.UserName
 	}
+
+	mkssys_args := []string{"-s", s.Name, "-p", path, "-u", user_id, "-R", "-Q", "-S", "-n", "15", "-f", "9", "-d", "-w", "30", "-i", "/dev/null", "-o", "/dev/null", "-e", "/dev/null"}
+	if len(s.Config.Arguments) > 0 {
+		cmd_args := strings.Join(func(args []string) []string { r := make([]string, len(args)); for i, s := range args { if s != "" && strings.IndexFunc(s, func(r rune) bool { return !('a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || '0' <= r && r <= '9' || r == '_' || r == '-' || r == '.' || r == '/') }) == -1 { r[i] = s } else { r[i] = "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'" } }; return r }(s.Config.Arguments), " ")
+		mkssys_args = append(mkssys_args, "-a", cmd_args)
+	}
+	err = run("/usr/bin/mkssys", mkssys_args...)
 	if err != nil {
 		return err
 	}
@@ -181,7 +188,7 @@ func (s *aixService) Uninstall() error {
 		return err
 	}
 
-	if err := run("rmssys", "-s", s.Name); err != nil {
+	if err := run("/usr/bin/rmssys", "-s", s.Name); err != nil {
 		return err
 	}
 
@@ -193,7 +200,7 @@ func (s *aixService) Uninstall() error {
 }
 
 func (s *aixService) Status() (Status, error) {
-	exitCode, out, err := runWithOutput("lssrc", "-s", s.Name)
+	exitCode, out, err := runWithOutput("/usr/bin/lssrc", "-s", s.Name)
 	if exitCode == 0 && err != nil {
 		if !strings.Contains(err.Error(), "failed with stderr") {
 			return StatusUnknown, err
@@ -227,11 +234,11 @@ func (s *aixService) Status() (Status, error) {
 }
 
 func (s *aixService) Start() error {
-	return run("startsrc", "-s", s.Name)
+	return run("/usr/bin/startsrc", "-s", s.Name)
 }
 
 func (s *aixService) Stop() error {
-	return run("stopsrc", "-s", s.Name)
+	return run("/usr/bin/stopsrc", "-s", s.Name)
 }
 
 func (s *aixService) Restart() error {
@@ -267,17 +274,44 @@ func (s *aixService) SystemLogger(errs chan<- error) (Logger, error) {
 	return newSysLogger(s.Name, errs)
 }
 
-const svcConfig = `#!/bin/ksh
-case "$1" in
+const svcConfig = `#!/usr/bin/ksh
+
+src_name='{{.Name}}'
+
+case $1
+in
 start)
-        startsrc -s {{Name}}
-        ;;
+	/usr/bin/startsrc -s "${src_name}"
+	;;
 stop)
-        stopsrc -s {{Name}}
-        ;;
+	pid=$(LC_ALL=C /usr/bin/lssrc -s "${src_name}" | awk 'NR==2 && $NF=="active" { print $(NF-1) }')
+	/usr/bin/stopsrc -s "${src_name}" || exit
+
+	if test -n "${pid}"
+	then
+		# wait up to 30 seconds for the service to stop
+		w=30
+		while /usr/bin/ps -p "${pid}" -o pid= >/dev/null
+		do
+			if test $((w-=1)) -lt 0
+			then
+				echo "${src_name} failed to stop correctly." >&2
+				exit 1
+			fi
+			sleep 1
+		done
+	fi
+	;;
+restart)
+	"$0" stop && "$0" start
+	;;
+status)
+	LC_ALL=C /usr/bin/lssrc -s "${src_name}" \
+	| awk 'BEGIN { rc=1 } NR>1 && $NF=="active" { rc=0 } { print } END { exit rc }'
+	;;
 *)
-        echo "Usage: $0 {start|stop}"
-        exit 1
-        ;;
+	echo "Usage: $0 {start|stop|restart|status}"
+	exit 1
+	;;
 esac
 `
