@@ -274,16 +274,43 @@ func (s *aixService) SystemLogger(errs chan<- error) (Logger, error) {
 	return newSysLogger(s.Name, errs)
 }
 
-const svcConfig = `#!/bin/ksh
-case "$1" in
+const svcConfig = `#!/usr/bin/ksh
+
+src_name='{{.Name}}'
+
+case $1
+in
 start)
 	/usr/bin/startsrc -s "${src_name}"
 	;;
 stop)
+	pid=$(LC_ALL=C /usr/bin/lssrc -s "${src_name}" | awk 'NR==2 && $NF=="active" { print $(NF-1) }')
 	/usr/bin/stopsrc -s "${src_name}" || exit
+
+	if test -n "${pid}"
+	then
+		# wait up to 30 seconds for the service to stop
+		w=30
+		while /usr/bin/ps -p "${pid}" -o pid= >/dev/null
+		do
+			if test $((w-=1)) -lt 0
+			then
+				echo "${src_name} failed to stop correctly." >&2
+				exit 1
+			fi
+			sleep 1
+		done
+	fi
+	;;
+restart)
+	"$0" stop && "$0" start
+	;;
+status)
+	LC_ALL=C /usr/bin/lssrc -s "${src_name}" \
+	| awk 'BEGIN { rc=1 } NR>1 && $NF=="active" { rc=0 } { print } END { exit rc }'
 	;;
 *)
-	echo "Usage: $0 {start|stop}"
+	echo "Usage: $0 {start|stop|restart|status}"
 	exit 1
 	;;
 esac
