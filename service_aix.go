@@ -49,7 +49,7 @@ func (aixSystem) New(i Interface, c *Config) (Service, error) {
 
 // Retrieve process arguments from a PID.
 func getArgsFromPid(pid int) string {
-	cmd := exec.Command("ps", "-o", "args", "-p", strconv.Itoa(pid))
+	cmd := exec.Command("/usr/bin/ps", "-o", "args", "-p", strconv.Itoa(pid))
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	if err := cmd.Run(); err == nil {
@@ -188,7 +188,7 @@ func (s *aixService) Uninstall() error {
 		return err
 	}
 
-	if err := run("rmssys", "-s", s.Name); err != nil {
+	if err := run("/usr/bin/rmssys", "-s", s.Name); err != nil {
 		return err
 	}
 
@@ -200,7 +200,7 @@ func (s *aixService) Uninstall() error {
 }
 
 func (s *aixService) Status() (Status, error) {
-	exitCode, out, err := runWithOutput("lssrc", "-s", s.Name)
+	exitCode, out, err := runWithOutput("/usr/bin/lssrc", "-s", s.Name)
 	if exitCode == 0 && err != nil {
 		if !strings.Contains(err.Error(), "failed with stderr") {
 			return StatusUnknown, err
@@ -234,11 +234,11 @@ func (s *aixService) Status() (Status, error) {
 }
 
 func (s *aixService) Start() error {
-	return run("startsrc", "-s", s.Name)
+	return run("/usr/bin/startsrc", "-s", s.Name)
 }
 
 func (s *aixService) Stop() error {
-	return run("stopsrc", "-s", s.Name)
+	return run("/usr/bin/stopsrc", "-s", s.Name)
 }
 
 func (s *aixService) Restart() error {
@@ -277,14 +277,14 @@ func (s *aixService) SystemLogger(errs chan<- error) (Logger, error) {
 const svcConfig = `#!/bin/ksh
 case "$1" in
 start)
-        startsrc -s {{Name}}
-        ;;
+	/usr/bin/startsrc -s "${src_name}"
+	;;
 stop)
-        stopsrc -s {{Name}}
-        ;;
+	/usr/bin/stopsrc -s "${src_name}" || exit
+	;;
 *)
-        echo "Usage: $0 {start|stop}"
-        exit 1
-        ;;
+	echo "Usage: $0 {start|stop}"
+	exit 1
+	;;
 esac
 `
