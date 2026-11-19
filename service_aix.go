@@ -120,7 +120,7 @@ func (s *aixService) Install() error {
 		user_id = s.Config.UserName
 	}
 
-	mkssys_args := []string{"-s", s.Name, "-p", path, "-u", user_id, "-R", "-Q", "-S", "-n", "15", "-f", "9", "-d", "-w", "30"}
+	mkssys_args := []string{"-s", s.Name, "-p", path, "-u", user_id, "-R", "-Q", "-S", "-n", "15", "-f", "9", "-d", "-w", "30", "-i", "/dev/null", "-o", "/dev/null", "-e", "/dev/null"}
 	if len(s.Config.Arguments) > 0 {
 		cmd_args := strings.Join(func(args []string) []string { r := make([]string, len(args)); for i, s := range args { if s != "" && strings.IndexFunc(s, func(r rune) bool { return !('a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || '0' <= r && r <= '9' || r == '_' || r == '-' || r == '.' || r == '/') }) == -1 { r[i] = s } else { r[i] = "'" + strings.ReplaceAll(s, "'", `'"'"'`) + "'" } }; return r }(s.Config.Arguments), " ")
 		mkssys_args = append(mkssys_args, "-a", cmd_args)
