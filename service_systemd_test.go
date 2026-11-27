@@ -559,6 +559,8 @@ func TestSystemdStatus(t *testing.T) {
 		{"failed", result{"failed\n", errExit3}, result{}, StatusUnknown, errAny},
 		{"unexpected state", result{"bogus\n", errExit3}, result{}, StatusUnknown, errAny},
 		{"query failed", result{"", errBus}, result{}, StatusUnknown, errBus},
+		{"unit file query failed", result{"inactive\n", errExit3}, result{"", errBus}, StatusUnknown, errBus},
+		{"no unit files, non-zero exit", result{"inactive\n", errExit3}, result{unlisted, errors.New("exit status 1")}, StatusUnknown, ErrNotInstalled},
 	}
 	for _, level := range []ServiceLevel{ServiceLevelSystem, ServiceLevelUser} {
 		for _, tt := range tests {
@@ -568,7 +570,10 @@ func TestSystemdStatus(t *testing.T) {
 					if strings.Contains(strings.Join(argv, " "), " list-unit-files ") {
 						r = tt.unitFiles
 					}
-					return 0, r.out, r.err
+					if r.err != nil {
+						return 1, r.out, r.err
+					}
+					return 0, r.out, nil
 				})
 				got, err := newSystemd(t, &Config{ServiceLevel: level}).Status()
 				if tt.wantErr == errAny {
@@ -583,5 +588,19 @@ func TestSystemdStatus(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestSystemdStatusNameInListing(t *testing.T) {
+	stubPrivileged(t, false)
+	stubCommands(t, func(argv []string) (int, string, error) {
+		if strings.Contains(strings.Join(argv, " "), " list-unit-files ") {
+			return 0, "UNIT FILE STATE PRESET\n\n0 unit files listed.\n", nil
+		}
+		return 0, "inactive\n", errors.New("exit status 3")
+	})
+	_, err := newSystemd(t, &Config{Name: "unit"}).Status()
+	if !errors.Is(err, ErrNotInstalled) {
+		t.Fatalf("err = %v, want %v", err, ErrNotInstalled)
 	}
 }

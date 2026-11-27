@@ -393,16 +393,7 @@ func (s *systemd) Status() (Status, error) {
 	// prints unknown for any unit that isn't loaded
 	// check unit files to disambiguate
 	case "inactive", "unknown":
-		exitCode, out, err := s.runWithOutput("list-unit-files", "-t", "service", s.unitName())
-		if exitCode == 0 && err != nil {
-			return StatusUnknown, err
-		}
-		if strings.Contains(out, s.Name) {
-			// unit file exists, installed but not running
-			return StatusStopped, nil
-		}
-		// no unit file
-		return StatusUnknown, ErrNotInstalled
+		return s.installedStatus()
 	case "failed":
 		return StatusUnknown, errors.New("service in failed state")
 	// systemctl prints no state when it fails itself, e.g. it can't reach
@@ -415,6 +406,22 @@ func (s *systemd) Status() (Status, error) {
 	default:
 		return StatusUnknown, fmt.Errorf("%s is in unexpected state %q", s.unitName(), state)
 	}
+}
+
+// installedStatus tells a stopped unit apart from one that isn't installed
+func (s *systemd) installedStatus() (Status, error) {
+	_, out, err := s.runWithOutput("list-unit-files", "-t", "service", s.unitName())
+	// some versions exit non-zero when no unit files match, but they still
+	// print a listing, so only treat empty output as a failure
+	if err != nil && strings.TrimSpace(out) == "" {
+		return StatusUnknown, err
+	}
+	// match the full unit name: s.Name alone can match the listing's header
+	// or footer, e.g. a service named "unit"
+	if strings.Contains(out, s.unitName()) {
+		return StatusStopped, nil
+	}
+	return StatusUnknown, ErrNotInstalled
 }
 
 func (s *systemd) Start() error {
