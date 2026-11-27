@@ -96,17 +96,6 @@ func (s *openrc) Install() error {
 		return fmt.Errorf("Init already exists: %s", confPath)
 	}
 
-	f, err := os.Create(confPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	err = os.Chmod(confPath, 0755)
-	if err != nil {
-		return err
-	}
-
 	path, err := s.execPath()
 	if err != nil {
 		return err
@@ -137,6 +126,15 @@ func (s *openrc) Install() error {
 	}
 	out, err := t.render(data, tfs)
 	if err != nil {
+		return err
+	}
+
+	f, err := os.Create(confPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err = os.Chmod(confPath, 0755); err != nil {
 		return err
 	}
 	if _, err = f.WriteString(out); err != nil {

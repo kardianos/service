@@ -74,6 +74,17 @@ func TestInstallRunRestartStopRemove(t *testing.T) {
 	}
 }
 
+// The container harness sets EXPECT_PLATFORM
+func TestExpectedPlatform(t *testing.T) {
+	want := os.Getenv("EXPECT_PLATFORM")
+	if want == "" {
+		t.Skip("EXPECT_PLATFORM is not set")
+	}
+	if got := service.Platform(); got != want {
+		t.Errorf("Platform() = %q, want %q", got, want)
+	}
+}
+
 func runService() {
 	p := &program{}
 	sc := &service.Config{

@@ -74,12 +74,6 @@ func (s *sysv) Install() error {
 		return fmt.Errorf("Init already exists: %s", confPath)
 	}
 
-	f, err := os.Create(confPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
 	path, err := s.execPath()
 	if err != nil {
 		return err
@@ -107,6 +101,12 @@ func (s *sysv) Install() error {
 	if err != nil {
 		return err
 	}
+
+	f, err := os.Create(confPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
 	if _, err = f.WriteString(out); err != nil {
 		return err
 	}
@@ -114,13 +114,8 @@ func (s *sysv) Install() error {
 	if err = os.Chmod(confPath, 0755); err != nil {
 		return err
 	}
-	for _, i := range [...]string{"2", "3", "4", "5"} {
-		if err = os.Symlink(confPath, "/etc/rc"+i+".d/S50"+s.Name); err != nil {
-			continue
-		}
-	}
-	for _, i := range [...]string{"0", "1", "6"} {
-		if err = os.Symlink(confPath, "/etc/rc"+i+".d/K02"+s.Name); err != nil {
+	for _, link := range s.rcLinks() {
+		if err = os.Symlink(confPath, link); err != nil {
 			continue
 		}
 	}
@@ -133,10 +128,26 @@ func (s *sysv) Uninstall() error {
 	if err != nil {
 		return err
 	}
+	for _, link := range s.rcLinks() {
+		if err := os.Remove(link); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+	}
 	if err := os.Remove(cp); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (s *sysv) rcLinks() []string {
+	var links []string
+	for _, i := range [...]string{"2", "3", "4", "5"} {
+		links = append(links, "/etc/rc"+i+".d/S50"+s.Name)
+	}
+	for _, i := range [...]string{"0", "1", "6"} {
+		links = append(links, "/etc/rc"+i+".d/K02"+s.Name)
+	}
+	return links
 }
 
 func (s *sysv) Logger(errs chan<- error) (Logger, error) {
