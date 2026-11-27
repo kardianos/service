@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/exp/slices"
 )
 
 // fakeRuntime gives a scripted boot, test list and test result. Thus the tests
@@ -51,34 +53,34 @@ func (f *fakeRuntime) Remove(name string) error {
 func (f *fakeRuntime) Exec(_ context.Context, _ string, _ []string, out io.Writer, argv ...string) (int, error) {
 	f.execs = append(f.execs, argv)
 	switch {
-	case equal(argv, []string{"systemctl", "is-system-running"}):
+	case slices.Equal(argv, []string{"systemctl", "is-system-running"}):
 		if f.ready {
 			fmt.Fprintln(out, "running")
 			return 0, nil
 		}
 		fmt.Fprintln(out, "starting")
 		return 1, nil
-	case equal(argv, []string{"test", "-e", "/run/booted"}):
+	case slices.Equal(argv, []string{"test", "-e", "/run/booted"}):
 		if f.ready {
 			return 0, nil
 		}
 		return 1, nil
-	case equal(argv, []string{"systemctl", "--version"}):
+	case slices.Equal(argv, []string{"systemctl", "--version"}):
 		fmt.Fprintln(out, "systemd 252 (252.1)\n+PAM")
-	case contains(argv, "-test.list"):
+	case slices.Contains(argv, "-test.list"):
 		fmt.Fprint(out, f.list)
-	case contains(argv, "-test.v"):
+	case slices.Contains(argv, "-test.v"):
 		return f.testExit, f.testErr
 	}
 	return 0, nil
 }
 
 func (f *fakeRuntime) ran(argv0 string) bool {
-	return containsFunc(f.execs, func(a []string) bool { return a[0] == argv0 })
+	return slices.ContainsFunc(f.execs, func(a []string) bool { return a[0] == argv0 })
 }
 
 func (f *fakeRuntime) ranTests() bool {
-	return containsFunc(f.execs, func(a []string) bool { return contains(a, "-test.v") })
+	return slices.ContainsFunc(f.execs, func(a []string) bool { return slices.Contains(a, "-test.v") })
 }
 
 func testOptions(t *testing.T) options {
@@ -158,7 +160,7 @@ func TestRunTarget(t *testing.T) {
 			if got := rt.ranTests(); got != tt.wantTests {
 				t.Errorf("ran tests %v, want %v", got, tt.wantTests)
 			}
-			if got := equal(rt.removed, rt.started) && len(rt.removed) > 0; got != tt.wantRemove {
+			if got := slices.Equal(rt.removed, rt.started) && len(rt.removed) > 0; got != tt.wantRemove {
 				t.Errorf("removed %v of %v, want removed: %v", rt.removed, rt.started, tt.wantRemove)
 			}
 			if got := rt.ran("journalctl"); got != tt.wantLogs {
@@ -181,12 +183,12 @@ func TestRunSuiteTestArgv(t *testing.T) {
 	o.runPattern = "^TestX$"
 	rt := &fakeRuntime{ready: true, list: "TestX\n"}
 	runTarget(context.Background(), rt, Target{Name: "t", Init: systemd, Suites: []string{"allusers"}}, o)
-	i := indexFunc(rt.execs, func(a []string) bool { return contains(a, "-test.v") })
+	i := slices.IndexFunc(rt.execs, func(a []string) bool { return slices.Contains(a, "-test.v") })
 	if i < 0 {
 		t.Fatal("tests not run")
 	}
 	want := []string{"/opt/test/systemd_container.test", "-test.v", "-test.run", "^TestX$", "-test.timeout", "1m0s"}
-	if got := rt.execs[i]; !equal(got, want) {
+	if got := rt.execs[i]; !slices.Equal(got, want) {
 		t.Errorf("test argv = %q, want %q", got, want)
 	}
 }
@@ -197,7 +199,7 @@ type envRuntime struct {
 }
 
 func (e *envRuntime) Exec(ctx context.Context, name string, env []string, out io.Writer, argv ...string) (int, error) {
-	if contains(argv, "-test.v") {
+	if slices.Contains(argv, "-test.v") {
 		e.env = env
 	}
 	return e.fakeRuntime.Exec(ctx, name, env, out, argv...)
@@ -206,7 +208,7 @@ func (e *envRuntime) Exec(ctx context.Context, name string, env []string, out io
 func TestRunSuiteSetsExpectPlatform(t *testing.T) {
 	rt := &envRuntime{fakeRuntime: fakeRuntime{ready: true, list: "TestA\n"}}
 	runTarget(context.Background(), rt, Target{Name: "t", Init: systemd, Suites: []string{"allusers"}}, testOptions(t))
-	if want := []string{"EXPECT_PLATFORM=linux-systemd"}; !equal(rt.env, want) {
+	if want := []string{"EXPECT_PLATFORM=linux-systemd"}; !slices.Equal(rt.env, want) {
 		t.Errorf("env = %q, want %q", rt.env, want)
 	}
 }
@@ -277,7 +279,7 @@ func TestRunTargetFreshContainerPerSuite(t *testing.T) {
 	if len(rt.started) != 2 || rt.started[0] == rt.started[1] {
 		t.Errorf("started %v, want two different containers", rt.started)
 	}
-	if !equal(rt.removed, rt.started) {
+	if !slices.Equal(rt.removed, rt.started) {
 		t.Errorf("removed %v, want %v", rt.removed, rt.started)
 	}
 }
@@ -299,7 +301,7 @@ func TestRunTargetInterrupted(t *testing.T) {
 	if rs[0].Status != Fail || rs[0].Reason != "interrupted" {
 		t.Errorf("got %s %q, want FAIL interrupted", rs[0].Status, rs[0].Reason)
 	}
-	if !equal(rt.removed, rt.started) {
+	if !slices.Equal(rt.removed, rt.started) {
 		t.Errorf("removed %v of %v", rt.removed, rt.started)
 	}
 }

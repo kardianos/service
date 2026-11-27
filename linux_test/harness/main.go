@@ -1,7 +1,7 @@
 // Command harness starts init systems in temporary containers and runs the
 // end-to-end tests in them.
 //
-//	go -C linux_test/harness run . [flags]
+//	go run -C linux_test/harness . [flags]
 package main
 
 import (
@@ -15,11 +15,13 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 const rootModule = "github.com/kardianos/service"
@@ -145,11 +147,8 @@ func printList() {
 		fmt.Println(line)
 	}
 	fmt.Println("Suites:")
-	names := make([]string, 0, len(suites))
-	for name := range suites {
-		names = append(names, name)
-	}
-	sort.Strings(names)
+	names := maps.Keys(suites)
+	slices.Sort(names)
 	for _, name := range names {
 		s := suites[name]
 		tags := s.Tags

@@ -2,6 +2,8 @@ package main
 
 import (
 	"testing"
+
+	"golang.org/x/exp/slices"
 )
 
 func TestPodmanArgs(t *testing.T) {
@@ -20,7 +22,7 @@ func TestPodmanArgs(t *testing.T) {
 		{"cp", p.copyArgs("c", "/h/f", "/opt/f"), []string{"cp", "/h/f", "c:/opt/f"}},
 	}
 	for _, tt := range tests {
-		if !equal(tt.got, tt.want) {
+		if !slices.Equal(tt.got, tt.want) {
 			t.Errorf("%s args = %q, want %q", tt.name, tt.got, tt.want)
 		}
 	}

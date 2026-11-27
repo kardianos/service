@@ -96,6 +96,7 @@ func TestExecCommandLargeStderr(t *testing.T) {
 
 func TestForEachUser(t *testing.T) {
 	errBob := errors.New("boom")
+	errCarol := errors.New("bang")
 	label := func(u string) string { return "user " + u }
 	tests := []struct {
 		name    string
@@ -104,6 +105,11 @@ func TestForEachUser(t *testing.T) {
 	}{
 		{name: "all succeed"},
 		{name: "one fails", fail: map[string]error{"bob": errBob}, wantErr: "user bob: boom"},
+		{
+			name:    "two fail",
+			fail:    map[string]error{"bob": errBob, "carol": errCarol},
+			wantErr: "user bob: boom\nuser carol: bang",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -130,8 +136,10 @@ func TestForEachUser(t *testing.T) {
 			if err == nil || err.Error() != tt.wantErr {
 				t.Fatalf("err = %v, want %q", err, tt.wantErr)
 			}
-			if !errors.Is(err, errBob) {
-				t.Errorf("errors.Is(err, errBob) = false, want true")
+			for u, want := range tt.fail {
+				if !errors.Is(err, want) {
+					t.Errorf("errors.Is(err, %s's error) = false, want true", u)
+				}
 			}
 		})
 	}

@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"golang.org/x/exp/slices"
 )
 
 func TestTargetTable(t *testing.T) {
@@ -13,7 +15,7 @@ func TestTargetTable(t *testing.T) {
 			t.Errorf("target %s listed twice", tg.Name)
 		}
 		seen[tg.Name] = true
-		if !contains(initSystems, tg.Init) {
+		if !slices.Contains(initSystems, tg.Init) {
 			t.Errorf("target %s: unknown init system", tg.Name)
 		}
 		if len(tg.Suites) == 0 {
@@ -68,11 +70,11 @@ func TestSelectTargets(t *testing.T) {
 	}
 	for _, tt := range tests {
 		got, err := selectTargets(all, tt.only, tt.suite)
-		if (err != nil) != tt.wantErr || !equal(names(got), tt.want) {
+		if (err != nil) != tt.wantErr || !slices.Equal(names(got), tt.want) {
 			t.Errorf("selectTargets(%v, %q) = %v, %v, want %v, err %v", tt.only, tt.suite, names(got), err, tt.want, tt.wantErr)
 		}
 		for _, tg := range got {
-			if tt.suite != "" && !equal(tg.Suites, []string{tt.suite}) {
+			if tt.suite != "" && !slices.Equal(tg.Suites, []string{tt.suite}) {
 				t.Errorf("selectTargets(%v, %q): %s runs %v", tt.only, tt.suite, tg.Name, tg.Suites)
 			}
 		}

@@ -1,6 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"golang.org/x/exp/slices"
+)
 
 type Suite struct {
 	Tags    string
@@ -51,17 +55,17 @@ func selectTargets(all []Target, only []string, suite string) ([]Target, error) 
 		}
 	}
 	for _, name := range only {
-		if !containsFunc(all, func(t Target) bool { return t.Name == name }) {
+		if !slices.ContainsFunc(all, func(t Target) bool { return t.Name == name }) {
 			return nil, fmt.Errorf("unknown target %q", name)
 		}
 	}
 	var sel []Target
 	for _, t := range all {
-		if len(only) > 0 && !contains(only, t.Name) {
+		if len(only) > 0 && !slices.Contains(only, t.Name) {
 			continue
 		}
 		if suite != "" {
-			if !contains(t.Suites, suite) {
+			if !slices.Contains(t.Suites, suite) {
 				continue
 			}
 			t.Suites = []string{suite}
