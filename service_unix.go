@@ -99,6 +99,7 @@ func forEachUser[U any](users []U, label func(U) string, f func(U) error) error 
 	errs := make([]error, len(users))
 	var wg sync.WaitGroup
 	for i, u := range users {
+		i, u := i, u // explicit copy, for Go 1.20 compat
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -157,7 +158,10 @@ type cappedBuffer struct {
 
 func (b *cappedBuffer) Write(p []byte) (int, error) {
 	if room := b.max - b.buf.Len(); room > 0 {
-		b.buf.Write(p[:min(len(p), room)])
+		if room > len(p) {
+			room = len(p)
+		}
+		b.buf.Write(p[:room])
 	}
 	return len(p), nil
 }

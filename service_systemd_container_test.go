@@ -12,7 +12,6 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -485,10 +484,10 @@ func TestContainerAllUsersPath(t *testing.T) {
 	version := s.getSystemdVersion()
 	wantMachine := version >= minMachineUserVersion
 	for _, c := range calls {
-		if !slices.Contains(c, "start") {
+		if !contains(c, "start") {
 			continue
 		}
-		usedMachine := c[0] == "systemctl" && slices.Contains(c, "-M")
+		usedMachine := c[0] == "systemctl" && contains(c, "-M")
 		t.Logf("systemd %d: StartAll ran %q", version, c)
 		if usedMachine != wantMachine {
 			t.Errorf("systemd %d: StartAll used -M = %v, want %v", version, usedMachine, wantMachine)
@@ -518,4 +517,13 @@ func TestContainerAllUsersMinVersion(t *testing.T) {
 	if exists(ctrUnit) {
 		t.Error("unit file was written")
 	}
+}
+
+func contains(ss []string, s string) bool {
+	for _, v := range ss {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
