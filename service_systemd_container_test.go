@@ -38,7 +38,7 @@ const (
 	// (10 s by default) after their manager stops.
 	ctrResetWait = 30 * time.Second
 
-	// helperEnv makes TestContainerHelperUserCommands run, as the user.
+	// helperEnv makes the TestContainerHelper tests run, as the user.
 	helperEnv = "SYSTEMD_CONTAINER_HELPER"
 )
 
@@ -496,6 +496,26 @@ func TestContainerAllUsersStartAll(t *testing.T) {
 	}
 }
 
+func TestContainerAllUsersStartAllNoDesktop(t *testing.T) {
+	s := setupContainer(t)
+	alice, bob := lookupUser(t, "alice"), lookupUser(t, "bob")
+
+	desktopLogin(t, s, alice)
+	linger(t, s, bob)
+	if err := s.Install(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.StartAll(); err != nil {
+		t.Fatal(err)
+	}
+	running(t, "alice")
+	never(t, "bob got a copy without a desktop", func() bool { return exists(markerPath("bob", "started")) })
+	if out, _ := userCtl(s, bob, "is-active", s.unitName()); out != "inactive" {
+		t.Errorf("bob's unit is %q after StartAll, want inactive", out)
+	}
+}
+
 func TestContainerAllUsersStopAll(t *testing.T) {
 	s := setupContainer(t)
 	users := []loginUser{lookupUser(t, "alice"), lookupUser(t, "bob")}
@@ -586,16 +606,22 @@ func TestContainerAllUsersUserCommands(t *testing.T) {
 		}
 	}
 
+	runHelper(t, alice, "TestContainerHelperUserCommands")
+}
+
+// runHelper runs the helper test as u, in u's manager.
+func runHelper(t *testing.T, u loginUser, test string) {
+	t.Helper()
 	testBin, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := tryRun("runuser", "-u", alice.name, "--", "env",
-		fmt.Sprintf("XDG_RUNTIME_DIR=/run/user/%d", alice.uid), helperEnv+"=1",
-		testBin, "-test.v", "-test.run", "^TestContainerHelperUserCommands$")
-	t.Logf("as alice:\n%s", out)
-	if err != nil || !strings.Contains(out, "--- PASS: TestContainerHelperUserCommands") {
-		t.Errorf("user commands failed as alice: %v", err)
+	out, err := tryRun("runuser", "-u", u.name, "--", "env",
+		fmt.Sprintf("XDG_RUNTIME_DIR=/run/user/%d", u.uid), helperEnv+"=1",
+		testBin, "-test.v", "-test.run", "^"+test+"$")
+	t.Logf("as %s:\n%s", u.name, out)
+	if err != nil || !strings.Contains(out, "--- PASS: "+test) {
+		t.Errorf("%s failed as %s: %v", test, u.name, err)
 	}
 }
 
@@ -627,6 +653,43 @@ func TestContainerHelperUserCommands(t *testing.T) {
 		t.Fatal(err)
 	}
 	status(StatusRunning)
+}
+
+func TestContainerAllUsersUserCommandsNoDesktop(t *testing.T) {
+	s := setupContainer(t)
+	alice := lookupUser(t, "alice")
+
+	if err := s.Install(); err != nil {
+		t.Fatal(err)
+	}
+	linger(t, s, alice)
+	runHelper(t, alice, "TestContainerHelperNoDesktop")
+}
+
+// TestContainerHelperNoDesktop runs as alice, started by
+// TestContainerAllUsersUserCommandsNoDesktop, with her manager running but no
+// desktop session.
+func TestContainerHelperNoDesktop(t *testing.T) {
+	if os.Getenv(helperEnv) == "" {
+		t.Skip("run by TestContainerAllUsersUserCommandsNoDesktop")
+	}
+	requireContainer(t)
+	s := ctrService(t, ctrExe)
+
+	for name, cmd := range map[string]func() error{"Start": s.Start, "Restart": s.Restart} {
+		if err := cmd(); !errors.Is(err, ErrNoDesktopSession) {
+			t.Errorf("%s err = %v, want %v", name, err, ErrNoDesktopSession)
+		}
+	}
+	if got, err := s.Status(); err != nil || got != StatusStopped {
+		t.Errorf("Status() = %v, %v, want %v", got, err, StatusStopped)
+	}
+	if err := s.Stop(); err != nil {
+		t.Errorf("Stop err = %v, want nil", err)
+	}
+	if exists(markerPath("alice", "started")) {
+		t.Error("alice got a copy without a desktop")
+	}
 }
 
 func TestContainerAllUsersPath(t *testing.T) {

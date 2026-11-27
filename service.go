@@ -200,6 +200,9 @@ var (
 	// ErrUnsupportedOperation is returned for an operation that this service
 	// level does not support on this platform.
 	ErrUnsupportedOperation = errors.New("this operation is not supported for this service level on this platform")
+	// ErrNoDesktopSession is returned by systemd AllUsers services when the
+	// user has no desktop session (graphical-session.target is not active).
+	ErrNoDesktopSession = errors.New("the user has no desktop session")
 )
 
 // New creates a new service based on a service interface and configuration.
@@ -532,7 +535,8 @@ type Service interface {
 // privileges, and act on the copy running for every logged-in user.
 // They return ErrUnsupportedOperation for other service levels.
 type AllUsersController interface {
-	// StartAll starts the service for every logged-in user whose copy is not running.
+	// StartAll starts the service for every user logged into a desktop
+	// session whose copy is not running. Users without one are skipped.
 	StartAll() error
 	// StopAll stops every running copy, and returns once they have stopped.
 	StopAll() error

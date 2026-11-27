@@ -178,18 +178,22 @@ func TestSystemdCommandScope(t *testing.T) {
 	tests := []struct {
 		level ServiceLevel
 		scope []string
+		// desktopCheck is whether Start and Restart check for a desktop first.
+		desktopCheck bool
 	}{
-		{ServiceLevelSystem, nil},
-		{ServiceLevelUser, []string{"--user"}},
-		{ServiceLevelAllUsers, []string{"--user"}},
+		{ServiceLevelSystem, nil, false},
+		{ServiceLevelUser, []string{"--user"}, false},
+		{ServiceLevelAllUsers, []string{"--user"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(string(tt.level), func(t *testing.T) {
 			argv := func(args ...string) []string {
 				return append(append([]string{"systemctl"}, tt.scope...), args...)
 			}
+			desktop := argv("is-active", "graphical-session.target")
 			calls := recordCommands(t, map[string]string{
 				strings.Join(argv("is-active", "svc.service"), " "): "inactive\n",
+				strings.Join(desktop, " "):                          "active\n",
 			})
 			s := newSystemd(t, &Config{ServiceLevel: tt.level})
 
@@ -202,16 +206,116 @@ func TestSystemdCommandScope(t *testing.T) {
 			if _, err := s.Status(); !errors.Is(err, ErrNotInstalled) {
 				t.Fatalf("Status err = %v, want %v", err, ErrNotInstalled)
 			}
-			want := [][]string{
+			if err := s.Restart(); err != nil {
+				t.Fatal(err)
+			}
+			var want [][]string
+			if tt.desktopCheck {
+				want = append(want, desktop)
+			}
+			want = append(want,
 				argv("start", "svc.service"),
 				argv("stop", "svc.service"),
 				argv("is-active", "svc.service"),
 				argv("list-unit-files", "-t", "service", "svc.service"),
+			)
+			if tt.desktopCheck {
+				want = append(want, desktop)
 			}
+			want = append(want, argv("restart", "svc.service"))
 			if !reflect.DeepEqual(*calls, want) {
 				t.Errorf("ran %q, want %q", *calls, want)
 			}
 		})
+	}
+}
+
+const desktopCheck = "systemctl --user is-active graphical-session.target"
+
+// desktopStates are answers to the desktop check, as systemctl gives them.
+var desktopStates = []struct {
+	state   string
+	out     string
+	code    int
+	err     error
+	desktop bool
+	// unknown is whether the answer is neither a desktop nor its absence.
+	unknown bool
+}{
+	{"active", "active\n", 0, nil, true, false},
+	{"inactive", "inactive\n", 3, errors.New("exit status 3"), false, false},
+	{"deactivating", "deactivating\n", 3, errors.New("exit status 3"), false, false},
+	{"failed", "failed\n", 3, errors.New("exit status 3"), false, false},
+	{"no output", "", 0, nil, false, true},
+	{"no output, query failed", "", 1, errors.New("exit status 1: Failed to connect to bus"), false, true},
+	{"unknown state", "bogus\n", 3, errors.New("exit status 3"), false, true},
+}
+
+func TestAllUsersStartNeedsDesktop(t *testing.T) {
+	stubPrivileged(t, false)
+	for _, verb := range []string{"start", "restart"} {
+		for _, tt := range desktopStates {
+			t.Run(verb+"/"+tt.state, func(t *testing.T) {
+				calls := stubCommands(t, func(argv []string) (int, string, error) {
+					if strings.Join(argv, " ") == desktopCheck {
+						return tt.code, tt.out, tt.err
+					}
+					return 0, "", nil
+				})
+				s := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers})
+				cmd := map[string]func() error{"start": s.Start, "restart": s.Restart}[verb]
+
+				err := cmd()
+				want := []string{desktopCheck}
+				switch {
+				case tt.desktop:
+					if err != nil {
+						t.Fatalf("err = %v, want nil", err)
+					}
+					want = append(want, "systemctl --user "+verb+" svc.service")
+				case tt.unknown:
+					if err == nil || errors.Is(err, ErrNoDesktopSession) {
+						t.Errorf("err = %v, want an error other than %v", err, ErrNoDesktopSession)
+					}
+				default:
+					if !errors.Is(err, ErrNoDesktopSession) {
+						t.Errorf("err = %v, want %v", err, ErrNoDesktopSession)
+					}
+				}
+				var got []string
+				for _, c := range *calls {
+					got = append(got, strings.Join(c, " "))
+				}
+				if !reflect.DeepEqual(got, want) {
+					t.Errorf("ran %q, want %q", got, want)
+				}
+			})
+		}
+	}
+}
+
+// A copy started some other way can still be inspected and stopped.
+func TestAllUsersStopAndStatusWithoutDesktop(t *testing.T) {
+	stubPrivileged(t, false)
+	calls := stubCommands(t, func(argv []string) (int, string, error) {
+		switch strings.Join(argv, " ") {
+		case desktopCheck:
+			return 3, "inactive\n", errors.New("exit status 3")
+		case "systemctl --user is-active svc.service":
+			return 0, "active\n", nil
+		}
+		return 0, "", nil
+	})
+	s := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers})
+
+	if got, err := s.Status(); err != nil || got != StatusRunning {
+		t.Errorf("Status() = %v, %v, want %v", got, err, StatusRunning)
+	}
+	if err := s.Stop(); err != nil {
+		t.Errorf("Stop err = %v, want nil", err)
+	}
+	if !contains(joinCalls(*calls), "systemctl --user stop svc.service") {
+		t.Errorf("ran %q, want the stop", joinCalls(*calls))
 	}
 }
 
@@ -342,8 +446,9 @@ type cmdResult struct {
 }
 
 // stubAllUsers answers the commands StartAll and StopAll run with
-// loginctlOutput, managerChecks and the given systemd version. override can
-// replace the result of any command by returning non-nil.
+// loginctlOutput, managerChecks and the given systemd version, and says every
+// user is on a desktop. override can replace the result of any command by
+// returning non-nil.
 func stubAllUsers(t *testing.T, version int64, override func(cmd string) *cmdResult) *[][]string {
 	t.Helper()
 	stubPrivileged(t, true)
@@ -356,6 +461,9 @@ func stubAllUsers(t *testing.T, version int64, override func(cmd string) *cmdRes
 		}
 		if out, ok := managerChecks[cmd]; ok {
 			return 0, out, nil
+		}
+		if strings.HasSuffix(cmd, " is-active graphical-session.target") {
+			return 0, "active\n", nil
 		}
 		switch cmd {
 		case loginctlUsers:
@@ -391,29 +499,90 @@ func TestSystemdStopAllCommands(t *testing.T) {
 	}
 }
 
-func TestSystemdStartAllCommands(t *testing.T) {
-	calls := stubAllUsers(t, allUsersVersion, nil)
+// asUser is the command that runs systemctl args in u's manager.
+func asUser(version int64, u loginUser, args ...string) string {
+	return strings.Join(systemctlAsUser(version, u, args...), " ")
+}
 
-	if err := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers}).StartAll(); err != nil {
-		t.Fatal(err)
+func TestSystemdStartAllCommands(t *testing.T) {
+	// Both ways of reaching a user's manager, as the desktop check goes the
+	// same way as the start.
+	for _, version := range []int64{allUsersVersion, 247} {
+		t.Run(fmt.Sprint(version), func(t *testing.T) {
+			calls := stubAllUsers(t, version, nil)
+
+			if err := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers}).StartAll(); err != nil {
+				t.Fatal(err)
+			}
+			want := []string{loginctlUsers, systemctlVer}
+			for _, u := range []loginUser{testAlice, testBob} {
+				want = append(want,
+					asUser(version, u, "daemon-reload"),
+					asUser(version, u, "is-active", "graphical-session.target"),
+					asUser(version, u, "start", "svc.service"))
+			}
+			want = withManagerChecks(want...)
+			if got := joinCalls(*calls); !reflect.DeepEqual(got, want) {
+				t.Errorf("ran %q, want %q", got, want)
+			}
+			for _, u := range []loginUser{testAlice, testBob} {
+				reload := callIndex(*calls, asUser(version, u, "daemon-reload"))
+				check := callIndex(*calls, asUser(version, u, "is-active", "graphical-session.target"))
+				start := callIndex(*calls, asUser(version, u, "start", "svc.service"))
+				if reload > check || check > start {
+					t.Errorf("%s: ran daemon-reload at %d, the desktop check at %d and start at %d, want them in that order",
+						u.name, reload, check, start)
+				}
+			}
+		})
 	}
-	want := []string{loginctlUsers, systemctlVer}
-	for _, u := range []loginUser{testAlice, testBob} {
-		want = append(want,
-			userPrefix(u)+" daemon-reload",
-			userPrefix(u)+" start svc.service")
-	}
-	want = withManagerChecks(want...)
-	if got := joinCalls(*calls); !reflect.DeepEqual(got, want) {
-		t.Errorf("ran %q, want %q", got, want)
-	}
-	// Each user's reload comes before their start.
-	for _, u := range []loginUser{testAlice, testBob} {
-		reload := callIndex(*calls, userPrefix(u)+" daemon-reload")
-		start := callIndex(*calls, userPrefix(u)+" start svc.service")
-		if reload > start {
-			t.Errorf("%s: start ran before daemon-reload", u.name)
+}
+
+func TestSystemdStartAllDesktopCheck(t *testing.T) {
+	for _, tt := range desktopStates {
+		if tt.desktop {
+			continue
 		}
+		t.Run(tt.state, func(t *testing.T) {
+			bobCheck := userPrefix(testBob) + " is-active graphical-session.target"
+			calls := stubAllUsers(t, allUsersVersion, func(cmd string) *cmdResult {
+				if cmd == bobCheck {
+					return &cmdResult{tt.code, tt.out, tt.err}
+				}
+				return nil
+			})
+
+			err := newSystemd(t, &Config{ServiceLevel: ServiceLevelAllUsers}).StartAll()
+			if tt.unknown {
+				if err == nil || errors.Is(err, ErrNoDesktopSession) {
+					t.Fatalf("err = %v, want an error other than %v", err, ErrNoDesktopSession)
+				}
+				var gotUsers []string
+				for _, line := range strings.Split(err.Error(), "\n") {
+					user, _, _ := strings.Cut(line, ": ")
+					gotUsers = append(gotUsers, user)
+				}
+				if want := []string{"bob"}; !reflect.DeepEqual(gotUsers, want) {
+					t.Errorf("StartAll failed for %q, want %q", gotUsers, want)
+				}
+			} else if err != nil {
+				t.Fatalf("err = %v, want nil", err)
+			}
+			got := joinCalls(*calls)
+			for _, c := range []string{
+				userPrefix(testAlice) + " daemon-reload",
+				userPrefix(testAlice) + " start svc.service",
+				userPrefix(testBob) + " daemon-reload",
+				bobCheck,
+			} {
+				if !contains(got, c) {
+					t.Errorf("ran %q, want %q among them", got, c)
+				}
+			}
+			if c := userPrefix(testBob) + " start svc.service"; contains(got, c) {
+				t.Errorf("ran %q for bob, who has no desktop", c)
+			}
+		})
 	}
 }
 
