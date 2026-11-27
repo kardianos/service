@@ -8,14 +8,14 @@ Containers are deleted upon completion.
 
 ### Requirements
 
-* go
+* go 1.20 or later
 * podman
 
 ```
-go -C linux_test/harness run .                          # every target
-go -C linux_test/harness run . -only systemd-debian12   # one target
-go -C linux_test/harness run . -suite lifecycle -run Platform  # part of one suite
-go -C linux_test/harness run . -list                    # targets and suites
+./container-test.sh                                    # every target
+./container-test.sh -only systemd-debian12             # one target
+./container-test.sh -suite lifecycle -run Platform     # part of one suite
+./container-test.sh -list                              # targets and suites
 ```
 
 A suite is marked `Best Effort` when execution is unreliable. If the image fails to boot, or requires cgroup v1, then the suite is skipped.
@@ -55,6 +55,6 @@ podman exec -it kardianos-service-test-systemd-debian12-lifecycle-12345 sh
 1. Create `linux_test/targets/<name>/Dockerfile`. 
 2. Some init systems report success before the boot has finished. If that's the case, have the image write `/run/booted` from a boot script that runs afterwards.  See `targets/openrc-alpine` and `targets/sysv-debian12` fot an example.
 3. Add the target to `targets` in `harness/targets.go`. Mark it `BestEffort` if it may not boot on every host, or `RequiresCgroupV1` if it can't boot on cgroup v2.
-4. Run `go -C linux_test/harness test ./...`.
+4. Run `(cd linux_test/harness && go test ./...)`.
 
 A new init system also needs an entry in `harness/initsys.go`.

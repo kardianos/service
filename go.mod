@@ -1,5 +1,5 @@
 module github.com/kardianos/service
 
-go 1.23.0
+go 1.20
 
-require golang.org/x/sys v0.34.0
+require golang.org/x/sys v0.17.0

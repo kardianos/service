@@ -10,13 +10,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"maps"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"regexp"
-	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -146,7 +145,12 @@ func printList() {
 		fmt.Println(line)
 	}
 	fmt.Println("Suites:")
-	for _, name := range slices.Sorted(maps.Keys(suites)) {
+	names := make([]string, 0, len(suites))
+	for name := range suites {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
 		s := suites[name]
 		tags := s.Tags
 		if tags == "" {

@@ -1,9 +1,6 @@
 package main
 
-import (
-	"fmt"
-	"slices"
-)
+import "fmt"
 
 type Suite struct {
 	Tags    string
@@ -54,17 +51,17 @@ func selectTargets(all []Target, only []string, suite string) ([]Target, error) 
 		}
 	}
 	for _, name := range only {
-		if !slices.ContainsFunc(all, func(t Target) bool { return t.Name == name }) {
+		if !containsFunc(all, func(t Target) bool { return t.Name == name }) {
 			return nil, fmt.Errorf("unknown target %q", name)
 		}
 	}
 	var sel []Target
 	for _, t := range all {
-		if len(only) > 0 && !slices.Contains(only, t.Name) {
+		if len(only) > 0 && !contains(only, t.Name) {
 			continue
 		}
 		if suite != "" {
-			if !slices.Contains(t.Suites, suite) {
+			if !contains(t.Suites, suite) {
 				continue
 			}
 			t.Suites = []string{suite}
