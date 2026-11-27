@@ -384,20 +384,15 @@ func (s *systemd) Status() (Status, error) {
 		return StatusUnknown, err
 	}
 	_, out, err := s.runWithOutput("is-active", s.unitName())
-	// systemctl prints no state when it fails itself, e.g. it can't reach
-	// the user's bus over su, sudo or cron
-	if strings.TrimSpace(out) == "" {
-		if err == nil {
-			err = errors.New("systemctl is-active reported no state")
-		}
-		return StatusUnknown, err
-	}
-
-	switch {
-	case strings.HasPrefix(out, "active"):
+	switch state := strings.TrimSpace(out); state {
+	case "active", "reloading", "refreshing", "activating":
 		return StatusRunning, nil
-	case strings.HasPrefix(out, "inactive"):
-		// inactive can also mean its not installed, check unit files
+	case "deactivating", "maintenance": // windows impl reports pending stopped as stopped
+		return StatusStopped, nil
+	// inactive can also mean it's not installed, and older systemd (e.g. 219)
+	// prints unknown for any unit that isn't loaded
+	// check unit files to disambiguate
+	case "inactive", "unknown":
 		exitCode, out, err := s.runWithOutput("list-unit-files", "-t", "service", s.unitName())
 		if exitCode == 0 && err != nil {
 			return StatusUnknown, err
@@ -408,12 +403,17 @@ func (s *systemd) Status() (Status, error) {
 		}
 		// no unit file
 		return StatusUnknown, ErrNotInstalled
-	case strings.HasPrefix(out, "activating"):
-		return StatusRunning, nil
-	case strings.HasPrefix(out, "failed"):
+	case "failed":
 		return StatusUnknown, errors.New("service in failed state")
+	// systemctl prints no state when it fails itself, e.g. it can't reach
+	// the user's bus over su, sudo or cron
+	case "":
+		if err == nil {
+			err = errors.New("systemctl is-active reported no state")
+		}
+		return StatusUnknown, err
 	default:
-		return StatusUnknown, ErrNotInstalled
+		return StatusUnknown, fmt.Errorf("%s is in unexpected state %q", s.unitName(), state)
 	}
 }
 

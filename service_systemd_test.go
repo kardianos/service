@@ -529,6 +529,8 @@ func TestSystemdStatus(t *testing.T) {
 	stubPrivileged(t, false)
 	errExit3 := errors.New("exit status 3")
 	errBus := errors.New("exit status 1: Failed to connect to bus")
+	// errAny matches any error except ErrNotInstalled
+	errAny := errors.New("any error")
 	const (
 		listed   = "UNIT FILE   STATE    PRESET\nsvc.service disabled enabled\n\n1 unit files listed.\n"
 		unlisted = "UNIT FILE STATE PRESET\n\n0 unit files listed.\n"
@@ -545,8 +547,17 @@ func TestSystemdStatus(t *testing.T) {
 		wantErr   error
 	}{
 		{"active", result{"active\n", nil}, result{}, StatusRunning, nil},
+		{"reloading", result{"reloading\n", nil}, result{}, StatusRunning, nil},
+		{"refreshing", result{"refreshing\n", nil}, result{}, StatusRunning, nil},
+		{"activating", result{"activating\n", errExit3}, result{}, StatusRunning, nil},
+		{"deactivating", result{"deactivating\n", errExit3}, result{}, StatusStopped, nil},
+		{"maintenance", result{"maintenance\n", errExit3}, result{}, StatusStopped, nil},
 		{"installed", result{"inactive\n", errExit3}, result{listed, nil}, StatusStopped, nil},
 		{"not installed", result{"inactive\n", errExit3}, result{unlisted, nil}, StatusUnknown, ErrNotInstalled},
+		{"unknown installed", result{"unknown\n", errExit3}, result{listed, nil}, StatusStopped, nil},
+		{"unknown not installed", result{"unknown\n", errExit3}, result{unlisted, nil}, StatusUnknown, ErrNotInstalled},
+		{"failed", result{"failed\n", errExit3}, result{}, StatusUnknown, errAny},
+		{"unexpected state", result{"bogus\n", errExit3}, result{}, StatusUnknown, errAny},
 		{"query failed", result{"", errBus}, result{}, StatusUnknown, errBus},
 	}
 	for _, level := range []ServiceLevel{ServiceLevelSystem, ServiceLevelUser} {
@@ -560,7 +571,11 @@ func TestSystemdStatus(t *testing.T) {
 					return 0, r.out, r.err
 				})
 				got, err := newSystemd(t, &Config{ServiceLevel: level}).Status()
-				if !errors.Is(err, tt.wantErr) {
+				if tt.wantErr == errAny {
+					if err == nil || errors.Is(err, ErrNotInstalled) {
+						t.Fatalf("err = %v, want an error other than %v", err, ErrNotInstalled)
+					}
+				} else if !errors.Is(err, tt.wantErr) {
 					t.Fatalf("err = %v, want %v", err, tt.wantErr)
 				}
 				if got != tt.want {
