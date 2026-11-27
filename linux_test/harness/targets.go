@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"slices"
+
+	"golang.org/x/exp/slices"
 )
 
 type Suite struct {

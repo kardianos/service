@@ -1,8 +1,9 @@
 package main
 
 import (
-	"slices"
 	"testing"
+
+	"golang.org/x/exp/slices"
 )
 
 func TestPodmanArgs(t *testing.T) {

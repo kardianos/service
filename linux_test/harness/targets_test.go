@@ -3,8 +3,9 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"slices"
 	"testing"
+
+	"golang.org/x/exp/slices"
 )
 
 func TestTargetTable(t *testing.T) {

@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"syscall"
 )
 
@@ -57,7 +56,12 @@ func trusted(uid, gid uint32, mode os.FileMode) bool {
 		return true
 	}
 
-	return slices.Contains(trustedGroups, gid)
+	for _, g := range trustedGroups {
+		if g == gid {
+			return true
+		}
+	}
+	return false
 }
 
 // ownerStat returns the owner, group and mode of path. Replaced in tests.

@@ -5,6 +5,7 @@ package service
 import (
 	"errors"
 	"os/exec"
+	"sync"
 	"testing"
 	"time"
 )
@@ -90,5 +91,56 @@ func TestExecCommandLargeStderr(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("execCommand hung on a command that fills stderr")
+	}
+}
+
+func TestForEachUser(t *testing.T) {
+	errBob := errors.New("boom")
+	errCarol := errors.New("bang")
+	label := func(u string) string { return "user " + u }
+	tests := []struct {
+		name    string
+		fail    map[string]error
+		wantErr string
+	}{
+		{name: "all succeed"},
+		{name: "one fails", fail: map[string]error{"bob": errBob}, wantErr: "user bob: boom"},
+		{
+			name:    "two fail",
+			fail:    map[string]error{"bob": errBob, "carol": errCarol},
+			wantErr: "user bob: boom\nuser carol: bang",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			users := []string{"alice", "bob", "carol", "dave"}
+			var mu sync.Mutex
+			visits := map[string]int{}
+			err := forEachUser(users, label, func(u string) error {
+				mu.Lock()
+				visits[u]++
+				mu.Unlock()
+				return tt.fail[u]
+			})
+			for _, u := range users {
+				if visits[u] != 1 {
+					t.Errorf("visits[%s] = %d, want 1", u, visits[u])
+				}
+			}
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("err = %v, want nil", err)
+				}
+				return
+			}
+			if err == nil || err.Error() != tt.wantErr {
+				t.Fatalf("err = %v, want %q", err, tt.wantErr)
+			}
+			for u, want := range tt.fail {
+				if !errors.Is(err, want) {
+					t.Errorf("errors.Is(err, %s's error) = false, want true", u)
+				}
+			}
+		})
 	}
 }

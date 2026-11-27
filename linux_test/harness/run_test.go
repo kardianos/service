@@ -8,10 +8,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/exp/slices"
 )
 
 // fakeRuntime gives a scripted boot, test list and test result. Thus the tests
