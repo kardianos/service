@@ -524,3 +524,49 @@ func TestManagerRunning(t *testing.T) {
 		})
 	}
 }
+
+func TestSystemdStatus(t *testing.T) {
+	stubPrivileged(t, false)
+	errExit3 := errors.New("exit status 3")
+	errBus := errors.New("exit status 1: Failed to connect to bus")
+	const (
+		listed   = "UNIT FILE   STATE    PRESET\nsvc.service disabled enabled\n\n1 unit files listed.\n"
+		unlisted = "UNIT FILE STATE PRESET\n\n0 unit files listed.\n"
+	)
+	type result struct {
+		out string
+		err error
+	}
+	tests := []struct {
+		name      string
+		isActive  result
+		unitFiles result
+		want      Status
+		wantErr   error
+	}{
+		{"active", result{"active\n", nil}, result{}, StatusRunning, nil},
+		{"installed", result{"inactive\n", errExit3}, result{listed, nil}, StatusStopped, nil},
+		{"not installed", result{"inactive\n", errExit3}, result{unlisted, nil}, StatusUnknown, ErrNotInstalled},
+		{"query failed", result{"", errBus}, result{}, StatusUnknown, errBus},
+	}
+	for _, level := range []ServiceLevel{ServiceLevelSystem, ServiceLevelUser} {
+		for _, tt := range tests {
+			t.Run(string(level)+"/"+tt.name, func(t *testing.T) {
+				stubCommands(t, func(argv []string) (int, string, error) {
+					r := tt.isActive
+					if strings.Contains(strings.Join(argv, " "), " list-unit-files ") {
+						r = tt.unitFiles
+					}
+					return 0, r.out, r.err
+				})
+				got, err := newSystemd(t, &Config{ServiceLevel: level}).Status()
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("err = %v, want %v", err, tt.wantErr)
+				}
+				if got != tt.want {
+					t.Errorf("status = %v, want %v", got, tt.want)
+				}
+			})
+		}
+	}
+}

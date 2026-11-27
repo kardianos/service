@@ -383,8 +383,13 @@ func (s *systemd) Status() (Status, error) {
 	if err := s.userContextRequired(); err != nil {
 		return StatusUnknown, err
 	}
-	exitCode, out, err := s.runWithOutput("is-active", s.unitName())
-	if exitCode == 0 && err != nil {
+	_, out, err := s.runWithOutput("is-active", s.unitName())
+	// systemctl prints no state when it fails itself, e.g. it can't reach
+	// the user's bus over su, sudo or cron
+	if strings.TrimSpace(out) == "" {
+		if err == nil {
+			err = errors.New("systemctl is-active reported no state")
+		}
 		return StatusUnknown, err
 	}
 
