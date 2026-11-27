@@ -22,6 +22,7 @@ import (
 const (
 	ctrName     = "testsvc"
 	ctrExe      = "/usr/local/bin/testsvc"
+	ctrUserDir  = "/etc/systemd/user"
 	ctrUnit     = "/etc/systemd/user/testsvc.service"
 	ctrWantsDir = "/etc/systemd/user/default.target.wants"
 	ctrTestsvc  = "/opt/test/testsvc"
@@ -42,6 +43,40 @@ const (
 )
 
 var ctrUsers = []string{"alice", "bob", "greeter"}
+
+// A fake desktop session. Like gnome-session.target and
+// plasma-workspace.target, the session target pulls in graphical-session.target,
+// which refuses a manual start. As those desktops do, it hands DISPLAY to the
+// manager before graphical-session.target is reached.
+const (
+	ctrDesktop         = "testsvc-desktop.target"
+	ctrDesktopShutdown = "testsvc-desktop-shutdown.target"
+	ctrDisplay         = ":99"
+)
+
+var ctrDesktopUnits = map[string]string{
+	ctrDesktop: `[Unit]
+BindsTo=graphical-session.target
+Before=graphical-session.target
+Wants=testsvc-desktop-env.service
+`,
+	// A bare systemctl needs systemd 239+; Ubuntu 20.04 has no /usr/bin/systemctl.
+	"testsvc-desktop-env.service": `[Unit]
+Before=graphical-session.target
+PartOf=` + ctrDesktop + `
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=systemctl --user set-environment DISPLAY=` + ctrDisplay + `
+ExecStop=systemctl --user unset-environment DISPLAY
+`,
+	// GNOME's logout: gnome-session-shutdown.target conflicts with the session.
+	ctrDesktopShutdown: `[Unit]
+Conflicts=graphical-session.target ` + ctrDesktop + `
+After=graphical-session.target ` + ctrDesktop + `
+`,
+}
 
 func requireContainer(t *testing.T) {
 	t.Helper()
@@ -68,6 +103,12 @@ func setupContainer(t *testing.T) *systemd {
 	}
 	resetContainer(t, s)
 	t.Cleanup(func() { resetContainer(t, s) })
+	// Written before any user manager starts, so none needs a reload.
+	for name, unit := range ctrDesktopUnits {
+		if err := os.WriteFile(filepath.Join(ctrUserDir, name), []byte(unit), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
 	return s
 }
 
@@ -140,6 +181,9 @@ func resetContainer(t *testing.T, s *systemd) {
 	for _, m := range markers {
 		os.Remove(m)
 	}
+	for name := range ctrDesktopUnits {
+		os.Remove(filepath.Join(ctrUserDir, name))
+	}
 	os.Remove("/home/alice/testsvc")
 }
 
@@ -180,6 +224,51 @@ func linger(t *testing.T, s *systemd, u loginUser) {
 	})
 }
 
+// desktopLogin starts u's manager, then a desktop session in it.
+func desktopLogin(t *testing.T, s *systemd, u loginUser) {
+	t.Helper()
+	linger(t, s, u)
+	if out, err := userCtl(s, u, "start", ctrDesktop); err != nil {
+		t.Fatalf("%s: start %s: %v: %s", u.name, ctrDesktop, err, out)
+	}
+	waitForDesktop(t, s, u, "active")
+	// The target only Wants= the environment unit, so its failure is silent.
+	if out, _ := userCtl(s, u, "show-environment"); !strings.Contains("\n"+out+"\n", "\nDISPLAY="+ctrDisplay+"\n") {
+		t.Fatalf("%s's manager has no DISPLAY=%s:\n%s", u.name, ctrDisplay, out)
+	}
+}
+
+// desktopLogout ends u's desktop session the way Plasma does, by stopping the
+// session target.
+func desktopLogout(t *testing.T, s *systemd, u loginUser) {
+	t.Helper()
+	if out, err := userCtl(s, u, "stop", ctrDesktop); err != nil {
+		t.Fatalf("%s: stop %s: %v: %s", u.name, ctrDesktop, err, out)
+	}
+	waitForDesktop(t, s, u, "inactive")
+}
+
+// desktopLogoutGNOME ends u's desktop session the way GNOME does, by starting
+// a target that conflicts with it.
+func desktopLogoutGNOME(t *testing.T, s *systemd, u loginUser) {
+	t.Helper()
+	if out, err := userCtl(s, u, "start", ctrDesktopShutdown); err != nil {
+		t.Fatalf("%s: start %s: %v: %s", u.name, ctrDesktopShutdown, err, out)
+	}
+	waitForDesktop(t, s, u, "inactive")
+}
+
+func waitForDesktop(t *testing.T, s *systemd, u loginUser, state string) {
+	t.Helper()
+	waitFor(t, u.name+"'s graphical-session.target to be "+state, func() bool {
+		out, _ := userCtl(s, u, "is-active", "graphical-session.target")
+		return out == state
+	})
+	if !managerActive(u) {
+		t.Fatalf("%s's user manager stopped", u.name)
+	}
+}
+
 // userCtl runs "systemctl --user args" in u's manager, the way StartAll does.
 func userCtl(s *systemd, u loginUser, args ...string) (string, error) {
 	argv := systemctlAsUser(s.getSystemdVersion(), u, args...)
@@ -198,6 +287,12 @@ func markerPID(name, event string) int {
 	}
 	pid, _ := strconv.Atoi(string(data))
 	return pid
+}
+
+// markerDisplay returns the DISPLAY that name's copy started with.
+func markerDisplay(name string) string {
+	data, _ := os.ReadFile(markerPath(name, "display"))
+	return string(data)
 }
 
 func alive(pid int) bool {
@@ -280,10 +375,10 @@ func TestContainerAllUsersInstall(t *testing.T) {
 		t.Errorf("not enabled: %v", err)
 	}
 
-	linger(t, s, alice)
+	desktopLogin(t, s, alice)
 	running(t, "alice")
 
-	linger(t, s, greeter)
+	desktopLogin(t, s, greeter)
 	never(t, "greeter got a copy", func() bool { return exists(markerPath("greeter", "started")) })
 }
 
@@ -305,13 +400,13 @@ func TestContainerAllUsersStartAll(t *testing.T) {
 	s := setupContainer(t)
 	alice, bob := lookupUser(t, "alice"), lookupUser(t, "bob")
 
-	// alice's manager starts before the unit exists, so it doesn't start her
-	// copy; bob's starts after, so it does.
-	linger(t, s, alice)
+	// alice logs in before the unit exists, so her desktop doesn't start a
+	// copy; bob logs in after, so his does.
+	desktopLogin(t, s, alice)
 	if err := s.Install(); err != nil {
 		t.Fatal(err)
 	}
-	linger(t, s, bob)
+	desktopLogin(t, s, bob)
 	bobPID := running(t, "bob")
 	never(t, "alice got a copy before StartAll", func() bool { return exists(markerPath("alice", "started")) })
 
@@ -333,7 +428,7 @@ func TestContainerAllUsersStopAll(t *testing.T) {
 	}
 	pids := map[string]int{}
 	for _, u := range users {
-		linger(t, s, u)
+		desktopLogin(t, s, u)
 		pids[u.name] = running(t, u.name)
 	}
 
@@ -362,7 +457,7 @@ func TestContainerAllUsersUninstall(t *testing.T) {
 	if err := s.Install(); err != nil {
 		t.Fatal(err)
 	}
-	linger(t, s, alice)
+	desktopLogin(t, s, alice)
 	pid := running(t, "alice")
 
 	if err := s.Uninstall(); err != nil {
@@ -397,7 +492,7 @@ func TestContainerAllUsersUserCommands(t *testing.T) {
 	if err := s.Install(); err != nil {
 		t.Fatal(err)
 	}
-	linger(t, s, alice)
+	desktopLogin(t, s, alice)
 	running(t, "alice")
 
 	for name, cmd := range map[string]func() error{
@@ -461,7 +556,7 @@ func TestContainerAllUsersPath(t *testing.T) {
 	if err := s.Install(); err != nil {
 		t.Fatal(err)
 	}
-	linger(t, s, alice)
+	desktopLogin(t, s, alice)
 
 	var (
 		mu    sync.Mutex

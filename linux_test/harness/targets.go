@@ -42,6 +42,7 @@ var targets = []Target{
 	{Name: "systemd-debian12", Init: systemd, Suites: []string{"unit", "lifecycle", "allusers"}},
 	{Name: "systemd-fedora", Init: systemd, Suites: []string{"unit", "lifecycle", "allusers"}},
 	{Name: "systemd-ubuntu2004", Init: systemd, Suites: []string{"unit", "lifecycle", "allusers"}},
+	{Name: "systemd-rocky9", Init: systemd, Suites: []string{"unit", "lifecycle", "allusers"}},
 	{Name: "systemd-rocky8", Init: systemd, Suites: []string{"unit", "lifecycle", "allusers"}, BestEffort: true},
 	{Name: "systemd-centos7", Init: systemd, Suites: []string{"unit", "allusers"}, BestEffort: true, RequiresCgroupV1: true},
 	{Name: "openrc-alpine", Init: openrc, Suites: []string{"unit", "lifecycle"}},
