@@ -9,12 +9,13 @@ package service
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"log/syslog"
 	"os"
 	"os/exec"
+	"strings"
+	"sync"
 	"syscall"
 )
 
@@ -72,7 +73,7 @@ func runWithOutput(command string, arguments ...string) (int, string, error) {
 var runCommand = execCommand
 
 // isPrivileged reports whether the process runs as root. Replaced in tests.
-var isPrivileged = func() bool { return os.Geteuid() == 0 } //nolint:unused // Used by AllUsers on darwin and systemd.
+var isPrivileged = func() bool { return os.Geteuid() == 0 } //nolint:unused // Unused on freebsd, solaris and aix.
 
 func (c *Config) userServiceLevel() (ServiceLevel, error) {
 	// fallback to the deprecated UserService level if ServiceLevel isn't defined
@@ -82,70 +83,83 @@ func (c *Config) userServiceLevel() (ServiceLevel, error) {
 	return c.serviceLevel()
 }
 
+func (c *Config) requireSystemLevel() error {
+	level, err := c.serviceLevel() // defaults to system if unset
+	if err != nil {
+		return err
+	}
+	if level != ServiceLevelSystem {
+		return ErrUnsupportedServiceLevel
+	}
+	return nil
+}
+
+// forEachUser runs f for every user concurrently
+func forEachUser[U any](users []U, label func(U) string, f func(U) error) error { //nolint:unused // Unused on freebsd, solaris and aix.
+	errs := make([]error, len(users))
+	var wg sync.WaitGroup
+	for i, u := range users {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := f(u); err != nil {
+				errs[i] = fmt.Errorf("%s: %w", label(u), err)
+			}
+		}()
+	}
+	wg.Wait()
+	return errors.Join(errs...)
+}
+
 func execCommand(command string, readStdout bool, arguments ...string) (int, string, error) {
 	cmd := exec.Command(command, arguments...)
 
-	var output string
-	var stdout io.ReadCloser
-	var err error
-
+	var stdout bytes.Buffer
 	if readStdout {
-		// Connect pipe to read Stdout
-		stdout, err = cmd.StdoutPipe()
-
-		if err != nil {
-			// Failed to connect pipe
-			return 0, "", fmt.Errorf("%q failed to connect stdout pipe: %v", command, err)
-		}
+		cmd.Stdout = &stdout
 	}
 
-	// Connect pipe to read Stderr
-	stderr, err := cmd.StderrPipe()
+	stderr := &cappedBuffer{max: maxStderr}
+	cmd.Stderr = stderr
 
-	if err != nil {
-		// Failed to connect pipe
-		return 0, "", fmt.Errorf("%q failed to connect stderr pipe: %v", command, err)
+	err := cmd.Run()
+	slurp := stderr.buf.Bytes()
+
+	// launchctl can fail with a zero exit status, so non-empty stderr is the
+	// only sign of failure.
+	if command == "launchctl" && len(slurp) > 0 && !bytes.HasSuffix(slurp, []byte("Operation now in progress\n")) {
+		exitStatus, _ := isExitError(err)
+		return exitStatus, "", fmt.Errorf("%q failed with stderr: %s", command, slurp)
 	}
 
-	// Do not use cmd.Run()
-	if err := cmd.Start(); err != nil {
-		// Problem while copying stdin, stdout, or stderr
-		return 0, "", fmt.Errorf("%q failed: %v", command, err)
+	output := stdout.String()
+	if err == nil {
+		return 0, output, nil
 	}
-
-	// Zero exit status
-	// Darwin: launchctl can fail with a zero exit status,
-	// so check for emtpy stderr
-	if command == "launchctl" {
-		slurp, _ := ioutil.ReadAll(stderr)
-		if len(slurp) > 0 && !bytes.HasSuffix(slurp, []byte("Operation now in progress\n")) {
-			// Keep the exit code, so callers can tell launchctl's errors apart.
-			exitStatus, _ := isExitError(cmd.Wait())
-			return exitStatus, "", fmt.Errorf("%q failed with stderr: %s", command, slurp)
-		}
-	}
-
-	if readStdout {
-		out, err := ioutil.ReadAll(stdout)
-		if err != nil {
-			return 0, "", fmt.Errorf("%q failed while attempting to read stdout: %v", command, err)
-		} else if len(out) > 0 {
-			output = string(out)
-		}
-	}
-
-	if err := cmd.Wait(); err != nil {
-		exitStatus, ok := isExitError(err)
-		if ok {
-			// Command didn't exit with a zero exit status.
-			return exitStatus, output, err
-		}
-
-		// An error occurred and there is no exit status.
+	exitStatus, ok := isExitError(err)
+	if !ok {
 		return 0, output, fmt.Errorf("%q failed: %v", command, err)
 	}
+	if msg := strings.TrimSpace(string(slurp)); msg != "" {
+		err = fmt.Errorf("%w: %s", err, msg)
+	}
+	return exitStatus, output, err
+}
 
-	return 0, output, nil
+const maxStderr = 16 << 10
+
+// cappedBuffer drops writes past max but reports them as written, so the
+// command never sees a short write.
+type cappedBuffer struct {
+	buf bytes.Buffer
+	max int
+}
+
+func (b *cappedBuffer) Write(p []byte) (int, error) {
+	if room := b.max - b.buf.Len(); room > 0 {
+		b.buf.Write(p[:min(len(p), room)])
+	}
+	return len(p), nil
 }
 
 func isExitError(err error) (int, bool) {

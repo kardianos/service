@@ -27,6 +27,9 @@ func (freebsdSystem) Interactive() bool {
 	return interactive
 }
 func (freebsdSystem) New(i Interface, c *Config) (Service, error) {
+	if err := c.requireSystemLevel(); err != nil {
+		return nil, err
+	}
 	s := &freebsdService{
 		i:      i,
 		Config: c,

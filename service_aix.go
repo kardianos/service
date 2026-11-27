@@ -41,6 +41,9 @@ func (aixSystem) Interactive() bool {
 }
 
 func (aixSystem) New(i Interface, c *Config) (Service, error) {
+	if err := c.requireSystemLevel(); err != nil {
+		return nil, err
+	}
 	return &aixService{
 		i:      i,
 		Config: c,

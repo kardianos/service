@@ -613,13 +613,3 @@ func TestDarwinAllCommandsRunConcurrently(t *testing.T) {
 		}
 	}
 }
-
-func joinCalls(calls [][]string) []string {
-	var out []string
-	for _, c := range calls {
-		out = append(out, strings.Join(c, " "))
-	}
-	// calls are run concurrently, so there's no guarantee of order
-	sort.Strings(out)
-	return out
-}
