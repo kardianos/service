@@ -111,26 +111,48 @@ func TestSystemdRender(t *testing.T) {
 	}
 }
 
+// unitSection returns the body of section name in a rendered unit.
+func unitSection(unit, name string) string {
+	_, after, ok := strings.Cut(unit, "["+name+"]\n")
+	if !ok {
+		return ""
+	}
+	body, _, _ := strings.Cut(after, "\n[")
+	return "\n" + body
+}
+
 func TestSystemdRenderByLevel(t *testing.T) {
 	cases := []struct {
-		level   ServiceLevel
-		want    []string
-		notWant []string
+		level     ServiceLevel
+		want      []string
+		notWant   []string
+		inUnit    []string
+		inInstall []string
 	}{
 		{
-			level:   ServiceLevelSystem,
-			want:    []string{"WantedBy=multi-user.target\n", "User=bob\n", "StandardOutput=file:"},
-			notWant: []string{"ConditionUser="},
+			level:     ServiceLevelSystem,
+			want:      []string{"User=bob\n", "StandardOutput=file:"},
+			notWant:   []string{"ConditionUser=", "graphical-session.target"},
+			inInstall: []string{"\nWantedBy=multi-user.target\n"},
 		},
 		{
-			level:   ServiceLevelUser,
-			want:    []string{"WantedBy=default.target\n", "StandardOutput=file:"},
-			notWant: []string{"User=", "ConditionUser=", "multi-user.target"},
+			level:     ServiceLevelUser,
+			want:      []string{"StandardOutput=file:"},
+			notWant:   []string{"User=", "ConditionUser=", "multi-user.target", "graphical-session.target"},
+			inInstall: []string{"\nWantedBy=default.target\n"},
 		},
 		{
-			level:   ServiceLevelAllUsers,
-			want:    []string{"WantedBy=default.target\n", "\nConditionUser=!@system\n"},
-			notWant: []string{"User=bob", "StandardOutput=", "StandardError=", "multi-user.target"},
+			level: ServiceLevelAllUsers,
+			notWant: []string{
+				"User=bob", "StandardOutput=", "StandardError=",
+				"multi-user.target", "default.target", "Requisite=",
+			},
+			inUnit: []string{
+				"\nConditionUser=!@system\n",
+				"\nPartOf=graphical-session.target\n",
+				"\nAfter=graphical-session.target\n",
+			},
+			inInstall: []string{"\nWantedBy=graphical-session.target\n"},
 		},
 	}
 	for _, tc := range cases {
@@ -148,6 +170,14 @@ func TestSystemdRenderByLevel(t *testing.T) {
 			for _, w := range tc.notWant {
 				if strings.Contains(got, w) {
 					t.Errorf("unexpected %q in\n%s", w, got)
+				}
+			}
+			for section, wants := range map[string][]string{"Unit": tc.inUnit, "Install": tc.inInstall} {
+				body := unitSection(got, section)
+				for _, w := range wants {
+					if !strings.Contains(body, w) {
+						t.Errorf("missing %q in [%s] of\n%s", w, section, got)
+					}
 				}
 			}
 		})

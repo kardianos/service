@@ -246,7 +246,25 @@ func (s *systemd) Install() error {
 			return err
 		}
 	}
+	if s.level == ServiceLevelAllUsers {
+		return s.reloadAll()
+	}
 	return nil
+}
+
+// reloadAll makes running user managers load the new unit, so it starts at
+// their next desktop login without waiting for the manager to restart.
+func (s *systemd) reloadAll() error {
+	users, version, err := s.listAllUsers()
+	if err != nil {
+		return err
+	}
+	return forEachUser(users, loginUser.label, func(u loginUser) error {
+		if running, err := managerRunning(u); err != nil || !running {
+			return err
+		}
+		return runAsUser(version, u, "daemon-reload")
+	})
 }
 
 func (s *systemd) writeUnit(path, content string) error {
@@ -305,7 +323,7 @@ func (s *systemd) templateData(path string) map[string]any {
 	case ServiceLevelUser:
 		wantedBy, userScope = "default.target", "yes"
 	case ServiceLevelAllUsers:
-		wantedBy, userScope, allUsers = "default.target", "yes", "yes"
+		wantedBy, userScope, allUsers = "graphical-session.target", "yes", "yes"
 	}
 
 	return map[string]any{
@@ -480,12 +498,10 @@ func (s *systemd) StartAll() error {
 			return err
 		}
 		// Picks up a unit file added or changed since the manager started.
-		reload := systemctlAsUser(version, u, "daemon-reload")
-		if err := run(reload[0], reload[1:]...); err != nil {
+		if err := runAsUser(version, u, "daemon-reload"); err != nil {
 			return err
 		}
-		start := systemctlAsUser(version, u, "start", s.unitName())
-		return run(start[0], start[1:]...)
+		return runAsUser(version, u, "start", s.unitName())
 	})
 }
 
@@ -579,6 +595,11 @@ func systemctlAsUser(version int64, u loginUser, args ...string) []string {
 	}, args...)
 }
 
+func runAsUser(version int64, u loginUser, args ...string) error {
+	argv := systemctlAsUser(version, u, args...)
+	return run(argv[0], argv[1:]...)
+}
+
 // systemdScript is expanded by the mini template engine (renderTemplate).
 // {{if}}/{{range}} operate on plain string / []string values built in Install;
 // compound conditions such as "and .LogOutput .HasOutputFileSupport" or
@@ -587,6 +608,8 @@ const systemdScript = `[Unit]
 Description={{Description}}
 ConditionFileIsExecutable={{Path | cmdEscape}}
 {{if AllUsers}}ConditionUser=!@system
+PartOf=graphical-session.target
+After=graphical-session.target
 {{end}}{{range Dependencies}}{{.}}
 {{end}}
 [Service]

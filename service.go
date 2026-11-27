@@ -113,9 +113,19 @@ const (
 type ServiceLevel string
 
 const (
-	ServiceLevelSystem   ServiceLevel = "system"   // Runs once for the whole machine.
-	ServiceLevelAllUsers ServiceLevel = "allusers" // Installed once, runs in every user's session.
-	ServiceLevelUser     ServiceLevel = "user"     // Runs only for the user who installed it.
+	// ServiceLevelSystem runs once for the whole machine.
+	ServiceLevelSystem ServiceLevel = "system"
+	// ServiceLevelAllUsers is installed once and runs in each user's desktop
+	// session. On systemd it needs a desktop that starts
+	// graphical-session.target (GNOME 3.34+, KDE Plasma 5.25+ with systemd
+	// startup, Cinnamon 6+) and never runs for SSH, TTY or linger sessions;
+	// other desktops (RHEL/Rocky 8's GNOME, Xfce, MATE, LXQt) get no copy.
+	// Install reloads running user managers: an error returned after the unit
+	// is written means it is installed but the named users' managers were not
+	// reloaded.
+	ServiceLevelAllUsers ServiceLevel = "allusers"
+	// ServiceLevelUser runs only for the user who installed it.
+	ServiceLevelUser ServiceLevel = "user"
 )
 
 // Config provides the setup for a Service. The Name field is required.

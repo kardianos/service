@@ -24,7 +24,7 @@ const (
 	ctrExe      = "/usr/local/bin/testsvc"
 	ctrUserDir  = "/etc/systemd/user"
 	ctrUnit     = "/etc/systemd/user/testsvc.service"
-	ctrWantsDir = "/etc/systemd/user/default.target.wants"
+	ctrWantsDir = "/etc/systemd/user/graphical-session.target.wants"
 	ctrTestsvc  = "/opt/test/testsvc"
 	// The harness writes this file after boot. The guard does not use
 	// /proc/1/environ, because the helper runs as alice and cannot read it.
@@ -299,11 +299,6 @@ func alive(pid int) bool {
 	return pid > 0 && exists(fmt.Sprintf("/proc/%d", pid))
 }
 
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
 // running waits for name's copy to start, and returns its PID.
 func running(t *testing.T, name string) int {
 	t.Helper()
@@ -359,7 +354,7 @@ func tryRun(name string, args ...string) (string, error) {
 
 func TestContainerAllUsersInstall(t *testing.T) {
 	s := setupContainer(t)
-	alice, greeter := lookupUser(t, "alice"), lookupUser(t, "greeter")
+	alice, bob, greeter := lookupUser(t, "alice"), lookupUser(t, "bob"), lookupUser(t, "greeter")
 
 	if err := s.Install(); err != nil {
 		t.Fatal(err)
@@ -374,12 +369,94 @@ func TestContainerAllUsersInstall(t *testing.T) {
 	if _, err := os.Lstat(filepath.Join(ctrWantsDir, ctrName+".service")); err != nil {
 		t.Errorf("not enabled: %v", err)
 	}
+	if _, err := os.Lstat(filepath.Join(ctrUserDir, "default.target.wants", ctrName+".service")); err == nil {
+		t.Error("enabled in default.target.wants")
+	}
 
 	desktopLogin(t, s, alice)
 	running(t, "alice")
+	if got := markerDisplay("alice"); got != ctrDisplay {
+		t.Errorf("alice's copy has DISPLAY=%q, want %q", got, ctrDisplay)
+	}
 
+	linger(t, s, bob)
 	desktopLogin(t, s, greeter)
-	never(t, "greeter got a copy", func() bool { return exists(markerPath("greeter", "started")) })
+	never(t, "a user without a desktop, or a system user, got a copy", func() bool {
+		return exists(markerPath("bob", "started")) || exists(markerPath("greeter", "started"))
+	})
+}
+
+func TestContainerAllUsersDesktopLogout(t *testing.T) {
+	logouts := map[string]func(*testing.T, *systemd, loginUser){
+		"Plasma": desktopLogout,
+		"GNOME":  desktopLogoutGNOME,
+	}
+	for name, logout := range logouts {
+		t.Run(name, func(t *testing.T) {
+			s := setupContainer(t)
+			alice := lookupUser(t, "alice")
+
+			if err := s.Install(); err != nil {
+				t.Fatal(err)
+			}
+			desktopLogin(t, s, alice)
+			pid := running(t, "alice")
+
+			logout(t, s, alice)
+			waitFor(t, "alice's copy to stop", func() bool { return !alive(pid) })
+			if markerPID("alice", "stopped") != pid {
+				t.Error("alice's copy exited without running Stop")
+			}
+			if !managerActive(alice) {
+				t.Fatal("alice's user manager stopped")
+			}
+
+			desktopLogin(t, s, alice)
+			if again := running(t, "alice"); again == pid {
+				t.Errorf("no new copy after logging in again: PID %d", again)
+			}
+		})
+	}
+}
+
+// A user whose manager already runs, and has loaded graphical-session.target,
+// gets a copy at their next desktop login without StartAll.
+func TestContainerAllUsersManagerRunningAtInstall(t *testing.T) {
+	s := setupContainer(t)
+	alice := lookupUser(t, "alice")
+
+	const loader = "testsvc-loader.service"
+	wants := filepath.Join(ctrUserDir, "default.target.wants")
+	link := filepath.Join(wants, loader)
+	if err := os.WriteFile(filepath.Join(ctrUserDir, loader), []byte(`[Unit]
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(wants, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(ctrUserDir, loader), link); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		os.Remove(link)
+		os.Remove(filepath.Join(ctrUserDir, loader))
+	})
+
+	linger(t, s, alice)
+	if err := s.Install(); err != nil {
+		t.Fatal(err)
+	}
+	never(t, "Install started a copy without a desktop", func() bool { return exists(markerPath("alice", "started")) })
+
+	desktopLogin(t, s, alice)
+	running(t, "alice")
 }
 
 func TestContainerAllUsersOwnership(t *testing.T) {
@@ -465,6 +542,9 @@ func TestContainerAllUsersUninstall(t *testing.T) {
 	}
 	if exists(ctrUnit) {
 		t.Error("unit file is still there")
+	}
+	if _, err := os.Lstat(filepath.Join(ctrWantsDir, ctrName+".service")); err == nil {
+		t.Error("enable link is still there")
 	}
 	never(t, "Uninstall stopped alice's copy", func() bool { return !alive(pid) })
 
@@ -612,13 +692,4 @@ func TestContainerAllUsersMinVersion(t *testing.T) {
 	if exists(ctrUnit) {
 		t.Error("unit file was written")
 	}
-}
-
-func contains(ss []string, s string) bool {
-	for _, v := range ss {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }
